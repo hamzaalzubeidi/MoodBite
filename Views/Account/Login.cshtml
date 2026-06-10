@@ -1,0 +1,76 @@
+@model MoodBite.ViewModels.Account.LoginViewModel
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("auth.login");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+}
+
+<div class="auth-page">
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-100 py-5">
+            <div class="col-md-5 col-lg-4">
+                <div class="auth-card fade-in" style="border-radius:24px">
+                    <div class="auth-logo">
+                        <div class="auth-logo-icon">🌿</div>
+                        <h4 class="auth-brand">MoodBite</h4>
+                    </div>
+                    <h2 class="auth-title">@T.Get("auth.login")</h2>
+                    <p class="auth-subtitle">@(isRtl ? "مرحباً بعودتك!" : "Welcome back!")</p>
+
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Login" method="post">
+                        <input asp-for="ReturnUrl" type="hidden" />
+                        <div class="mb-3">
+                            <label asp-for="Email" class="form-label">@T.Get("auth.email")</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                <input asp-for="Email" class="form-control" placeholder="@(isRtl ? "البريد الإلكتروني" : "Email address")" autocomplete="email" />
+                            </div>
+                            <span asp-validation-for="Email" class="text-danger small"></span>
+                        </div>
+                        <div class="mb-4">
+                            <label asp-for="Password" class="form-label">@T.Get("auth.password")</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                <input asp-for="Password" class="form-control" placeholder="@(isRtl ? "كلمة المرور" : "Password")" autocomplete="current-password" id="passwordInput" />
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('passwordInput', this)">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <span asp-validation-for="Password" class="text-danger small"></span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="form-check">
+                                <input asp-for="RememberMe" class="form-check-input" type="checkbox" />
+                                <label asp-for="RememberMe" class="form-check-label small">@T.Get("auth.rememberMe")</label>
+                            </div>
+                            <a asp-action="ForgotPassword" class="text-primary small text-decoration-none">@T.Get("auth.forgotPassword")</a>
+                        </div>
+                        <button type="submit" class="btn-primary-custom w-100 btn-lg-custom">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            @T.Get("auth.login")
+                        </button>
+                    </form>
+
+                    <p class="text-center mt-4 mb-0" style="color:var(--text-secondary);font-size:.9rem">
+                        @(isRtl ? "ليس لديك حساب؟" : "Don't have an account?")
+                        <a asp-action="Register" class="text-primary fw-600 text-decoration-none">@T.Get("auth.register")</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

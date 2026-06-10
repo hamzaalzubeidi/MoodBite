@@ -1,0 +1,23 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = "Access Denied";
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+}
+
+<div class="container py-5 text-center">
+    <div style="font-size:4rem;margin-bottom:16px">🚫</div>
+    <h1 style="font-weight:800;color:var(--text-primary);margin-bottom:12px">
+        @(isRtl ? "غير مصرح بالوصول" : "Access Denied")
+    </h1>
+    <p style="color:var(--text-secondary);max-width:400px;margin:0 auto 32px">
+        @(isRtl
+            ? "ليس لديك صلاحية للوصول إلى هذه الصفحة."
+            : "You don't have permission to access this page.")
+    </p>
+    <a asp-controller="Home" asp-action="Index" class="btn-primary-custom btn-lg-custom">
+        <i class="bi bi-house"></i>
+        @(isRtl ? "العودة للرئيسية" : "Back to Home")
+    </a>
+</div>

@@ -1,0 +1,559 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.scanner");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+}
+
+@section Styles {
+<style>
+/* Photo drop zone */
+.photo-drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-xl);
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    transition: border-color .2s, background .2s;
+    cursor: pointer;
+    position: relative;
+}
+.photo-drop-zone:hover, .photo-drop-zone.dragging {
+    border-color: var(--primary);
+    background: var(--primary-50);
+}
+.photo-drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+/* Camera btn (mobile prominence) */
+.camera-cta {
+    display: flex; flex-direction: column; align-items: center;
+    gap: .75rem; padding: 2rem 1rem;
+}
+.camera-btn-big {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    display: flex; align-items: center; justify-content: center;
+    color: #000; font-size: 1.8rem;
+    box-shadow: var(--shadow-glow);
+    border: none; cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+}
+.camera-btn-big:hover { transform: scale(1.08); box-shadow: var(--shadow-glow-lg); }
+/* Preview image */
+#photoPreview { max-height: 260px; border-radius: var(--radius-lg); object-fit: cover; width: 100%; }
+/* Confidence badge */
+.conf-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: .85rem; font-weight: 700; padding: 4px 12px;
+    border-radius: 99px; color: white;
+}
+.conf-high   { background: var(--primary); color: #000; }
+.conf-medium { background: var(--warning); }
+.conf-low    { background: var(--danger);  }
+/* Macro pill */
+.macro-pill {
+    display: flex; flex-direction: column; align-items: center;
+    padding: .75rem .5rem; border-radius: var(--radius-lg);
+    background: var(--surface-2); flex: 1; min-width: 0;
+}
+/* Alternative card */
+.alt-card {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .6rem 1rem; border-radius: var(--radius-md);
+    background: var(--surface-2); gap: .5rem; font-size: .85rem;
+    cursor: pointer; transition: background .15s;
+}
+.alt-card:hover { background: var(--surface-3); }
+/* Shimmer loading */
+.scan-shimmer { animation: shimmer 1.4s infinite linear; background: linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3) 50%,var(--surface-2) 75%); background-size: 400% 100%; border-radius: var(--radius-md); }
+@@keyframes scanPulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+.scan-pulse { animation: scanPulse 1.2s infinite; }
+</style>
+}
+
+<div class="container py-4">
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+    <!-- Page header -->
+    <div class="text-center mb-4 fade-in">
+        <div class="section-tag mb-2">@(isRtl?"تحليل الطعام":"Food Analysis")</div>
+        <h1 style="font-weight:800;font-size:1.8rem">@T.Get("nav.scanner")</h1>
+        <p style="color:var(--text-secondary)">
+            @(isRtl?"صوّر طعامك أو امسح الباركود للحصول على القيم الغذائية":"Photograph your food or scan a barcode for nutritional values")
+        </p>
+    </div>
+
+    <!-- Mode tabs -->
+    <div class="tabs-container mb-4" data-tabs-container>
+        <button class="tab-btn active" data-tab-target="photo-tab">
+            <i class="bi bi-camera"></i> @(isRtl?"تحليل الصورة":"Photo Analysis")
+        </button>
+        <button class="tab-btn" data-tab-target="barcode-tab">
+            <i class="bi bi-upc-scan"></i> @(isRtl?"باركود":"Barcode")
+        </button>
+        <a asp-action="MyScanHistory" class="tab-btn ms-auto" style="text-decoration:none">
+            <i class="bi bi-clock-history"></i> @(isRtl?"سجلّي":"History")
+        </a>
+    </div>
+
+    <!-- ── PHOTO TAB ──────────────────────────────────────────────────── -->
+    <div id="tab-photo-tab">
+
+        <!-- Upload zone (hidden file input triggered by camera btn + drop zone) -->
+        <input type="file" id="photoFileInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(this)" />
+
+        <!-- Mobile-first camera CTA -->
+        <div id="uploadZone" class="card-glass p-0 mb-4 overflow-hidden">
+            <div class="camera-cta" id="cameraCta">
+                <button class="camera-btn-big" onclick="document.getElementById('photoFileInput').click()" type="button">
+                    <i class="bi bi-camera-fill"></i>
+                </button>
+                <div>
+                    <div style="font-weight:700;font-size:1rem">@(isRtl?"التقط صورة أو ارفع من معرض الصور":"Take a photo or upload from gallery")</div>
+                    <div style="font-size:.8rem;color:var(--text-secondary);margin-top:4px">
+                        JPEG, PNG, WebP — @(isRtl?"حتى 8 ميغابايت":"up to 8 MB")
+                    </div>
+                </div>
+                <!-- Desktop drop zone -->
+                <div class="photo-drop-zone d-none d-md-block" style="width:100%;max-width:320px" id="dropZone">
+                    <input type="file" accept="image/*" onchange="onPhotoSelected(this)" />
+                    <i class="bi bi-cloud-arrow-up" style="font-size:1.6rem;color:var(--text-muted)"></i>
+                    <div class="mt-2 text-muted small">@(isRtl?"اسحب وأفلت الصورة هنا":"Drag & drop image here")</div>
+                </div>
+            </div>
+
+            <!-- Preview (shown after selection) -->
+            <div id="previewArea" style="display:none">
+                <div style="position:relative">
+                    <img id="photoPreview" src="" alt="preview" />
+                    <button type="button" onclick="resetPhoto()"
+                            style="position:absolute;top:8px;inset-inline-end:8px;background:rgba(0,0,0,.5);border:none;border-radius:50%;width:32px;height:32px;color:white;font-size:.9rem;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="p-3">
+                    <button class="btn-primary-custom w-100" id="analyzeBtn" onclick="analyzePhoto()" type="button">
+                        <i class="bi bi-stars"></i> @(isRtl?"حلّل هذا الطعام":"Analyze this food")
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analyzing state -->
+        <div id="analyzingState" style="display:none" class="card-glass p-5 text-center mb-4">
+            <div class="scan-pulse" style="font-size:3rem;margin-bottom:12px">🔬</div>
+            <div style="font-weight:700;font-size:1rem">@(isRtl?"يتم تحليل الصورة بالذكاء الاصطناعي...":"Analyzing your food with AI...")</div>
+            <div class="text-muted small mt-1">@(isRtl?"قد يستغرق ذلك بضع ثوانٍ":"This may take a few seconds")</div>
+            <div class="mt-3 d-flex gap-2 justify-content-center">
+                @foreach (var _ in Enumerable.Range(0,3)) {
+                    <div class="scan-shimmer" style="height:12px;width:64px"></div>
+                }
+            </div>
+        </div>
+
+        <!-- Error state -->
+        <div id="scanError" class="alert alert-danger mb-4" style="display:none">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <span id="scanErrorMsg"></span>
+        </div>
+
+        <!-- Results panel -->
+        <div id="resultsPanel" style="display:none" class="fade-in">
+
+            <!-- Food identity card -->
+            <div class="card-glass p-4 mb-3">
+                <div class="d-flex align-items-start gap-3 mb-3">
+                    <img id="resultThumb" src="" alt="" style="width:72px;height:72px;border-radius:var(--radius-md);object-fit:cover;flex-shrink:0" />
+                    <div style="flex:1;min-width:0">
+                        <h4 id="resultFoodName" style="font-weight:800;margin:0 0 4px"></h4>
+                        <div id="resultServingSize" class="text-muted small mb-2"></div>
+                        <span id="confBadge" class="conf-badge conf-high">
+                            <i class="bi bi-patch-check-fill"></i>
+                            <span id="confValue"></span>
+                        </span>
+                    </div>
+                </div>
+                <div id="resultDescription" class="text-muted small" style="font-style:italic"></div>
+            </div>
+
+            <!-- Macro breakdown -->
+            <div class="card-glass p-4 mb-3">
+                <h6 style="font-weight:700;margin-bottom:12px">
+                    <i class="bi bi-pie-chart-fill text-primary me-2"></i>
+                    @(isRtl?"القيم الغذائية للحصة":"Nutritional values per serving")
+                </h6>
+                <div class="d-flex gap-2">
+                    <div class="macro-pill">
+                        <div style="font-size:1.3rem"><i data-lucide="flame" class="icon-green"></i></div>
+                        <div style="font-weight:800;font-size:1.1rem;color:var(--primary)" id="resCal">—</div>
+                        <div style="font-size:.7rem;color:var(--text-secondary)">@(isRtl?"كسع":"Cal")</div>
+                    </div>
+                    <div class="macro-pill">
+                        <div style="font-size:1.3rem"><i data-lucide="dumbbell" class="icon-amber"></i></div>
+                        <div style="font-weight:800;font-size:1.1rem;color:#10b981" id="resProt">—</div>
+                        <div style="font-size:.7rem;color:var(--text-secondary)">@(isRtl?"بروتين غ":"Protein g")</div>
+                    </div>
+                    <div class="macro-pill">
+                        <div style="font-size:1.3rem"><i data-lucide="wheat" class="icon-amber"></i></div>
+                        <div style="font-weight:800;font-size:1.1rem;color:#f59e0b" id="resCarbs">—</div>
+                        <div style="font-size:.7rem;color:var(--text-secondary)">@(isRtl?"كربو غ":"Carbs g")</div>
+                    </div>
+                    <div class="macro-pill">
+                        <div style="font-size:1.3rem">🫒</div>
+                        <div style="font-weight:800;font-size:1.1rem;color:#8b5cf6" id="resFats">—</div>
+                        <div style="font-size:.7rem;color:var(--text-secondary)">@(isRtl?"دهون غ":"Fats g")</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alternatives -->
+            <div id="alternativesSection" class="card-glass p-4 mb-3" style="display:none">
+                <h6 style="font-weight:700;margin-bottom:10px">
+                    <i class="bi bi-question-circle text-warning me-2"></i>
+                    @(isRtl?"قد يكون أيضاً:":"Could also be:")
+                </h6>
+                <div id="alternativesList" class="d-flex flex-column gap-2"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-3 mt-3">
+                <button class="btn-primary-custom flex-grow-1" id="logBtn" onclick="logToDashboard()" type="button">
+                    <i class="bi bi-plus-circle"></i>
+                    @(isRtl?"أضف لسجل اليوم":"Log to Dashboard")
+                </button>
+                <button class="btn-ghost-custom" onclick="resetPhoto()" type="button">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    @(isRtl?"صورة أخرى":"Try Another")
+                </button>
+            </div>
+            <div id="logSuccess" class="alert alert-success mt-3" style="display:none">
+                <i class="bi bi-check-circle me-2"></i>
+                @(isRtl?"تم الإضافة للوحة التحكم!":"Added to your dashboard!")
+                <a asp-controller="Dashboard" asp-action="Index" class="ms-2 fw-bold">@(isRtl?"عرض":"View")</a>
+            </div>
+        </div>
+
+    </div><!-- /photo tab -->
+
+    <!-- ── BARCODE TAB ─────────────────────────────────────────────────── -->
+    <div id="tab-barcode-tab" style="display:none">
+        <div class="card-glass p-4 mb-4 animate-on-scroll">
+            <h5 style="font-weight:700;margin-bottom:16px">
+                <i class="bi bi-upc-scan text-primary me-2"></i>
+                @(isRtl?"أدخل الباركود يدوياً":"Enter Barcode Manually")
+            </h5>
+            <div class="d-flex gap-2">
+                <input type="text" id="barcodeInput" class="form-control" placeholder="@(isRtl?"مثال: 5449000000996":"e.g., 5449000000996")" />
+                <button class="btn-primary-custom flex-shrink-0" onclick="lookupBarcode()">
+                    <i class="bi bi-search"></i> @(isRtl?"بحث":"Search")
+                </button>
+            </div>
+            <div class="mt-2">
+                <span class="text-muted small">@(isRtl?"أمثلة: ":"Try: ")</span>
+                @foreach (var code in new[] { "5449000000996", "3017620422003", "8000500037560" })
+                {
+                    <button class="btn-ghost-custom btn-sm me-1" onclick="document.getElementById('barcodeInput').value='@code';lookupBarcode()">@code</button>
+                }
+            </div>
+        </div>
+
+        <div id="loadingSection" class="text-center py-4" style="display:none">
+            <div class="spinner-border text-success" role="status"></div>
+            <p class="mt-2 text-muted">@(isRtl?"جاري البحث...":"Searching...")</p>
+        </div>
+
+        <div id="notFoundSection" class="alert alert-warning" style="display:none">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            @(isRtl?"لم يتم العثور على المنتج. تأكد من الباركود وحاول مرة أخرى.":"Product not found. Check the barcode and try again.")
+        </div>
+
+        <div id="resultSection" class="card-elevated p-4 fade-in" style="display:none">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div style="font-size:2.5rem">📦</div>
+                <div>
+                    <h4 style="font-weight:800;margin:0" id="productName"></h4>
+                    <p class="text-muted mb-0 small" id="productBarcode"></p>
+                </div>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3 text-center">
+                    <div style="font-size:1.5rem;font-weight:900;color:var(--primary)" id="calVal">—</div>
+                    <div style="font-size:.75rem;color:var(--text-secondary)">@(isRtl?"سعرات":"Cal")</div>
+                </div>
+                <div class="col-6 col-md-3 text-center">
+                    <div style="font-size:1.5rem;font-weight:900;color:#10b981" id="proteinVal">—</div>
+                    <div style="font-size:.75rem;color:var(--text-secondary)">@(isRtl?"بروتين (غ)":"Protein (g)")</div>
+                </div>
+                <div class="col-6 col-md-3 text-center">
+                    <div style="font-size:1.5rem;font-weight:900;color:#f59e0b" id="carbsVal">—</div>
+                    <div style="font-size:.75rem;color:var(--text-secondary)">@(isRtl?"كربوهيدرات (غ)":"Carbs (g)")</div>
+                </div>
+                <div class="col-6 col-md-3 text-center">
+                    <div style="font-size:1.5rem;font-weight:900;color:#8b5cf6" id="fatsVal">—</div>
+                    <div style="font-size:.75rem;color:var(--text-secondary)">@(isRtl?"دهون (غ)":"Fats (g)")</div>
+                </div>
+            </div>
+            <div class="alert alert-info" style="font-size:.85rem">
+                <i class="bi bi-info-circle me-1"></i>
+                @(isRtl?"القيم لكل 100 غرام من المنتج":"Values per 100g of product")
+            </div>
+            <form id="addToDashboardForm" asp-controller="Scanner" asp-action="AddToDashboard" method="post">
+                <input type="hidden" name="calories" id="hidCalories" />
+                <input type="hidden" name="protein" id="hidProtein" />
+                <input type="hidden" name="carbs" id="hidCarbs" />
+                <input type="hidden" name="fats" id="hidFats" />
+                <button type="submit" class="btn-primary-custom w-100">
+                    <i class="bi bi-plus-circle"></i>
+                    @(isRtl?"أضف لسجل اليوم":"Add to Today's Log")
+                </button>
+            </form>
+        </div>
+
+        <div id="successAlert" class="alert alert-success" style="display:none">
+            <i class="bi bi-check-circle me-2"></i>
+            @(isRtl?"تم إضافة المنتج لسجل اليوم!":"Product added to today's log!")
+            <a asp-controller="Dashboard" asp-action="Index" class="ms-2 fw-bold">@(isRtl?"عرض اللوحة":"View Dashboard")</a>
+        </div>
+    </div><!-- /barcode tab -->
+
+</div><!-- col -->
+</div><!-- row -->
+</div><!-- container -->
+
+@section Scripts {
+<script>
+    const isRtl = document.documentElement.dir === 'rtl';
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value
+               ?? document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ?? '';
+    let selectedFile = null;
+    let currentScanId = null;
+
+    // ── Photo flow ──────────────────────────────────────────────────────────
+    function onPhotoSelected(input) {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (file.size > 8 * 1024 * 1024) {
+            showScanError(isRtl ? 'حجم الصورة كبير جداً (الحد 8 MB)' : 'Image too large (max 8 MB)');
+            return;
+        }
+        selectedFile = file;
+        const url = URL.createObjectURL(file);
+        document.getElementById('photoPreview').src = url;
+        document.getElementById('resultThumb').src  = url;
+        document.getElementById('cameraCta').style.display  = 'none';
+        document.getElementById('previewArea').style.display = 'block';
+        document.getElementById('resultsPanel').style.display = 'none';
+        document.getElementById('scanError').style.display    = 'none';
+        document.getElementById('logSuccess').style.display   = 'none';
+        currentScanId = null;
+    }
+
+    function resetPhoto() {
+        selectedFile = null; currentScanId = null;
+        document.getElementById('cameraCta').style.display   = 'block';
+        document.getElementById('previewArea').style.display  = 'none';
+        document.getElementById('resultsPanel').style.display = 'none';
+        document.getElementById('analyzingState').style.display = 'none';
+        document.getElementById('scanError').style.display    = 'none';
+        document.getElementById('logSuccess').style.display   = 'none';
+        document.getElementById('photoFileInput').value = '';
+    }
+
+    async function analyzePhoto() {
+        if (!selectedFile) return;
+        document.getElementById('previewArea').style.display    = 'none';
+        document.getElementById('resultsPanel').style.display   = 'none';
+        document.getElementById('analyzingState').style.display = 'block';
+        document.getElementById('scanError').style.display      = 'none';
+
+        const fd = new FormData();
+        fd.append('photo', selectedFile);
+
+        try {
+            const res  = await fetch('/Scanner/AnalyzePhoto', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token },
+                body: fd,
+                credentials: 'same-origin'
+            });
+            const data = await res.json();
+            document.getElementById('analyzingState').style.display = 'none';
+
+            if (!data.success) {
+                const msgs = {
+                    no_file:      isRtl ? 'لم يتم اختيار صورة'               : 'No file selected',
+                    invalid_type: isRtl ? 'نوع الملف غير مدعوم'               : 'Unsupported file type',
+                    too_large:    isRtl ? 'الصورة كبيرة جداً (الحد 8 MB)'    : 'Image too large (max 8 MB)',
+                    ai_error:     isRtl ? 'فشل تحليل الذكاء الاصطناعي. حاول مرة أخرى.' : 'AI analysis failed. Please try again.',
+                    parse_error:  isRtl ? 'تعذر قراءة نتيجة التحليل'           : 'Could not parse analysis result',
+                };
+                showScanError(msgs[data.error] ?? (isRtl ? 'حدث خطأ' : 'An error occurred'));
+                document.getElementById('previewArea').style.display = 'block';
+                return;
+            }
+
+            currentScanId = data.scanId;
+            renderResults(data);
+        } catch (e) {
+            document.getElementById('analyzingState').style.display = 'none';
+            showScanError(isRtl ? 'حدث خطأ في الاتصال. تحقق من اتصالك.' : 'Connection error. Check your network.');
+            document.getElementById('previewArea').style.display = 'block';
+        }
+    }
+
+    function renderResults(data) {
+        const name = isRtl ? (data.nameAr || data.nameEn) : (data.nameEn || data.nameAr);
+        const size = isRtl ? (data.servingSizeAr || data.servingSize) : (data.servingSize || data.servingSizeAr);
+        const desc = isRtl ? (data.descriptionAr || data.descriptionEn) : (data.descriptionEn || data.descriptionAr);
+
+        document.getElementById('resultFoodName').textContent  = name || '—';
+        document.getElementById('resultServingSize').textContent = size || '';
+        document.getElementById('resultDescription').textContent = desc || '';
+
+        const conf = data.confidence ?? 0;
+        const badge = document.getElementById('confBadge');
+        badge.className = 'conf-badge ' + (conf >= 80 ? 'conf-high' : conf >= 50 ? 'conf-medium' : 'conf-low');
+        document.getElementById('confValue').textContent =
+            conf + '% — ' + (conf >= 80
+                ? (isRtl ? 'ثقة عالية' : 'High confidence')
+                : conf >= 50
+                    ? (isRtl ? 'ثقة متوسطة' : 'Medium confidence')
+                    : (isRtl ? 'ثقة منخفضة' : 'Low confidence'));
+
+        document.getElementById('resCal').textContent   = Math.round(data.calories ?? 0);
+        document.getElementById('resProt').textContent  = Math.round(data.protein  ?? 0);
+        document.getElementById('resCarbs').textContent = Math.round(data.carbs    ?? 0);
+        document.getElementById('resFats').textContent  = Math.round(data.fats     ?? 0);
+
+        // Alternatives
+        const alts = data.alternatives;
+        const altSec  = document.getElementById('alternativesSection');
+        const altList = document.getElementById('alternativesList');
+        if (alts && alts.length && conf < 90) {
+            altList.innerHTML = alts.map(a => {
+                const n = isRtl ? (a.nameAr || a.nameEn) : (a.nameEn || a.nameAr);
+                return `<div class="alt-card" onclick="applyAlternative(${JSON.stringify(a)})">
+                    <span>${n}</span>
+                    <span class="text-muted small">${Math.round(a.calories)} ${isRtl?'كسع':'cal'}</span>
+                </div>`;
+            }).join('');
+            altSec.style.display = 'block';
+        } else {
+            altSec.style.display = 'none';
+        }
+
+        document.getElementById('logBtn').disabled = false;
+        document.getElementById('logSuccess').style.display = 'none';
+        document.getElementById('resultsPanel').style.display = 'block';
+    }
+
+    function applyAlternative(alt) {
+        // Swap the name shown (user confirmed it's the alt)
+        const name = isRtl ? (alt.nameAr || alt.nameEn) : (alt.nameEn || alt.nameAr);
+        document.getElementById('resultFoodName').textContent = name;
+        document.getElementById('resCal').textContent = Math.round(alt.calories ?? 0);
+        document.getElementById('alternativesSection').style.display = 'none';
+    }
+
+    async function logToDashboard() {
+        if (!currentScanId) return;
+        const btn = document.getElementById('logBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>' + (isRtl ? 'جاري الإضافة...' : 'Logging...');
+
+        const params = new URLSearchParams({ scanId: currentScanId, __RequestVerificationToken: token });
+        const res  = await fetch('/Scanner/LogScan', { method: 'POST', body: params, credentials: 'same-origin' });
+        const data = await res.json();
+
+        btn.innerHTML = '<i class="bi bi-plus-circle"></i> ' + (isRtl ? 'أضف لسجل اليوم' : 'Log to Dashboard');
+        if (data.success) {
+            document.getElementById('logSuccess').style.display = 'block';
+            btn.style.display = 'none';
+        } else {
+            btn.disabled = false;
+        }
+    }
+
+    function showScanError(msg) {
+        document.getElementById('scanErrorMsg').textContent = msg;
+        document.getElementById('scanError').style.display = 'block';
+    }
+
+    // ── Drag-drop ───────────────────────────────────────────────────────────
+    const dropZone = document.getElementById('dropZone');
+    if (dropZone) {
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragging'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragging'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault(); dropZone.classList.remove('dragging');
+            const file = e.dataTransfer.files?.[0];
+            if (file) { const dt = new DataTransfer(); dt.items.add(file); const inp = dropZone.querySelector('input'); inp.files = dt.files; onPhotoSelected(inp); }
+        });
+    }
+
+    // ── Barcode flow ────────────────────────────────────────────────────────
+    async function lookupBarcode() {
+        const barcode = document.getElementById('barcodeInput').value.trim();
+        if (!barcode) return;
+
+        document.getElementById('loadingSection').style.display = 'block';
+        document.getElementById('resultSection').style.display  = 'none';
+        document.getElementById('notFoundSection').style.display = 'none';
+        document.getElementById('successAlert').style.display   = 'none';
+
+        try {
+            const res  = await fetch(`/Scanner/Lookup?barcode=${encodeURIComponent(barcode)}`);
+            const data = await res.json();
+            document.getElementById('loadingSection').style.display = 'none';
+
+            if (!data.success) {
+                const notFound = document.getElementById('notFoundSection');
+                // Show network error for everything except "not found" and empty barcode
+                if (data.error && data.error !== 'no_barcode' && data.error !== 'not_found') {
+                    notFound.innerHTML = `<i class="bi bi-wifi-off me-2"></i>${isRtl
+                        ? 'تعذّر الاتصال بقاعدة بيانات المنتجات. تحقق من اتصالك بالإنترنت.'
+                        : 'Could not reach the product database. Check your internet connection.'} <small class="text-muted">(${data.error})</small>`;
+                }
+                notFound.style.display = 'block';
+                return;
+            }
+
+            const name = isRtl ? (data.nameAr || data.name) : (data.name || data.nameAr);
+            document.getElementById('productName').textContent    = name;
+            document.getElementById('productBarcode').textContent = barcode;
+            document.getElementById('calVal').textContent         = data.calories;
+            document.getElementById('proteinVal').textContent     = data.protein;
+            document.getElementById('carbsVal').textContent       = data.carbs;
+            document.getElementById('fatsVal').textContent        = data.fats;
+            document.getElementById('hidCalories').value          = data.calories;
+            document.getElementById('hidProtein').value           = data.protein;
+            document.getElementById('hidCarbs').value             = data.carbs;
+            document.getElementById('hidFats').value              = data.fats;
+            document.getElementById('resultSection').style.display = 'block';
+        } catch (e) {
+            document.getElementById('loadingSection').style.display  = 'none';
+            const notFound = document.getElementById('notFoundSection');
+            notFound.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i>${isRtl
+                ? 'حدث خطأ أثناء البحث.'
+                : 'An error occurred during lookup.'} <small class="text-muted">(${e.message})</small>`;
+            notFound.style.display = 'block';
+        }
+    }
+
+    document.getElementById('barcodeInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') lookupBarcode(); });
+
+    document.getElementById('addToDashboardForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const params = new URLSearchParams(new FormData(this));
+        const res  = await fetch(this.action, { method: 'POST', body: params });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('successAlert').style.display  = 'block';
+        }
+    });
+</script>
+@Html.AntiForgeryToken()
+}

@@ -1,0 +1,499 @@
+using System.Collections.Generic;
+
+namespace MoodBite.Services
+{
+    public class TranslationService
+    {
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public TranslationService(IHttpContextAccessor httpContextAccessor)
+        {
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        public string CurrentLang
+        {
+            get
+            {
+                var session = _httpContextAccessor.HttpContext?.Session;
+                var lang = session?.GetString("lang");
+                if (string.IsNullOrEmpty(lang))
+                    lang = _httpContextAccessor.HttpContext?.Request.Cookies["lang"] ?? "ar";
+                return lang;
+            }
+        }
+
+        public bool IsRtl => CurrentLang == "ar";
+
+        public string Get(string key) => Get(key, CurrentLang);
+
+        public string Get(string key, string lang)
+        {
+            if (Translations.TryGetValue(key, out var dict))
+            {
+                if (dict.TryGetValue(lang, out var val)) return val;
+                if (dict.TryGetValue("en", out var fallback)) return fallback;
+            }
+            return key;
+        }
+
+        // Full translation dictionary - 500+ keys
+        private static readonly Dictionary<string, Dictionary<string, string>> Translations = new()
+        {
+            // Nav
+            ["nav.home"] = new() { ["ar"] = "الرئيسية", ["en"] = "Home" },
+            ["nav.profile"] = new() { ["ar"] = "الملف الشخصي", ["en"] = "Profile" },
+            ["nav.myAccount"] = new() { ["ar"] = "حسابي", ["en"] = "My Account" },
+            ["nav.dashboard"] = new() { ["ar"] = "لوحة التحكم", ["en"] = "Dashboard" },
+            ["nav.mealPlan"] = new() { ["ar"] = "خطة الوجبات", ["en"] = "Meal Plan" },
+            ["nav.diets"] = new() { ["ar"] = "الأنظمة الغذائية", ["en"] = "Diets" },
+            ["nav.report"] = new() { ["ar"] = "التقرير الأسبوعي", ["en"] = "Weekly Report" },
+            ["nav.costCalc"] = new() { ["ar"] = "حاسبة التكلفة", ["en"] = "Cost Calculator" },
+            ["nav.costCalculator"] = new() { ["ar"] = "حاسبة تكلفة الغذاء", ["en"] = "Food Cost Calculator" },
+            ["nav.buddy"] = new() { ["ar"] = "رفيق الدايت", ["en"] = "Buddy" },
+            ["nav.challenge"] = new() { ["ar"] = "التحديات", ["en"] = "Challenges" },
+            ["nav.community"] = new() { ["ar"] = "المجتمع", ["en"] = "Community" },
+            ["nav.restaurants"] = new() { ["ar"] = "المطاعم", ["en"] = "Restaurants" },
+            ["nav.workout"] = new() { ["ar"] = "التمارين", ["en"] = "Workout" },
+            ["nav.scanner"] = new() { ["ar"] = "الماسح الضوئي", ["en"] = "Scanner" },
+            ["nav.notifications"] = new() { ["ar"] = "الإشعارات", ["en"] = "Notifications" },
+            ["nav.emergency"] = new() { ["ar"] = "الطوارئ", ["en"] = "Emergency" },
+            ["nav.login"] = new() { ["ar"] = "تسجيل الدخول", ["en"] = "Login" },
+            ["nav.register"] = new() { ["ar"] = "إنشاء حساب", ["en"] = "Register" },
+            ["nav.logout"] = new() { ["ar"] = "تسجيل الخروج", ["en"] = "Logout" },
+            ["nav.admin"] = new() { ["ar"] = "لوحة الإدارة", ["en"] = "Admin Panel" },
+            ["nav.myProfile"] = new() { ["ar"] = "حسابي", ["en"] = "My Account" },
+
+            // Auth
+            ["auth.login"] = new() { ["ar"] = "تسجيل الدخول", ["en"] = "Login" },
+            ["auth.register"] = new() { ["ar"] = "إنشاء حساب", ["en"] = "Create Account" },
+            ["auth.email"] = new() { ["ar"] = "البريد الإلكتروني", ["en"] = "Email" },
+            ["auth.password"] = new() { ["ar"] = "كلمة المرور", ["en"] = "Password" },
+            ["auth.confirmPassword"] = new() { ["ar"] = "تأكيد كلمة المرور", ["en"] = "Confirm Password" },
+            ["auth.fullName"] = new() { ["ar"] = "الاسم الكامل", ["en"] = "Full Name" },
+            ["auth.rememberMe"] = new() { ["ar"] = "تذكرني", ["en"] = "Remember Me" },
+            ["auth.forgotPassword"] = new() { ["ar"] = "نسيت كلمة المرور؟", ["en"] = "Forgot Password?" },
+            ["auth.resetPassword"] = new() { ["ar"] = "إعادة تعيين كلمة المرور", ["en"] = "Reset Password" },
+            ["auth.sendResetLink"] = new() { ["ar"] = "إرسال رابط الإعادة", ["en"] = "Send Reset Link" },
+            ["auth.noAccount"] = new() { ["ar"] = "ليس لديك حساب؟", ["en"] = "Don't have an account?" },
+            ["auth.haveAccount"] = new() { ["ar"] = "لديك حساب بالفعل؟", ["en"] = "Already have an account?" },
+            ["auth.confirmEmail"] = new() { ["ar"] = "تأكيد البريد الإلكتروني", ["en"] = "Confirm Email" },
+            ["auth.emailSent"] = new() { ["ar"] = "تم إرسال رابط التأكيد إلى بريدك الإلكتروني", ["en"] = "Confirmation link sent to your email" },
+            ["auth.newPassword"] = new() { ["ar"] = "كلمة المرور الجديدة", ["en"] = "New Password" },
+
+            // Home
+            ["home.hero.title"] = new() { ["ar"] = "غذاؤك الذكي يبدأ هنا", ["en"] = "Your Smart Nutrition Starts Here" },
+            ["home.hero.subtitle"] = new() { ["ar"] = "خطط وجباتك، تتبع صحتك، وحقق أهدافك مع الذكاء الاصطناعي", ["en"] = "Plan your meals, track your health, and achieve your goals with AI" },
+            ["home.hero.cta"] = new() { ["ar"] = "ابدأ رحلتك الآن", ["en"] = "Start Your Journey" },
+            ["home.hero.cta2"] = new() { ["ar"] = "اكتشف الميزات", ["en"] = "Explore Features" },
+            ["home.features.title"] = new() { ["ar"] = "كل ما تحتاجه في مكان واحد", ["en"] = "Everything You Need In One Place" },
+            ["home.features.ai.title"] = new() { ["ar"] = "خطط وجبات ذكية بالذكاء الاصطناعي", ["en"] = "AI-Powered Meal Plans" },
+            ["home.features.ai.desc"] = new() { ["ar"] = "احصل على خطط وجبات مخصصة بناءً على أهدافك الصحية", ["en"] = "Get personalized meal plans based on your health goals" },
+            ["home.features.track.title"] = new() { ["ar"] = "تتبع دقيق للتغذية", ["en"] = "Precise Nutrition Tracking" },
+            ["home.features.track.desc"] = new() { ["ar"] = "راقب السعرات والبروتين والكربوهيدرات والدهون يومياً", ["en"] = "Monitor calories, protein, carbs, and fats daily" },
+            ["home.features.diets.title"] = new() { ["ar"] = "8 أنظمة غذائية متنوعة", ["en"] = "8 Diverse Diet Plans" },
+            ["home.features.diets.desc"] = new() { ["ar"] = "من الكيتو إلى البحر المتوسط، اختر النظام المناسب لك", ["en"] = "From Keto to Mediterranean, choose the right diet for you" },
+            ["home.features.report.title"] = new() { ["ar"] = "تقارير صحية أسبوعية", ["en"] = "Weekly Health Reports" },
+            ["home.features.report.desc"] = new() { ["ar"] = "تحليلات مفصلة لأدائك الغذائي وتقدمك", ["en"] = "Detailed analytics of your nutritional performance" },
+            ["home.features.community.title"] = new() { ["ar"] = "مجتمع داعم", ["en"] = "Supportive Community" },
+            ["home.features.community.desc"] = new() { ["ar"] = "شارك وصفاتك وتحدياتك مع مجتمع يشجعك", ["en"] = "Share your recipes and challenges with a supportive community" },
+            ["home.features.emergency.title"] = new() { ["ar"] = "وضع الطوارئ الصحية", ["en"] = "Health Emergency Mode" },
+            ["home.features.emergency.desc"] = new() { ["ar"] = "إرشادات فورية لحالات الطوارئ الصحية", ["en"] = "Instant guidance for health emergencies" },
+
+            // Dashboard
+            ["dashboard.title"] = new() { ["ar"] = "لوحة التحكم", ["en"] = "Dashboard" },
+            ["dashboard.calories"] = new() { ["ar"] = "السعرات الحرارية", ["en"] = "Calories" },
+            ["dashboard.consumed"] = new() { ["ar"] = "المستهلكة", ["en"] = "Consumed" },
+            ["dashboard.burned"] = new() { ["ar"] = "المحروقة", ["en"] = "Burned" },
+            ["dashboard.net"] = new() { ["ar"] = "الصافية", ["en"] = "Net" },
+            ["dashboard.target"] = new() { ["ar"] = "الهدف", ["en"] = "Target" },
+            ["dashboard.protein"] = new() { ["ar"] = "البروتين", ["en"] = "Protein" },
+            ["dashboard.carbs"] = new() { ["ar"] = "الكربوهيدرات", ["en"] = "Carbs" },
+            ["dashboard.fats"] = new() { ["ar"] = "الدهون", ["en"] = "Fats" },
+            ["dashboard.streak"] = new() { ["ar"] = "التتابع", ["en"] = "Streak" },
+            ["dashboard.days"] = new() { ["ar"] = "أيام", ["en"] = "Days" },
+            ["dashboard.logCalories"] = new() { ["ar"] = "تسجيل السعرات", ["en"] = "Log Calories" },
+            ["dashboard.logWeight"] = new() { ["ar"] = "تسجيل الوزن", ["en"] = "Log Weight" },
+            ["dashboard.moodCheckin"] = new() { ["ar"] = "كيف حالك اليوم؟", ["en"] = "How are you today?" },
+            ["dashboard.moodPrompt"]  = new() { ["ar"] = "كيف تشعر اليوم؟", ["en"] = "How do you feel today?" },
+            ["dashboard.weight"] = new() { ["ar"] = "الوزن (كغ)", ["en"] = "Weight (kg)" },
+            ["dashboard.weeklyStats"] = new() { ["ar"] = "إحصائيات الأسبوع", ["en"] = "Weekly Stats" },
+            ["dashboard.adherence"] = new() { ["ar"] = "الالتزام", ["en"] = "Adherence" },
+            ["dashboard.avgCalories"] = new() { ["ar"] = "متوسط السعرات", ["en"] = "Avg Calories" },
+            ["dashboard.daysLogged"] = new() { ["ar"] = "أيام مسجلة", ["en"] = "Days Logged" },
+            ["dashboard.bestDay"] = new() { ["ar"] = "أفضل يوم", ["en"] = "Best Day" },
+            ["dashboard.weightTrend"] = new() { ["ar"] = "تطور الوزن", ["en"] = "Weight Trend" },
+            ["dashboard.caloriesChart"] = new() { ["ar"] = "السعرات آخر 7 أيام", ["en"] = "Calories Last 7 Days" },
+            ["dashboard.save"] = new() { ["ar"] = "حفظ", ["en"] = "Save" },
+            ["dashboard.noData"] = new() { ["ar"] = "لا توجد بيانات بعد", ["en"] = "No data yet" },
+
+            // Water
+            ["water.title"] = new() { ["ar"] = "شرب الماء", ["en"] = "Water Intake" },
+            ["water.glass"] = new() { ["ar"] = "كأس", ["en"] = "Glass" },
+            ["water.glasses"] = new() { ["ar"] = "أكواب", ["en"] = "Glasses" },
+            ["water.dailyGoal"] = new() { ["ar"] = "هدفك اليومي", ["en"] = "Daily Goal" },
+            ["water.logged"] = new() { ["ar"] = "تم تسجيل كأس ماء", ["en"] = "Glass logged" },
+            ["water.goalReached"] = new() { ["ar"] = "🎉 أحسنت! لقد حققت هدفك اليومي", ["en"] = "🎉 Great job! Daily goal reached" },
+            ["water.liters"] = new() { ["ar"] = "لتر", ["en"] = "L" },
+            ["water.of"] = new() { ["ar"] = "من", ["en"] = "of" },
+            ["water.weeklyChart"] = new() { ["ar"] = "شرب الماء — آخر 7 أيام", ["en"] = "Water Intake — Last 7 Days" },
+            ["water.customGoal"] = new() { ["ar"] = "هدف الماء اليومي (أكواب)", ["en"] = "Daily Water Goal (glasses)" },
+
+            // Moods
+            ["mood.tired"] = new() { ["ar"] = "متعب", ["en"] = "Tired" },
+            ["mood.stressed"] = new() { ["ar"] = "متوتر", ["en"] = "Stressed" },
+            ["mood.needEnergy"] = new() { ["ar"] = "أحتاج طاقة", ["en"] = "Need Energy" },
+            ["mood.veryHungry"] = new() { ["ar"] = "جائع جداً", ["en"] = "Very Hungry" },
+            ["mood.cantSleep"] = new() { ["ar"] = "لا أستطيع النوم", ["en"] = "Can't Sleep" },
+            ["mood.postWorkout"] = new() { ["ar"] = "بعد التمرين", ["en"] = "Post-Workout" },
+            ["mood.sick"] = new() { ["ar"] = "مريض", ["en"] = "Sick" },
+            ["mood.great"] = new() { ["ar"] = "ممتاز", ["en"] = "Great" },
+
+            // Profile
+            ["profile.title"] = new() { ["ar"] = "بصمتك الغذائية", ["en"] = "Your Food Fingerprint" },
+            ["profile.subtitle"] = new() { ["ar"] = "أخبرنا عن نفسك لنقترح خطة غذائية مثالية", ["en"] = "Tell us about yourself so we can suggest the perfect diet plan" },
+            ["profile.step1"] = new() { ["ar"] = "المعلومات الشخصية", ["en"] = "Personal Info" },
+            ["profile.step2"] = new() { ["ar"] = "أهدافك الصحية", ["en"] = "Health Goals" },
+            ["profile.step3"] = new() { ["ar"] = "مستوى النشاط", ["en"] = "Activity Level" },
+            ["profile.step4"] = new() { ["ar"] = "الحالات الصحية", ["en"] = "Health Conditions" },
+            ["profile.step5"] = new() { ["ar"] = "تفضيلاتك الغذائية", ["en"] = "Food Preferences" },
+            ["profile.age"] = new() { ["ar"] = "العمر", ["en"] = "Age" },
+            ["profile.gender"] = new() { ["ar"] = "الجنس", ["en"] = "Gender" },
+            ["profile.male"] = new() { ["ar"] = "ذكر", ["en"] = "Male" },
+            ["profile.female"] = new() { ["ar"] = "أنثى", ["en"] = "Female" },
+            ["profile.height"] = new() { ["ar"] = "الطول (سم)", ["en"] = "Height (cm)" },
+            ["profile.weight"] = new() { ["ar"] = "الوزن (كغ)", ["en"] = "Weight (kg)" },
+            ["profile.goal.loseWeight"] = new() { ["ar"] = "خسارة الوزن", ["en"] = "Lose Weight" },
+            ["profile.goal.buildMuscle"] = new() { ["ar"] = "بناء العضلات", ["en"] = "Build Muscle" },
+            ["profile.goal.maintain"] = new() { ["ar"] = "المحافظة على الوزن", ["en"] = "Maintain Weight" },
+            ["profile.goal.improveHealth"] = new() { ["ar"] = "تحسين الصحة", ["en"] = "Improve Health" },
+            ["profile.goal.manageCondition"] = new() { ["ar"] = "إدارة حالة صحية", ["en"] = "Manage Condition" },
+            ["profile.activity.sedentary"] = new() { ["ar"] = "خامل", ["en"] = "Sedentary" },
+            ["profile.activity.lightlyActive"] = new() { ["ar"] = "نشاط خفيف", ["en"] = "Lightly Active" },
+            ["profile.activity.moderatelyActive"] = new() { ["ar"] = "نشاط معتدل", ["en"] = "Moderately Active" },
+            ["profile.activity.veryActive"] = new() { ["ar"] = "نشط جداً", ["en"] = "Very Active" },
+            ["profile.activity.extremelyActive"] = new() { ["ar"] = "نشط للغاية", ["en"] = "Extremely Active" },
+            ["profile.cookingStyle.quick"] = new() { ["ar"] = "سريع وبسيط", ["en"] = "Quick & Simple" },
+            ["profile.cookingStyle.moderate"] = new() { ["ar"] = "معتدل", ["en"] = "Moderate" },
+            ["profile.cookingStyle.adventurous"] = new() { ["ar"] = "مغامر", ["en"] = "Adventurous" },
+            ["profile.budget.low"] = new() { ["ar"] = "محدود", ["en"] = "Low" },
+            ["profile.budget.medium"] = new() { ["ar"] = "متوسط", ["en"] = "Medium" },
+            ["profile.budget.high"] = new() { ["ar"] = "مرتفع", ["en"] = "High" },
+            ["profile.next"] = new() { ["ar"] = "التالي", ["en"] = "Next" },
+            ["profile.back"] = new() { ["ar"] = "السابق", ["en"] = "Back" },
+            ["profile.finish"] = new() { ["ar"] = "إنهاء", ["en"] = "Finish" },
+            ["profile.calorieTarget"] = new() { ["ar"] = "هدف السعرات اليومي", ["en"] = "Daily Calorie Target" },
+            ["profile.recommendedDiet"] = new() { ["ar"] = "النظام الغذائي الموصى به", ["en"] = "Recommended Diet" },
+
+            // Diets
+            ["diets.title"] = new() { ["ar"] = "الأنظمة الغذائية", ["en"] = "Diet Plans" },
+            ["diets.all"] = new() { ["ar"] = "الكل", ["en"] = "All" },
+            ["diets.lowCarb"] = new() { ["ar"] = "قليل الكربوهيدرات", ["en"] = "Low Carb" },
+            ["diets.plantBased"] = new() { ["ar"] = "نباتي", ["en"] = "Plant-Based" },
+            ["diets.balanced"] = new() { ["ar"] = "متوازن", ["en"] = "Balanced" },
+            ["diets.fasting"] = new() { ["ar"] = "صيام متقطع", ["en"] = "Fasting" },
+            ["diets.highProtein"] = new() { ["ar"] = "عالي البروتين", ["en"] = "High Protein" },
+            ["diets.easy"] = new() { ["ar"] = "سهل", ["en"] = "Easy" },
+            ["diets.medium"] = new() { ["ar"] = "متوسط", ["en"] = "Medium" },
+            ["diets.hard"] = new() { ["ar"] = "صعب", ["en"] = "Hard" },
+            ["diets.calories"] = new() { ["ar"] = "سعرات", ["en"] = "cal" },
+            ["diets.learnMore"] = new() { ["ar"] = "اعرف أكثر", ["en"] = "Learn More" },
+            ["diets.benefits"] = new() { ["ar"] = "الفوائد", ["en"] = "Benefits" },
+            ["diets.foods"] = new() { ["ar"] = "الأطعمة", ["en"] = "Foods" },
+            ["diets.allowed"] = new() { ["ar"] = "مسموح", ["en"] = "Allowed" },
+            ["diets.limited"] = new() { ["ar"] = "محدود", ["en"] = "Limited" },
+            ["diets.forbidden"] = new() { ["ar"] = "ممنوع", ["en"] = "Forbidden" },
+            ["diets.tips"] = new() { ["ar"] = "نصائح", ["en"] = "Tips" },
+            ["diets.sampleMeals"] = new() { ["ar"] = "وجبات نموذجية", ["en"] = "Sample Meals" },
+            ["diets.suitableFor"] = new() { ["ar"] = "مناسب لـ", ["en"] = "Suitable For" },
+            ["diets.notSuitableFor"] = new() { ["ar"] = "غير مناسب لـ", ["en"] = "Not Suitable For" },
+            ["diets.startDiet"] = new() { ["ar"] = "ابدأ هذا النظام", ["en"] = "Start This Diet" },
+
+            // Meal Plan
+            ["mealPlan.title"] = new() { ["ar"] = "خطة الوجبات", ["en"] = "Meal Plan" },
+            ["mealPlan.standard"] = new() { ["ar"] = "الخطة العادية", ["en"] = "Standard Plan" },
+            ["mealPlan.standardPlan"] = new() { ["ar"] = "الخطة العادية", ["en"] = "Standard Plan" },
+            ["mealPlan.ai"] = new() { ["ar"] = "خطة الذكاء الاصطناعي", ["en"] = "AI Plan" },
+            ["mealPlan.aiPlan"] = new() { ["ar"] = "خطة بالذكاء الاصطناعي", ["en"] = "AI Plan" },
+            ["mealPlan.shopping"] = new() { ["ar"] = "قائمة التسوق", ["en"] = "Shopping List" },
+            ["mealPlan.shoppingList"] = new() { ["ar"] = "قائمة المشتريات", ["en"] = "Shopping List" },
+            ["mealPlan.weeklyPlan"] = new() { ["ar"] = "الخطة الأسبوعية", ["en"] = "Weekly Plan" },
+            ["mealPlan.history"] = new() { ["ar"] = "السجل", ["en"] = "History" },
+            ["mealPlan.generate"] = new() { ["ar"] = "توليد الخطة", ["en"] = "Generate Plan" },
+            ["mealPlan.regenerate"] = new() { ["ar"] = "إعادة التوليد", ["en"] = "Regenerate" },
+            ["mealPlan.generateAI"] = new() { ["ar"] = "توليد بالذكاء الاصطناعي", ["en"] = "Generate with AI" },
+            ["mealPlan.swap"] = new() { ["ar"] = "تبديل الوجبة", ["en"] = "Swap Meal" },
+            ["mealPlan.breakfast"] = new() { ["ar"] = "الفطور", ["en"] = "Breakfast" },
+            ["mealPlan.lunch"] = new() { ["ar"] = "الغداء", ["en"] = "Lunch" },
+            ["mealPlan.dinner"] = new() { ["ar"] = "العشاء", ["en"] = "Dinner" },
+            ["mealPlan.snack1"] = new() { ["ar"] = "وجبة خفيفة 1", ["en"] = "Snack 1" },
+            ["mealPlan.snack2"] = new() { ["ar"] = "وجبة خفيفة 2", ["en"] = "Snack 2" },
+            ["mealPlan.editInstruction"] = new() { ["ar"] = "أخبر الذكاء الاصطناعي بما تريد تعديله...", ["en"] = "Tell AI what to change..." },
+            ["mealPlan.sendEdit"] = new() { ["ar"] = "إرسال", ["en"] = "Send" },
+            ["mealPlan.generating"] = new() { ["ar"] = "جاري التوليد...", ["en"] = "Generating..." },
+            ["mealPlan.proteins"] = new() { ["ar"] = "البروتينات", ["en"] = "Proteins" },
+            ["mealPlan.vegetables"] = new() { ["ar"] = "الخضروات", ["en"] = "Vegetables" },
+            ["mealPlan.grains"] = new() { ["ar"] = "الحبوب", ["en"] = "Grains" },
+            ["mealPlan.dairy"] = new() { ["ar"] = "الألبان", ["en"] = "Dairy" },
+            ["mealPlan.supplements"] = new() { ["ar"] = "المكملات", ["en"] = "Supplements" },
+
+            // Report
+            ["report.title"] = new() { ["ar"] = "التقرير الأسبوعي", ["en"] = "Weekly Report" },
+            ["report.adherence"] = new() { ["ar"] = "نسبة الالتزام", ["en"] = "Adherence Rate" },
+            ["report.avgCalories"] = new() { ["ar"] = "متوسط السعرات", ["en"] = "Avg Calories" },
+            ["report.trend"] = new() { ["ar"] = "الاتجاه", ["en"] = "Trend" },
+            ["report.topMood"] = new() { ["ar"] = "الحالة الأكثر تكراراً", ["en"] = "Top Mood" },
+            ["report.nutritionalGaps"] = new() { ["ar"] = "الفجوات الغذائية", ["en"] = "Nutritional Gaps" },
+            ["report.tips"] = new() { ["ar"] = "نصائح شخصية", ["en"] = "Personal Tips" },
+            ["report.exportPdf"] = new() { ["ar"] = "تصدير PDF", ["en"] = "Export PDF" },
+            ["report.noData"] = new() { ["ar"] = "سجّل على الأقل يومين لعرض التقرير", ["en"] = "Log at least 2 days to view the report" },
+            ["report.weeklyProgress"] = new() { ["ar"] = "التقدم الأسبوعي", ["en"] = "Weekly Progress" },
+
+            // Cost Calculator
+            ["cost.title"] = new() { ["ar"] = "حاسبة تكلفة الغذاء", ["en"] = "Food Cost Calculator" },
+            ["cost.country"] = new() { ["ar"] = "الدولة", ["en"] = "Country" },
+            ["cost.diet"] = new() { ["ar"] = "النظام الغذائي", ["en"] = "Diet" },
+            ["cost.monthly"] = new() { ["ar"] = "التكلفة الشهرية", ["en"] = "Monthly Cost" },
+            ["cost.breakdown"] = new() { ["ar"] = "تفصيل التكاليف", ["en"] = "Cost Breakdown" },
+            ["cost.compare"] = new() { ["ar"] = "مقارنة الأنظمة", ["en"] = "Compare Diets" },
+            ["cost.tips"] = new() { ["ar"] = "نصائح للتوفير", ["en"] = "Saving Tips" },
+            ["costCalculator.subtitle"]      = new() { ["ar"] = "احسب ميزانيتك الغذائية الأسبوعية والشهرية",          ["en"] = "Calculate your weekly and monthly food budget" },
+            ["costCalculator.daily"]         = new() { ["ar"] = "التكلفة اليومية",   ["en"] = "Daily Cost" },
+            ["costCalculator.weekly"]        = new() { ["ar"] = "التكلفة الأسبوعية", ["en"] = "Weekly Cost" },
+            ["costCalculator.monthly"]       = new() { ["ar"] = "التكلفة الشهرية",   ["en"] = "Monthly Cost" },
+            ["costCalculator.calculate"]     = new() { ["ar"] = "احسب",              ["en"] = "Calculate" },
+            ["costCalculator.reset"]         = new() { ["ar"] = "إعادة تعيين",       ["en"] = "Reset" },
+            ["costCalculator.result"]        = new() { ["ar"] = "النتيجة",           ["en"] = "Result" },
+            ["costCalculator.budget.low"]    = new() { ["ar"] = "ميزانية منخفضة",    ["en"] = "Low Budget" },
+            ["costCalculator.budget.medium"] = new() { ["ar"] = "ميزانية متوسطة",    ["en"] = "Medium Budget" },
+            ["costCalculator.budget.high"]   = new() { ["ar"] = "ميزانية مرتفعة",    ["en"] = "High Budget" },
+
+            // Buddy
+            ["buddy.title"] = new() { ["ar"] = "رفيق الدايت", ["en"] = "Diet Buddy" },
+            ["buddy.find"] = new() { ["ar"] = "البحث عن رفيق", ["en"] = "Find Buddy" },
+            ["buddy.myBuddies"] = new() { ["ar"] = "رفقائي", ["en"] = "My Buddies" },
+            ["buddy.requests"] = new() { ["ar"] = "الطلبات", ["en"] = "Requests" },
+            ["buddy.send"] = new() { ["ar"] = "إرسال طلب", ["en"] = "Send Request" },
+            ["buddy.accept"] = new() { ["ar"] = "قبول", ["en"] = "Accept" },
+            ["buddy.decline"] = new() { ["ar"] = "رفض", ["en"] = "Decline" },
+            ["buddy.filterByGoal"] = new() { ["ar"] = "تصفية حسب الهدف", ["en"] = "Filter by Goal" },
+            ["buddy.adherence"] = new() { ["ar"] = "الالتزام", ["en"] = "Adherence" },
+            ["buddy.streak"] = new() { ["ar"] = "التتابع", ["en"] = "Streak" },
+            ["buddy.encourage"] = new() { ["ar"] = "تشجيع", ["en"] = "Encourage" },
+
+            // Challenges
+            ["challenge.title"] = new() { ["ar"] = "التحديات", ["en"] = "Challenges" },
+            ["challenge.browse"] = new() { ["ar"] = "استعرض", ["en"] = "Browse" },
+            ["challenge.myChallenges"] = new() { ["ar"] = "تحدياتي", ["en"] = "My Challenges" },
+            ["challenge.leaderboard"] = new() { ["ar"] = "لوحة الصدارة", ["en"] = "Leaderboard" },
+            ["challenge.join"] = new() { ["ar"] = "انضم للتحدي", ["en"] = "Join Challenge" },
+            ["challenge.day"] = new() { ["ar"] = "يوم", ["en"] = "Day" },
+            ["challenge.of30"] = new() { ["ar"] = "من 30", ["en"] = "of 30" },
+            ["challenge.todayTask"] = new() { ["ar"] = "مهمة اليوم", ["en"] = "Today's Task" },
+            ["challenge.complete"] = new() { ["ar"] = "إنجاز المهمة", ["en"] = "Complete Task" },
+            ["challenge.badges"] = new() { ["ar"] = "الشارات", ["en"] = "Badges" },
+            ["challenge.easy"] = new() { ["ar"] = "سهل", ["en"] = "Easy" },
+            ["challenge.medium"] = new() { ["ar"] = "متوسط", ["en"] = "Medium" },
+            ["challenge.hard"] = new() { ["ar"] = "صعب", ["en"] = "Hard" },
+
+            // Community
+            ["community.title"] = new() { ["ar"] = "مجتمع الوصفات", ["en"] = "Recipe Community" },
+            ["community.search"] = new() { ["ar"] = "ابحث عن وصفة...", ["en"] = "Search recipes..." },
+            ["community.submit"] = new() { ["ar"] = "مشاركة وصفة", ["en"] = "Share Recipe" },
+            ["community.like"] = new() { ["ar"] = "إعجاب", ["en"] = "Like" },
+            ["community.save"] = new() { ["ar"] = "حفظ", ["en"] = "Save" },
+            ["community.ingredients"] = new() { ["ar"] = "المكونات", ["en"] = "Ingredients" },
+            ["community.steps"] = new() { ["ar"] = "خطوات التحضير", ["en"] = "Preparation Steps" },
+            ["community.prepTime"] = new() { ["ar"] = "وقت التحضير", ["en"] = "Prep Time" },
+            ["community.minutes"] = new() { ["ar"] = "دقيقة", ["en"] = "min" },
+            ["community.pending"] = new() { ["ar"] = "في انتظار الموافقة", ["en"] = "Pending Approval" },
+
+            // Workout
+            ["workout.title"] = new() { ["ar"] = "خطة التمارين", ["en"] = "Workout Planner" },
+            ["workout.generate"] = new() { ["ar"] = "توليد خطة التمارين", ["en"] = "Generate Workout Plan" },
+            ["workout.generating"] = new() { ["ar"] = "جاري التوليد...", ["en"] = "Generating..." },
+            ["workout.day"] = new() { ["ar"] = "اليوم", ["en"] = "Day" },
+            ["workout.exercise"] = new() { ["ar"] = "التمرين", ["en"] = "Exercise" },
+            ["workout.sets"] = new() { ["ar"] = "المجموعات", ["en"] = "Sets" },
+            ["workout.reps"] = new() { ["ar"] = "التكرارات", ["en"] = "Reps" },
+            ["workout.duration"] = new() { ["ar"] = "المدة", ["en"] = "Duration" },
+
+            // Scanner
+            ["scanner.title"] = new() { ["ar"] = "ماسح الباركود", ["en"] = "Food Scanner" },
+            ["scanner.scan"] = new() { ["ar"] = "امسح الباركود", ["en"] = "Scan Barcode" },
+            ["scanner.scanning"] = new() { ["ar"] = "جاري المسح...", ["en"] = "Scanning..." },
+            ["scanner.result"] = new() { ["ar"] = "نتيجة المسح", ["en"] = "Scan Result" },
+            ["scanner.notFound"] = new() { ["ar"] = "لم يتم العثور على المنتج", ["en"] = "Product not found" },
+            ["scanner.addToDashboard"] = new() { ["ar"] = "إضافة للوحة التحكم", ["en"] = "Add to Dashboard" },
+
+            // Restaurants
+            ["restaurants.title"] = new() { ["ar"] = "المطاعم الصحية", ["en"] = "Healthy Restaurants" },
+            ["restaurants.filter"] = new() { ["ar"] = "تصفية حسب النوع", ["en"] = "Filter by Type" },
+            ["restaurants.all"] = new() { ["ar"] = "الكل", ["en"] = "All" },
+
+            // Notifications
+            ["notifications.title"] = new() { ["ar"] = "الإشعارات", ["en"] = "Notifications" },
+            ["notifications.markRead"] = new() { ["ar"] = "تعيين كمقروء", ["en"] = "Mark as Read" },
+            ["notifications.markAllRead"] = new() { ["ar"] = "تعيين الكل كمقروء", ["en"] = "Mark All as Read" },
+            ["notifications.clearRead"] = new() { ["ar"] = "حذف المقروءة", ["en"] = "Clear Read" },
+            ["notifications.noNotifications"] = new() { ["ar"] = "لا توجد إشعارات", ["en"] = "No notifications" },
+            ["notifications.filter.all"] = new() { ["ar"] = "الكل", ["en"] = "All" },
+            ["notifications.filter.meal"] = new() { ["ar"] = "الوجبات", ["en"] = "Meals" },
+            ["notifications.filter.workout"] = new() { ["ar"] = "التمارين", ["en"] = "Workout" },
+            ["notifications.filter.report"] = new() { ["ar"] = "التقارير", ["en"] = "Reports" },
+            ["notifications.filter.hydration"] = new() { ["ar"] = "الترطيب", ["en"] = "Hydration" },
+            ["notifications.all"]      = new() { ["ar"] = "الكل",    ["en"] = "All" },
+            ["notifications.meal"]     = new() { ["ar"] = "وجبات",   ["en"] = "Meals" },
+            ["notifications.workout"]  = new() { ["ar"] = "رياضة",   ["en"] = "Workout" },
+            ["notifications.reminder"] = new() { ["ar"] = "تذكير",   ["en"] = "Reminder" },
+            ["notifications.health"]   = new() { ["ar"] = "صحة",     ["en"] = "Health" },
+
+            // Emergency
+            ["emergency.title"] = new() { ["ar"] = "وضع الطوارئ الصحية", ["en"] = "Health Emergency Mode" },
+            ["emergency.disclaimer"] = new() { ["ar"] = "هذه المعلومات للتوجيه فقط. في حالات الطوارئ اتصل بالطبيب فوراً.", ["en"] = "This information is for guidance only. In emergencies, call a doctor immediately." },
+            ["emergency.callDoctor"] = new() { ["ar"] = "اتصل بالطبيب", ["en"] = "Call Doctor" },
+            ["emergency.highBloodSugar"] = new() { ["ar"] = "ارتفاع سكر الدم", ["en"] = "High Blood Sugar" },
+            ["emergency.lowBloodSugar"] = new() { ["ar"] = "انخفاض سكر الدم", ["en"] = "Low Blood Sugar" },
+            ["emergency.highBP"] = new() { ["ar"] = "ارتفاع ضغط الدم", ["en"] = "High Blood Pressure" },
+            ["emergency.anxiety"] = new() { ["ar"] = "نوبة قلق", ["en"] = "Anxiety Attack" },
+            ["emergency.migraine"] = new() { ["ar"] = "صداع نصفي", ["en"] = "Migraine" },
+            ["emergency.eat"] = new() { ["ar"] = "تناول", ["en"] = "Eat" },
+            ["emergency.avoid"] = new() { ["ar"] = "تجنب", ["en"] = "Avoid" },
+            ["emergency.steps"] = new() { ["ar"] = "الخطوات", ["en"] = "Steps" },
+
+            // Admin
+            ["admin.title"] = new() { ["ar"] = "لوحة الإدارة", ["en"] = "Admin Panel" },
+            ["admin.users"] = new() { ["ar"] = "المستخدمون", ["en"] = "Users" },
+            ["admin.diets"] = new() { ["ar"] = "الأنظمة الغذائية", ["en"] = "Diets" },
+            ["admin.recipes"] = new() { ["ar"] = "الوصفات", ["en"] = "Recipes" },
+            ["admin.totalUsers"] = new() { ["ar"] = "إجمالي المستخدمين", ["en"] = "Total Users" },
+            ["admin.activeUsers"] = new() { ["ar"] = "المستخدمون النشطون", ["en"] = "Active Users" },
+            ["admin.totalRecipes"] = new() { ["ar"] = "إجمالي الوصفات", ["en"] = "Total Recipes" },
+            ["admin.pendingRecipes"] = new() { ["ar"] = "وصفات معلقة", ["en"] = "Pending Recipes" },
+            ["admin.approve"] = new() { ["ar"] = "موافقة", ["en"] = "Approve" },
+            ["admin.reject"] = new() { ["ar"] = "رفض", ["en"] = "Reject" },
+            ["admin.activate"] = new() { ["ar"] = "تفعيل", ["en"] = "Activate" },
+            ["admin.deactivate"] = new() { ["ar"] = "تعطيل", ["en"] = "Deactivate" },
+            ["admin.role"] = new() { ["ar"] = "الدور", ["en"] = "Role" },
+            ["admin.changeRole"] = new() { ["ar"] = "تغيير الدور", ["en"] = "Change Role" },
+
+            // Common
+            ["common.save"] = new() { ["ar"] = "حفظ", ["en"] = "Save" },
+            ["common.cancel"] = new() { ["ar"] = "إلغاء", ["en"] = "Cancel" },
+            ["common.delete"] = new() { ["ar"] = "حذف", ["en"] = "Delete" },
+            ["common.edit"] = new() { ["ar"] = "تعديل", ["en"] = "Edit" },
+            ["common.view"] = new() { ["ar"] = "عرض", ["en"] = "View" },
+            ["common.back"] = new() { ["ar"] = "رجوع", ["en"] = "Back" },
+            ["common.loading"] = new() { ["ar"] = "جاري التحميل...", ["en"] = "Loading..." },
+            ["common.error"] = new() { ["ar"] = "حدث خطأ", ["en"] = "An error occurred" },
+            ["common.success"] = new() { ["ar"] = "تم بنجاح", ["en"] = "Success" },
+            ["common.noResults"] = new() { ["ar"] = "لا توجد نتائج", ["en"] = "No results" },
+            ["common.search"] = new() { ["ar"] = "بحث", ["en"] = "Search" },
+            ["common.filter"] = new() { ["ar"] = "تصفية", ["en"] = "Filter" },
+            ["common.all"] = new() { ["ar"] = "الكل", ["en"] = "All" },
+            ["common.today"] = new() { ["ar"] = "اليوم", ["en"] = "Today" },
+            ["common.week"] = new() { ["ar"] = "الأسبوع", ["en"] = "Week" },
+            ["common.month"] = new() { ["ar"] = "الشهر", ["en"] = "Month" },
+            ["common.calories"] = new() { ["ar"] = "سعرة", ["en"] = "cal" },
+            ["common.gram"] = new() { ["ar"] = "غرام", ["en"] = "g" },
+            ["common.kg"] = new() { ["ar"] = "كغ", ["en"] = "kg" },
+            ["common.cm"] = new() { ["ar"] = "سم", ["en"] = "cm" },
+            ["common.yes"] = new() { ["ar"] = "نعم", ["en"] = "Yes" },
+            ["common.no"] = new() { ["ar"] = "لا", ["en"] = "No" },
+            ["common.submit"] = new() { ["ar"] = "إرسال", ["en"] = "Submit" },
+            ["common.close"] = new() { ["ar"] = "إغلاق", ["en"] = "Close" },
+            ["common.confirm"] = new() { ["ar"] = "تأكيد", ["en"] = "Confirm" },
+            ["common.pending"] = new() { ["ar"] = "معلق", ["en"] = "Pending" },
+            ["common.accepted"] = new() { ["ar"] = "مقبول", ["en"] = "Accepted" },
+            ["common.declined"] = new() { ["ar"] = "مرفوض", ["en"] = "Declined" },
+
+            // Footer
+            ["footer.rights"] = new() { ["ar"] = "جميع الحقوق محفوظة", ["en"] = "All rights reserved" },
+            ["footer.about"] = new() { ["ar"] = "عن التطبيق", ["en"] = "About" },
+            ["footer.privacy"] = new() { ["ar"] = "سياسة الخصوصية", ["en"] = "Privacy Policy" },
+            ["footer.terms"] = new() { ["ar"] = "الشروط والأحكام", ["en"] = "Terms of Service" },
+            ["footer.contact"] = new() { ["ar"] = "تواصل معنا", ["en"] = "Contact Us" },
+            ["footer.tagline"] = new() { ["ar"] = "نظامك الغذائي الذكي", ["en"] = "Your Smart Nutrition Companion" },
+
+            // Language toggle
+            ["lang.ar"] = new() { ["ar"] = "العربية", ["en"] = "Arabic" },
+            ["lang.en"] = new() { ["ar"] = "English", ["en"] = "English" },
+            ["lang.switch"] = new() { ["ar"] = "English", ["en"] = "العربية" },
+            ["common.more"] = new() { ["ar"] = "المزيد", ["en"] = "More" },
+
+            // Health conditions for profile
+            ["condition.diabetes"] = new() { ["ar"] = "السكري", ["en"] = "Diabetes" },
+            ["condition.hypertension"] = new() { ["ar"] = "ارتفاع ضغط الدم", ["en"] = "Hypertension" },
+            ["condition.heartDisease"] = new() { ["ar"] = "أمراض القلب", ["en"] = "Heart Disease" },
+            ["condition.celiac"] = new() { ["ar"] = "مرض السيلياك", ["en"] = "Celiac Disease" },
+            ["condition.ibs"] = new() { ["ar"] = "متلازمة القولون العصبي", ["en"] = "IBS" },
+            ["condition.kidney"] = new() { ["ar"] = "أمراض الكلى", ["en"] = "Kidney Disease" },
+            ["condition.thyroid"] = new() { ["ar"] = "أمراض الغدة الدرقية", ["en"] = "Thyroid Disease" },
+            ["condition.pcos"] = new() { ["ar"] = "تكيس المبايض", ["en"] = "PCOS" },
+
+            // Allergens
+            ["allergen.gluten"] = new() { ["ar"] = "الغلوتين", ["en"] = "Gluten" },
+            ["allergen.dairy"] = new() { ["ar"] = "منتجات الألبان", ["en"] = "Dairy" },
+            ["allergen.nuts"] = new() { ["ar"] = "المكسرات", ["en"] = "Nuts" },
+            ["allergen.eggs"] = new() { ["ar"] = "البيض", ["en"] = "Eggs" },
+            ["allergen.seafood"] = new() { ["ar"] = "المأكولات البحرية", ["en"] = "Seafood" },
+            ["allergen.soy"] = new() { ["ar"] = "الصويا", ["en"] = "Soy" },
+
+            // TempData / flash messages
+            ["common.profileRequired"] = new() { ["ar"] = "يرجى إكمال الملف الشخصي أولاً", ["en"] = "Please complete your profile first" },
+            ["dashboard.caloriesLogged"] = new() { ["ar"] = "تم حفظ السعرات بنجاح", ["en"] = "Calories logged successfully" },
+            ["dashboard.weightLogged"]   = new() { ["ar"] = "تم حفظ الوزن بنجاح", ["en"] = "Weight logged successfully" },
+            ["dashboard.moodLogged"]     = new() { ["ar"] = "تم حفظ حالتك المزاجية", ["en"] = "Mood logged successfully" },
+            ["buddy.requestSent"]        = new() { ["ar"] = "تم إرسال طلب المرافقة", ["en"] = "Buddy request sent" },
+            ["buddy.requestAccepted"]    = new() { ["ar"] = "تم قبول الطلب", ["en"] = "Request accepted" },
+            ["buddy.incomingRequests"]   = new() { ["ar"] = "طلبات الصداقة الواردة", ["en"] = "Incoming Requests" },
+            ["buddy.noRequests"]         = new() { ["ar"] = "لا توجد طلبات معلقة", ["en"] = "No pending requests" },
+
+            // Account / My Account page
+            ["account.myAccount"]       = new() { ["ar"] = "حسابي",                               ["en"] = "My Account" },
+            ["account.subtitle"]        = new() { ["ar"] = "إدارة معلوماتك الشخصية",              ["en"] = "Manage your personal information" },
+            ["account.totalLogs"]       = new() { ["ar"] = "إجمالي السجلات",                       ["en"] = "Total Logs" },
+            ["account.weightEntries"]   = new() { ["ar"] = "سجلات الوزن",                         ["en"] = "Weight Entries" },
+            ["account.currentDiet"]     = new() { ["ar"] = "النظام الحالي",                        ["en"] = "Current Diet" },
+            ["account.profilePicture"]  = new() { ["ar"] = "الصورة الشخصية",                      ["en"] = "Profile Picture" },
+            ["account.changePicture"]   = new() { ["ar"] = "تغيير الصورة",                        ["en"] = "Change Picture" },
+            ["account.personalInfo"]    = new() { ["ar"] = "المعلومات الشخصية",                   ["en"] = "Personal Info" },
+            ["account.fullName"]        = new() { ["ar"] = "الاسم الكامل",                        ["en"] = "Full Name" },
+            ["account.email"]           = new() { ["ar"] = "البريد الإلكتروني",                   ["en"] = "Email" },
+            ["account.emailHint"]       = new() { ["ar"] = "لا يمكن تغيير البريد الإلكتروني",    ["en"] = "Email cannot be changed" },
+            ["account.saveChanges"]     = new() { ["ar"] = "حفظ التغييرات",                       ["en"] = "Save Changes" },
+            ["account.changePassword"]  = new() { ["ar"] = "تغيير كلمة المرور",                   ["en"] = "Change Password" },
+            ["account.currentPassword"] = new() { ["ar"] = "كلمة المرور الحالية",                 ["en"] = "Current Password" },
+            ["account.newPassword"]     = new() { ["ar"] = "كلمة المرور الجديدة",                 ["en"] = "New Password" },
+            ["account.updatePassword"]  = new() { ["ar"] = "تحديث كلمة المرور",                   ["en"] = "Update Password" },
+            ["account.nameUpdated"]     = new() { ["ar"] = "تم تحديث الاسم بنجاح",                ["en"] = "Name updated successfully" },
+            ["account.passwordChanged"] = new() { ["ar"] = "تم تغيير كلمة المرور بنجاح",          ["en"] = "Password changed successfully" },
+            ["challenge.joined"]         = new() { ["ar"] = "انضممت إلى التحدي!", ["en"] = "You joined the challenge!" },
+            ["challenge.alreadyCompleted"] = new() { ["ar"] = "لقد أنجزت مهمة اليوم بالفعل", ["en"] = "Already completed today's task" },
+            ["community.recipeSubmitted"] = new() { ["ar"] = "تم إرسال الوصفة وستُراجع قريباً", ["en"] = "Recipe submitted for review" },
+            ["community.submitted"]       = new() { ["ar"] = "تم إرسال الوصفة بنجاح، وستُراجع قريباً", ["en"] = "Recipe submitted successfully and will be reviewed shortly" },
+            ["mealPlan.planGenerated"]   = new() { ["ar"] = "تم توليد الخطة الجديدة", ["en"] = "New plan generated" },
+            ["mealPlan.aiGenerated"]     = new() { ["ar"] = "تم توليد الخطة بالذكاء الاصطناعي", ["en"] = "AI plan generated" },
+            ["mealPlan.aiError"]         = new() { ["ar"] = "حدث خطأ أثناء توليد الخطة. يرجى المحاولة مرة أخرى.", ["en"] = "An error occurred while generating the plan. Please try again." },
+            ["notifications.cleared"]    = new() { ["ar"] = "تم حذف الإشعارات المقروءة", ["en"] = "Read notifications cleared" },
+            ["profile.unsupportedFile"]  = new() { ["ar"] = "نوع الملف غير مدعوم", ["en"] = "Unsupported file type" },
+            ["profile.picUpdated"]       = new() { ["ar"] = "تم تحديث الصورة بنجاح", ["en"] = "Profile picture updated" },
+            ["progress.savedSuccess"]    = new() { ["ar"] = "تم حفظ القياسات بنجاح", ["en"] = "Measurements saved successfully" },
+            ["progress.deleted"]         = new() { ["ar"] = "تم حذف السجل", ["en"] = "Entry deleted" },
+            ["progress.emptyTitle"]      = new() { ["ar"] = "ابدأ تتبع تحولك!", ["en"] = "Start Tracking Your Progress!" },
+            ["progress.emptySubtitle"]   = new() { ["ar"] = "سجّل قياساتك الجسدية الأسبوعية وشاهد تقدمك", ["en"] = "Record your weekly body measurements and watch your progress" },
+            ["progress.addFirst"]        = new() { ["ar"] = "أضف قياسك الأول", ["en"] = "Add Your First Measurement" },
+            ["workout.planGenerated"]    = new() { ["ar"] = "تم توليد خطة التمارين", ["en"] = "Workout plan generated" },
+            ["weight.invalidWeight"]     = new() { ["ar"] = "يرجى إدخال وزن صحيح", ["en"] = "Please enter a valid weight" },
+            ["weight.saved"]             = new() { ["ar"] = "تم حفظ الوزن بنجاح", ["en"] = "Weight saved successfully" },
+            ["admin.recipeApproved"]     = new() { ["ar"] = "تمت الموافقة على الوصفة", ["en"] = "Recipe approved" },
+            ["admin.recipeRejected"]     = new() { ["ar"] = "تم رفض الوصفة", ["en"] = "Recipe rejected" },
+
+            // Chatbot
+            ["chatbot.title"] = new() { ["ar"] = "مساعد موودبايت", ["en"] = "MoodBite Assistant" },
+            ["chatbot.placeholder"] = new() { ["ar"] = "اسأل عن التغذية والصحة...", ["en"] = "Ask about nutrition & health..." },
+            ["chatbot.send"] = new() { ["ar"] = "إرسال", ["en"] = "Send" },
+            ["chatbot.welcome"] = new() { ["ar"] = "مرحباً! أنا مساعدك الغذائي الذكي. كيف يمكنني مساعدتك؟", ["en"] = "Hello! I'm your smart nutrition assistant. How can I help you?" },
+        };
+    }
+}

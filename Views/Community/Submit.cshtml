@@ -1,0 +1,157 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.CurrentLang == "ar" ? "مشاركة وصفة" : "Share Recipe";
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <a asp-action="Index" class="btn-ghost-custom"><i class="bi bi-arrow-@(isRtl?"right":"left")"></i></a>
+                <div>
+                    <h1 style="font-weight:800;font-size:1.6rem;margin:0">@(isRtl?"شارك وصفتك":"Share Your Recipe")</h1>
+                    <p class="text-muted mb-0">@(isRtl?"ستراجع الوصفة قبل النشر":"Recipe will be reviewed before publishing")</p>
+                </div>
+            </div>
+
+            <form asp-action="Submit" method="post" id="submitForm">
+                @Html.AntiForgeryToken()
+                <div class="card-glass p-4 mb-4">
+                    <h5 style="font-weight:700;margin-bottom:16px">@(isRtl?"معلومات الوصفة":"Recipe Info")</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">@(isRtl?"العنوان بالعربية":"Title in Arabic")</label>
+                            <input type="text" name="titleAr" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@(isRtl?"العنوان بالإنجليزية":"Title in English")</label>
+                            <input type="text" name="titleEn" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@(isRtl?"النظام الغذائي":"Diet Type")</label>
+                            <select name="dietType" class="form-select" required>
+                                @foreach (var dt in new[] { "keto","mediterranean","vegan","paleo","dash","flexitarian","carnivore","general" })
+                                {
+                                    <option value="@dt">@dt</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@(isRtl?"وقت التحضير (دقيقة)":"Prep Time (min)")</label>
+                            <input type="number" name="prepTime" class="form-control" min="1" max="300" required />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Macros -->
+                <div class="card-glass p-4 mb-4">
+                    <h5 style="font-weight:700;margin-bottom:16px">@(isRtl?"القيم الغذائية":"Nutritional Values")</h5>
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@(isRtl?"سعرات":"Calories")</label>
+                            <input type="number" name="calories" class="form-control" min="0" step="1" required />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@(isRtl?"بروتين (غ)":"Protein (g)")</label>
+                            <input type="number" name="protein" class="form-control" min="0" step="0.1" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@(isRtl?"كربوهيدرات (غ)":"Carbs (g)")</label>
+                            <input type="number" name="carbs" class="form-control" min="0" step="0.1" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@(isRtl?"دهون (غ)":"Fats (g)")</label>
+                            <input type="number" name="fats" class="form-control" min="0" step="0.1" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ingredients -->
+                <div class="card-glass p-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 style="font-weight:700;margin:0">@(isRtl?"المكونات":"Ingredients")</h5>
+                        <button type="button" class="btn-ghost-custom btn-sm" onclick="addIngredient()">
+                            <i class="bi bi-plus"></i> @(isRtl?"إضافة":"Add")
+                        </button>
+                    </div>
+                    <div id="ingredientsList">
+                        <div class="ingredient-row row g-2 mb-2">
+                            <div class="col-5"><input type="text" class="form-control form-control-sm ing-ar" placeholder="@(isRtl?"اسم بالعربية":"Arabic name")" /></div>
+                            <div class="col-5"><input type="text" class="form-control form-control-sm ing-en" placeholder="@(isRtl?"اسم بالإنجليزية":"English name")" /></div>
+                            <div class="col-2"><input type="text" class="form-control form-control-sm ing-amount" placeholder="@(isRtl?"الكمية":"Amount")" /></div>
+                        </div>
+                    </div>
+                    <input type="hidden" name="ingredientsJson" id="ingredientsJson" />
+                </div>
+
+                <!-- Steps -->
+                <div class="card-glass p-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 style="font-weight:700;margin:0">@(isRtl?"خطوات التحضير":"Preparation Steps")</h5>
+                        <button type="button" class="btn-ghost-custom btn-sm" onclick="addStep()">
+                            <i class="bi bi-plus"></i> @(isRtl?"إضافة":"Add")
+                        </button>
+                    </div>
+                    <div id="stepsList">
+                        <div class="step-row row g-2 mb-2">
+                            <div class="col-6"><textarea class="form-control form-control-sm step-ar" rows="2" placeholder="@(isRtl?"الخطوة بالعربية":"Step in Arabic")"></textarea></div>
+                            <div class="col-6"><textarea class="form-control form-control-sm step-en" rows="2" placeholder="@(isRtl?"الخطوة بالإنجليزية":"Step in English")"></textarea></div>
+                        </div>
+                    </div>
+                    <input type="hidden" name="stepsJson" id="stepsJson" />
+                </div>
+
+                <button type="submit" class="btn-primary-custom btn-lg-custom w-100">
+                    <i class="bi bi-send"></i> @(isRtl?"إرسال للمراجعة":"Submit for Review")
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function addIngredient() {
+        const list = document.getElementById('ingredientsList');
+        const row = document.createElement('div');
+        row.className = 'ingredient-row row g-2 mb-2';
+        row.innerHTML = `<div class="col-5"><input type="text" class="form-control form-control-sm ing-ar" placeholder="@(isRtl?"اسم بالعربية":"Arabic name")" /></div>
+            <div class="col-5"><input type="text" class="form-control form-control-sm ing-en" placeholder="@(isRtl?"اسم بالإنجليزية":"English name")" /></div>
+            <div class="col-2"><input type="text" class="form-control form-control-sm ing-amount" placeholder="@(isRtl?"الكمية":"Amount")" /></div>`;
+        list.appendChild(row);
+    }
+
+    function addStep() {
+        const list = document.getElementById('stepsList');
+        const row = document.createElement('div');
+        row.className = 'step-row row g-2 mb-2';
+        row.innerHTML = `<div class="col-6"><textarea class="form-control form-control-sm step-ar" rows="2" placeholder="@(isRtl?"الخطوة بالعربية":"Step in Arabic")"></textarea></div>
+            <div class="col-6"><textarea class="form-control form-control-sm step-en" rows="2" placeholder="@(isRtl?"الخطوة بالإنجليزية":"Step in English")"></textarea></div>`;
+        list.appendChild(row);
+    }
+
+    document.getElementById('submitForm').addEventListener('submit', function() {
+        // Build ingredients JSON
+        const ingRows = document.querySelectorAll('.ingredient-row');
+        const ingredients = Array.from(ingRows).map(r => ({
+            nameAr: r.querySelector('.ing-ar').value,
+            name: r.querySelector('.ing-en').value,
+            amount: r.querySelector('.ing-amount').value
+        })).filter(i => i.name || i.nameAr);
+        document.getElementById('ingredientsJson').value = JSON.stringify(ingredients);
+
+        // Build steps JSON
+        const stepRows = document.querySelectorAll('.step-row');
+        const steps = Array.from(stepRows).map(r => ({
+            ar: r.querySelector('.step-ar').value,
+            en: r.querySelector('.step-en').value
+        })).filter(s => s.ar || s.en);
+        document.getElementById('stepsJson').value = JSON.stringify(steps);
+    });
+</script>
+}

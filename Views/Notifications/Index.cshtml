@@ -1,0 +1,133 @@
+@model List<MoodBite.Models.Notification>
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.notifications");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var selectedType = ViewBag.SelectedType as string;
+    var unreadCount = Model.Count(n => !n.IsRead);
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <div>
+                    <h1 style="font-weight:800;font-size:1.6rem;margin:0">@T.Get("nav.notifications")</h1>
+                    @if (unreadCount > 0)
+                    {
+                        <p class="text-muted mb-0">@unreadCount @(isRtl?"إشعارات غير مقروءة":"unread notifications")</p>
+                    }
+                </div>
+                <div class="d-flex gap-2">
+                    <form asp-action="MarkAllRead" method="post" class="d-inline">
+                        <button type="submit" class="btn-ghost-custom btn-sm">
+                            <i class="bi bi-check-all"></i> @(isRtl?"قراءة الكل":"Mark All Read")
+                        </button>
+                    </form>
+                    <form asp-action="ClearRead" method="post" class="d-inline">
+                        <button type="submit" class="btn-danger-custom btn-sm">
+                            <i class="bi bi-trash"></i> @(isRtl?"حذف المقروءة":"Clear Read")
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show mb-3">
+                    <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <!-- Type Filter -->
+            <div class="d-flex gap-2 flex-wrap mb-4">
+                <a href="@Url.Action("Index")"
+                   class="tab-btn day-tab-btn @(selectedType == null ? "active" : "")">
+                    <i data-lucide="list"></i> @T.Get("notifications.all")
+                </a>
+                <a href="@Url.Action("Index", new { type = "meal" })"
+                   class="tab-btn day-tab-btn @(selectedType == "meal" ? "active" : "")">
+                    <i data-lucide="utensils" class="icon-green"></i> @T.Get("notifications.meal")
+                </a>
+                <a href="@Url.Action("Index", new { type = "workout" })"
+                   class="tab-btn day-tab-btn @(selectedType == "workout" ? "active" : "")">
+                    <i data-lucide="dumbbell" class="icon-amber"></i> @T.Get("notifications.workout")
+                </a>
+                <a href="@Url.Action("Index", new { type = "reminder" })"
+                   class="tab-btn day-tab-btn @(selectedType == "reminder" ? "active" : "")">
+                    <i data-lucide="clock" class="icon-amber"></i> @T.Get("notifications.reminder")
+                </a>
+                <a href="@Url.Action("Index", new { type = "health" })"
+                   class="tab-btn day-tab-btn @(selectedType == "health" ? "active" : "")">
+                    <i data-lucide="heart" class="icon-red"></i> @T.Get("notifications.health")
+                </a>
+            </div>
+
+            @if (!Model.Any())
+            {
+                <div class="empty-state-card">
+                    <div class="empty-icon"><i data-lucide="bell" class="icon-muted"></i></div>
+                    <p>@T.Get("notifications.noNotifications")</p>
+                </div>
+            }
+
+            <div class="d-flex flex-column gap-2">
+                @foreach (var notif in Model)
+                {
+                    var timeAgo = (DateTime.UtcNow - notif.CreatedAt).TotalDays switch {
+                        < 1.0/24 => isRtl ? "الآن" : "Just now",
+                        < 1 => isRtl ? $"منذ {(int)(DateTime.UtcNow - notif.CreatedAt).TotalHours} ساعة" : $"{(int)(DateTime.UtcNow - notif.CreatedAt).TotalHours}h ago",
+                        < 7 => isRtl ? $"منذ {(int)(DateTime.UtcNow - notif.CreatedAt).TotalDays} يوم" : $"{(int)(DateTime.UtcNow - notif.CreatedAt).TotalDays}d ago",
+                        _ => notif.CreatedAt.ToString("MM/dd")
+                    };
+                    var iconName = notif.Type switch {
+                        "meal"     => "utensils",
+                        "workout"  => "dumbbell",
+                        "reminder" => "clock",
+                        "health"   => "heart",
+                        _          => "bell"
+                    };
+                    var iconCls = notif.Type switch {
+                        "meal"                    => "icon-green",
+                        "workout" or "reminder"   => "icon-amber",
+                        "health"                  => "icon-red",
+                        _                         => ""
+                    };
+
+                    <div class="notification-item @(!notif.IsRead ? "unread" : "")" style="background:var(--surface);border-radius:var(--radius-lg);padding:16px;border:1px solid @(!notif.IsRead ? "var(--primary)" : "var(--border)")">
+                        <div class="d-flex align-items-start gap-3">
+                            <div style="font-size:1.5rem;flex-shrink:0;display:flex;align-items:center">
+                                <i data-lucide="@iconName" class="@iconCls"></i>
+                            </div>
+                            <div style="flex:1;min-width:0">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <h6 style="font-weight:700;margin:0;font-size:.9rem">@(isRtl ? notif.TitleAr : notif.TitleEn)</h6>
+                                    <span style="font-size:.75rem;color:var(--text-secondary);white-space:nowrap">@timeAgo</span>
+                                </div>
+                                <p style="margin:4px 0 8px;font-size:.85rem;color:var(--text-secondary);line-height:1.5">@(isRtl ? notif.MessageAr : notif.MessageEn)</p>
+                                @if (!notif.IsRead)
+                                {
+                                    <form asp-action="MarkRead" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@notif.Id" />
+                                        <button type="submit" class="btn-ghost-custom btn-sm" style="padding:3px 10px;font-size:.75rem">
+                                            <i class="bi bi-check"></i> @(isRtl?"تحديد كمقروء":"Mark Read")
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary" style="font-size:.7rem">@(isRtl?"مقروء":"Read")</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+        </div>
+    </div>
+</div>

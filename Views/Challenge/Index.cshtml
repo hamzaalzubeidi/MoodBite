@@ -1,0 +1,302 @@
+@using MoodBite.Services
+@using System.Text.Json
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.challenge");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var allChallenges = ViewBag.AllChallenges as List<MoodBite.Models.Challenge> ?? new();
+    var myChallenges = ViewBag.MyChallenges as List<MoodBite.Models.UserChallenge> ?? new();
+    var joinedIds = ViewBag.JoinedIds as HashSet<int> ?? new();
+    var leaderboard = ViewBag.Leaderboard as dynamic;
+}
+
+<div class="container-xl py-4">
+
+    <div class="section-header text-center mb-5">
+        <div class="section-tag">@(isRtl?"التحديات":"Challenges")</div>
+        <h1 class="section-title mt-2">@T.Get("nav.challenge")</h1>
+        <p style="color:var(--text-secondary);max-width:600px;margin:0 auto">
+            @(isRtl?"انضم إلى تحدي 30 يوماً وحسّن عاداتك الغذائية":"Join a 30-day challenge and improve your eating habits")
+        </p>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-warning alert-dismissible fade show mb-4">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Tabs -->
+    <div data-tabs-container>
+    <div class="tabs-container mb-4">
+        <button class="tab-btn active" data-target="browse">
+            <i class="bi bi-grid"></i> @(isRtl?"اكتشف":"Browse")
+        </button>
+        <button class="tab-btn" data-target="mine">
+            <i class="bi bi-person-check"></i> @(isRtl?"تحدياتي":"My Challenges")
+            @if (myChallenges.Count > 0) { <span class="badge bg-primary ms-1">@myChallenges.Count</span> }
+        </button>
+        <button class="tab-btn" data-target="leaderboard">
+            <i class="bi bi-trophy"></i> @(isRtl?"المتصدرون":"Leaderboard")
+        </button>
+    </div>
+
+    <!-- BROWSE TAB -->
+    <div id="browse" class="tab-pane active">
+        <div class="row g-4">
+            @foreach (var ch in allChallenges)
+            {
+                var isJoined = joinedIds.Contains(ch.Id);
+                var diffColor = ch.Difficulty switch { "hard" => "danger", "medium" => "warning", _ => "success" };
+
+                List<string> tasks = new();
+                try { tasks = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(ch.TasksJson)?.Select(t => isRtl ? (t.GetValueOrDefault("ar") ?? t.GetValueOrDefault("en") ?? "") : (t.GetValueOrDefault("en") ?? "")).ToList() ?? []; } catch { }
+
+                <div class="col-md-6 col-lg-4 animate-on-scroll">
+                    <div class="card-glass p-4 h-100 d-flex flex-column">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span style="font-size:2rem">@ch.Emoji</span>
+                                <div>
+                                    <h5 style="font-weight:700;margin:0">@(isRtl ? ch.NameAr : ch.NameEn)</h5>
+                                    <span class="badge bg-@diffColor">@ch.Difficulty</span>
+                                </div>
+                            </div>
+                            @if (isJoined)
+                            {
+                                <span class="badge bg-success"><i class="bi bi-check"></i> @(isRtl?"منضم":"Joined")</span>
+                            }
+                        </div>
+                        <p style="color:var(--text-secondary);font-size:.85rem;flex:1">
+                            @(isRtl ? ch.DescriptionAr : ch.DescriptionEn)
+                        </p>
+                        @if (tasks.Count > 0)
+                        {
+                            <div class="mb-3">
+                                <div style="font-size:.8rem;font-weight:700;color:var(--text-secondary);margin-bottom:6px">@(isRtl?"مهام يومية:":"Daily tasks:")</div>
+                                @foreach (var task in tasks.Take(3))
+                                {
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <i class="bi bi-check-circle text-primary" style="font-size:.75rem"></i>
+                                        <span style="font-size:.8rem">@task</span>
+                                    </div>
+                                }
+                                @if (tasks.Count > 3) { <div style="font-size:.75rem;color:var(--text-secondary)">+@(tasks.Count - 3) @(isRtl?"أكثر":"more")</div> }
+                            </div>
+                        }
+                        <div class="mt-auto">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span style="font-size:.8rem;color:var(--text-secondary)">
+                                    <i class="bi bi-calendar3 me-1"></i>30 @(isRtl?"يوم":"days")
+                                </span>
+                                <span class="badge bg-info text-dark" style="font-size:.7rem">@ch.DietType</span>
+                            </div>
+                            @if (!isJoined)
+                            {
+                                <form asp-action="Join" method="post">
+                                    <input type="hidden" name="challengeId" value="@ch.Id" />
+                                    <button type="submit" class="btn-primary-custom w-100">
+                                        <i class="bi bi-plus-circle"></i> @(isRtl?"انضم الآن":"Join Now")
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <button class="btn-ghost-custom w-100" disabled>
+                                    <i class="bi bi-check-circle-fill text-success"></i> @(isRtl?"منضم بالفعل":"Already Joined")
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- MY CHALLENGES TAB -->
+    <div id="mine" class="tab-pane">
+        @if (!myChallenges.Any())
+        {
+            <div class="text-center py-5 card-glass p-5">
+                <div style="font-size:3rem;margin-bottom:12px"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-amber"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+                <p class="text-muted">@(isRtl?"لم تنضم لأي تحدٍ بعد":"You haven't joined any challenge yet")</p>
+                <button class="btn-primary-custom mt-3" onclick="switchTab('browse')">
+                    @(isRtl?"اكتشف التحديات":"Browse Challenges")
+                </button>
+            </div>
+        }
+        <div class="row g-4">
+            @foreach (var uc in myChallenges)
+            {
+                var progressPct = (int)(uc.CurrentDay * 100.0 / 30);
+                var completedDays = new List<string>();
+                try { completedDays = JsonSerializer.Deserialize<List<string>>(uc.CompletedDaysJson) ?? []; } catch { }
+
+                List<string> todayTasks = new();
+                try {
+                    var tasksRaw = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(uc.Challenge.TasksJson);
+                    if (tasksRaw != null)
+                    {
+                        var taskIdx = uc.CurrentDay % tasksRaw.Count;
+                        if (taskIdx < tasksRaw.Count)
+                        {
+                            var t = tasksRaw[taskIdx];
+                            todayTasks.Add(isRtl ? (t.GetValueOrDefault("ar") ?? "") : (t.GetValueOrDefault("en") ?? ""));
+                        }
+                    }
+                } catch { }
+
+                var alreadyDoneToday = uc.LastCheckIn?.Date == DateTime.Today;
+
+                <div class="col-md-6 animate-on-scroll">
+                    <div class="card-elevated p-4">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <span style="font-size:1.8rem">@uc.Challenge.Emoji</span>
+                            <div>
+                                <h5 style="font-weight:700;margin:0">@(isRtl ? uc.Challenge.NameAr : uc.Challenge.NameEn)</h5>
+                                <div class="text-muted small">@(isRtl?"اليوم":"Day") @uc.CurrentDay / 30 • @(isRtl?"تسلسل:":"Streak:") @uc.Streak <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-green"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg></div>
+                            </div>
+                        </div>
+
+                        <!-- Progress bar -->
+                        <div style="background:var(--border);border-radius:4px;height:8px;margin-bottom:8px">
+                            <div style="height:100%;width:@progressPct%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:4px;transition:width .6s"></div>
+                        </div>
+                        <div class="d-flex justify-content-between text-muted small mb-3">
+                            <span>@progressPct%</span>
+                            <span>@(30 - uc.CurrentDay) @(isRtl?"يوم متبقٍ":"days left")</span>
+                        </div>
+
+                        <!-- Badges -->
+                        <div class="d-flex gap-2 mb-3 flex-wrap">
+                            @foreach (var (day, emoji, label) in new[] { (7,"🥉",isRtl?"7 أيام":"7 Days"), (14,"🥈",isRtl?"14 يوم":"14 Days"), (21,"🥇",isRtl?"21 يوم":"21 Days"), (30,"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"icon-amber\"><path d=\"M6 9H4.5a2.5 2.5 0 0 1 0-5H6\"/><path d=\"M18 9h1.5a2.5 2.5 0 0 0 0-5H18\"/><path d=\"M4 22h16\"/><path d=\"M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22\"/><path d=\"M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22\"/><path d=\"M18 2H6v7a6 6 0 0 0 12 0V2Z\"/></svg>",isRtl?"30 يوم":"30 Days") })
+                            {
+                                <div class="text-center" style="opacity:@(uc.CurrentDay >= day ? "1" : "0.3")">
+                                    <div style="font-size:1.2rem">@Html.Raw(emoji)</div>
+                                    <div style="font-size:.65rem;color:var(--text-secondary)">@label</div>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Today's task -->
+                        @if (todayTasks.Count > 0)
+                        {
+                            <div class="p-3 mb-3" style="background:var(--primary-100,#d1fae5);border-radius:var(--radius-md)">
+                                <div style="font-weight:700;font-size:.85rem;margin-bottom:4px">@(isRtl?"مهمة اليوم:":"Today's Task:")</div>
+                                <div style="font-size:.85rem">@todayTasks[0]</div>
+                            </div>
+                        }
+
+                        @if (!alreadyDoneToday)
+                        {
+                            <form asp-action="CompleteTask" method="post">
+                                <input type="hidden" name="userChallengeId" value="@uc.Id" />
+                                <button type="submit" class="btn-primary-custom w-100">
+                                    <i class="bi bi-check-circle"></i> @(isRtl?"أنجزت مهمة اليوم":"Complete Today's Task")
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="text-center p-2 bg-success bg-opacity-10 rounded">
+                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                <span class="text-success fw-600 small">@(isRtl?"أحسنت! مهمة اليوم منجزة":"Great! Today's task done")</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- LEADERBOARD TAB -->
+    <div id="leaderboard" class="tab-pane">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+
+                @if (leaderboard != null)
+                {
+                    <!-- Podium for top 3 -->
+                    var leaderList = (IEnumerable<dynamic>)leaderboard;
+                    var top3 = leaderList.Take(3).ToList();
+                    var rest = leaderList.Skip(3).ToList();
+
+                    if (top3.Count >= 1)
+                    {
+                        <div class="podium-container mb-4 d-flex align-items-end justify-content-center gap-3 text-center">
+                            @if (top3.Count >= 2)
+                            {
+                                <div class="podium-2nd" style="flex:1;max-width:160px">
+                                    <div style="font-size:2rem;margin-bottom:8px">🥈</div>
+                                    <div style="font-weight:700;font-size:.9rem">@top3[1].UserName</div>
+                                    <div style="font-size:.8rem;color:var(--text-secondary)">@top3[1].TotalStreak <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-green"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg></div>
+                                    <div style="height:80px;background:linear-gradient(to top,#c0c0c0,#e2e8f0);border-radius:var(--radius-lg) var(--radius-lg) 0 0;display:flex;align-items:center;justify-content:center;margin-top:8px;font-size:1.4rem;font-weight:800">2</div>
+                                </div>
+                            }
+                            <div class="podium-1st" style="flex:1;max-width:180px">
+                                <div style="font-size:2.5rem;margin-bottom:8px">🥇</div>
+                                <div style="font-weight:800">@top3[0].UserName</div>
+                                <div style="font-size:.85rem;color:var(--text-secondary)">@top3[0].TotalStreak <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-green"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg></div>
+                                <div style="height:110px;background:linear-gradient(to top,#f59e0b,#fbbf24);border-radius:var(--radius-lg) var(--radius-lg) 0 0;display:flex;align-items:center;justify-content:center;margin-top:8px;font-size:1.6rem;font-weight:800">1</div>
+                            </div>
+                            @if (top3.Count >= 3)
+                            {
+                                <div class="podium-3rd" style="flex:1;max-width:160px">
+                                    <div style="font-size:2rem;margin-bottom:8px">🥉</div>
+                                    <div style="font-weight:700;font-size:.9rem">@top3[2].UserName</div>
+                                    <div style="font-size:.8rem;color:var(--text-secondary)">@top3[2].TotalStreak <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-green"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg></div>
+                                    <div style="height:60px;background:linear-gradient(to top,#cd7c2f,#d97706);border-radius:var(--radius-lg) var(--radius-lg) 0 0;display:flex;align-items:center;justify-content:center;margin-top:8px;font-size:1.2rem;font-weight:800">3</div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (rest.Count > 0)
+                    {
+                        <div class="card-glass p-2">
+                            @{ int rank = 4; }
+                            @foreach (var entry in rest)
+                            {
+                                <div class="d-flex align-items-center gap-3 p-3" style="border-bottom:1px solid var(--border)">
+                                    <span style="font-size:1.1rem;font-weight:700;width:24px;color:var(--text-secondary)">#@rank</span>
+                                    <div style="width:36px;height:36px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;flex-shrink:0">
+                                        @(((string)entry.UserName)[0].ToString().ToUpper())
+                                    </div>
+                                    <div style="flex:1">
+                                        <div style="font-weight:600">@entry.UserName</div>
+                                        <div style="font-size:.75rem;color:var(--text-secondary)">@entry.TotalDays @(isRtl?"يوم كلي":"total days")</div>
+                                    </div>
+                                    <div style="font-weight:700;color:var(--primary)">@entry.TotalStreak <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-green"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg></div>
+                                </div>
+                                rank++;
+                            }
+                        </div>
+                    }
+                }
+
+            </div>
+        </div>
+    </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            if (btn.dataset.target === tabId) btn.click();
+        });
+    }
+</script>
+}

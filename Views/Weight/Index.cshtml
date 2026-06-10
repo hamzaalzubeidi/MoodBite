@@ -1,0 +1,261 @@
+@model List<MoodBite.Models.WeightLog>
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.CurrentLang == "ar" ? "متابعة الوزن" : "Weight Tracker";
+    Layout = "_Layout";
+    var isRtl  = T.CurrentLang == "ar";
+
+    var profile     = ViewBag.Profile as MoodBite.Models.HealthProfile;
+    var current     = Model.FirstOrDefault()?.Weight;
+    var start       = Model.Count > 0 ? Model.Last().Weight : (double?)null;
+    var totalChange = current.HasValue && start.HasValue ? current.Value - start.Value : (double?)null;
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-0" style="border-radius:0">
+        <div class="container-xl"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mb-0" style="border-radius:0">
+        <div class="container-xl"><i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </div>
+}
+
+<!-- Page header -->
+<div style="background:linear-gradient(135deg,#064e3b 0%,#065f46 40%,#0d9488 100%);padding:28px 0 44px;margin-bottom:-20px">
+    <div class="container-xl">
+        <h1 style="color:white;font-weight:900;font-size:clamp(1.3rem,3vw,1.8rem);margin:0">
+            <i data-lucide="scale" class="icon-purple"></i> @(isRtl ? "متابعة الوزن" : "Weight Tracker")
+        </h1>
+        <p style="color:rgba(255,255,255,.7);margin:4px 0 0;font-size:.875rem">
+            @(isRtl ? "سجّل وزنك اليومي وتابع تقدمك" : "Log your daily weight and track your progress")
+        </p>
+    </div>
+</div>
+
+<div class="container-xl py-4">
+
+    <!-- Summary cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4">
+            <div class="card-glass p-3 text-center" style="border-radius:16px">
+                <div style="font-size:1.5rem;font-weight:900;color:var(--primary)">@(current.HasValue ? $"{current:F1} kg" : "—")</div>
+                <div style="font-size:.78rem;color:var(--text-secondary);margin-top:4px">@(isRtl ? "الوزن الحالي" : "Current Weight")</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="card-glass p-3 text-center" style="border-radius:16px">
+                <div style="font-size:1.5rem;font-weight:900;color:var(--accent)">@(start.HasValue ? $"{start:F1} kg" : "—")</div>
+                <div style="font-size:.78rem;color:var(--text-secondary);margin-top:4px">@(isRtl ? "الوزن الابتدائي" : "Start Weight")</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card-glass p-3 text-center" style="border-radius:16px">
+                @if (totalChange.HasValue)
+                {
+                    var chgColor = totalChange < 0 ? "#10b981" : totalChange > 0 ? "#ef4444" : "#6b7280";
+                    var chgSign  = totalChange > 0 ? "+" : "";
+                    <div style="font-size:1.5rem;font-weight:900;color:@chgColor">@chgSign@totalChange.Value.ToString("F1") kg</div>
+                }
+                else
+                {
+                    <div style="font-size:1.5rem;font-weight:900;color:var(--text-muted)">—</div>
+                }
+                <div style="font-size:.78rem;color:var(--text-secondary);margin-top:4px">@(isRtl ? "إجمالي التغيير" : "Total Change")</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- Log Weight Card -->
+        <div class="col-lg-4">
+            <div class="card-glass p-4" style="border-radius:20px">
+                <h5 style="font-weight:800;margin-bottom:4px;font-size:1.05rem">
+                    <i class="bi bi-plus-circle-fill me-2" style="color:var(--primary)"></i>
+                    @(isRtl ? "تسجيل الوزن" : "Log Weight")
+                </h5>
+                <p style="font-size:.8rem;color:var(--text-secondary);margin-bottom:20px">
+                    @(isRtl ? "سجّل وزنك اليوم" : "Record today's weight")
+                </p>
+                <form asp-action="Log" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label" style="font-size:.82rem;font-weight:700">
+                            @(isRtl ? "الوزن (كغ)" : "Weight (kg)")
+                        </label>
+                        <input type="number" name="weight" class="form-control" step="0.1" min="30" max="300"
+                               placeholder="@(isRtl ? "أدخل وزنك" : "Enter weight")" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" style="font-size:.82rem;font-weight:700">
+                            @(isRtl ? "ملاحظة (اختياري)" : "Note (optional)")
+                        </label>
+                        <input type="text" name="note" class="form-control" maxlength="200"
+                               placeholder="@(isRtl ? "أضف ملاحظة..." : "Add a note...")" />
+                    </div>
+                    <button type="submit" class="btn-primary-custom w-100">
+                        <i class="bi bi-check-lg me-1"></i>
+                        @(isRtl ? "حفظ" : "Save")
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="col-lg-8">
+            <div class="card-glass p-4" style="border-radius:20px">
+                <h5 style="font-weight:800;margin-bottom:4px;font-size:1.05rem">
+                    <i class="bi bi-graph-up-arrow me-2 text-success"></i>
+                    @(isRtl ? "مخطط الوزن — آخر 30 يوم" : "Weight Chart — Last 30 Days")
+                </h5>
+                @if (Model.Count < 2)
+                {
+                    <div class="text-center py-4" style="color:var(--text-muted);font-size:.9rem">
+                        @(isRtl ? "سجّل يومين على الأقل لرؤية المخطط" : "Log at least 2 entries to see the chart")
+                    </div>
+                }
+                else
+                {
+                    <div style="height:260px">
+                        <canvas id="weightChartMain"></canvas>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Table -->
+    @if (Model.Count > 0)
+    {
+        <div class="card-glass p-4 mt-4" style="border-radius:20px">
+            <h5 style="font-weight:800;margin-bottom:16px;font-size:1.05rem">
+                <i class="bi bi-table me-2" style="color:var(--accent)"></i>
+                @(isRtl ? "سجل الوزن" : "Weight Log")
+            </h5>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" style="font-size:.875rem">
+                    <thead>
+                        <tr style="color:var(--text-muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.4px">
+                            <th>@(isRtl ? "التاريخ" : "Date")</th>
+                            <th>@(isRtl ? "الوزن" : "Weight")</th>
+                            <th>@(isRtl ? "التغيير" : "Change")</th>
+                            <th>@(isRtl ? "ملاحظة" : "Note")</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.Count; i++)
+                        {
+                            var log    = Model[i];
+                            var prev   = i + 1 < Model.Count ? Model[i + 1].Weight : (double?)null;
+                            var change = prev.HasValue ? log.Weight - prev.Value : (double?)null;
+                            var chgClr = change.HasValue ? (change < 0 ? "#10b981" : change > 0 ? "#ef4444" : "#6b7280") : "#6b7280";
+                            <tr data-log-id="@log.Id">
+                                <td style="font-weight:600">@log.Date.ToString(isRtl ? "yyyy/MM/dd" : "MMM d, yyyy")</td>
+                                <td style="font-weight:800;color:var(--primary)">@log.Weight.ToString("F1") kg</td>
+                                <td>
+                                    @if (change.HasValue)
+                                    {
+                                        var sign = change > 0 ? "+" : "";
+                                        <span style="font-weight:700;color:@chgClr;font-size:.82rem">@sign@change.Value.ToString("F1") kg</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:var(--text-muted)">—</span>
+                                    }
+                                </td>
+                                <td style="color:var(--text-secondary);font-size:.82rem">@(string.IsNullOrEmpty(log.Note) ? "—" : log.Note)</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteLog(@log.Id)" style="padding:2px 10px;font-size:.78rem;border-radius:6px">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state-card mt-4">
+            <div class="empty-icon"><i data-lucide="scale" class="icon-purple"></i></div>
+            <h5>@(isRtl ? "لا توجد سجلات بعد" : "No entries yet")</h5>
+            <p>@(isRtl ? "ابدأ بتسجيل وزنك اليوم" : "Start by logging your weight today")</p>
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+<script>
+@if (Model.Count >= 2)
+{
+    var chartLogs = Model.OrderBy(l => l.Date).TakeLast(30).ToList();
+    var labels = string.Join(",", chartLogs.Select(l => $"'{l.Date:MM/dd}'"));
+    var data   = string.Join(",", chartLogs.Select(l => l.Weight.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)));
+    <text>
+    const wCtx = document.getElementById('weightChartMain')?.getContext('2d');
+    if (wCtx) {
+        new Chart(wCtx, {
+            type: 'line',
+            data: {
+                labels: [@labels],
+                datasets: [{
+                    label: '@(isRtl ? "الوزن (كغ)" : "Weight (kg)")',
+                    data: [@data],
+                    borderColor: '#059669',
+                    backgroundColor: 'rgba(5,150,105,.12)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#059669',
+                    pointRadius: 4,
+                    pointHoverRadius: 7,
+                    borderWidth: 2.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        grid: { color: 'rgba(0,0,0,.05)' },
+                        ticks: { font: { size: 11 }, callback: v => v + ' kg' }
+                    },
+                    x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                }
+            }
+        });
+    }
+    </text>
+}
+</script>
+<script>
+async function deleteLog(id) {
+    if (!confirm('@(isRtl ? "هل تريد حذف هذا السجل؟" : "Delete this entry?")')) return;
+    try {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+        const res  = await fetch(`/Weight/Delete/${id}`, {
+            method: 'DELETE',
+            headers: { 'RequestVerificationToken': token }
+        });
+        const data = await res.json();
+        if (data.success) {
+            const row = document.querySelector(`tr[data-log-id="${id}"]`);
+            if (row) { row.style.opacity = '0'; row.style.transition = 'opacity .3s'; setTimeout(() => row.remove(), 300); }
+        } else {
+            alert(data.error || 'Error');
+        }
+    } catch { alert('Network error'); }
+}
+</script>
+}

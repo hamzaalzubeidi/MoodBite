@@ -1,0 +1,188 @@
+@model List<MoodBite.Models.CommunityRecipe>
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.community");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var search = ViewBag.Search as string;
+    var dietType = ViewBag.DietType as string;
+    var savedIds = ViewBag.SavedIds as List<int> ?? new();
+    var likedIds = ViewBag.LikedIds as List<int> ?? new();
+    var userId = ViewBag.UserId as string;
+    var badges = ViewBag.Badges as Dictionary<string, string?> ?? new();
+}
+
+<div class="container-xl py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 style="font-weight:800;font-size:1.6rem;margin:0">@T.Get("nav.community")</h1>
+            <p class="text-muted mb-0">@(isRtl?"وصفات صحية يشاركها مجتمعنا":"Healthy recipes shared by our community")</p>
+        </div>
+        <a asp-action="Submit" class="btn-primary-custom">
+            <i class="bi bi-plus-circle"></i> @(isRtl?"شارك وصفة":"Share Recipe")
+        </a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Search & Filter -->
+    <div class="card-glass p-3 mb-4">
+        <form method="get" class="d-flex gap-2 flex-wrap">
+            <input type="text" name="search" value="@search" class="form-control" style="max-width:280px"
+                   placeholder="@(isRtl?"بحث عن وصفة...":"Search recipes...")" />
+            <select name="dietType" class="form-select" style="max-width:180px" onchange="this.form.submit()">
+                <option value="">@(isRtl?"كل الأنظمة":"All Diets")</option>
+                @foreach (var dt in new[] { "keto","mediterranean","vegan","paleo","dash","flexitarian","carnivore" })
+                {
+                    <option value="@dt" selected="@(dietType == dt)">@dt</option>
+                }
+            </select>
+            <button type="submit" class="btn-primary-custom">
+                <i class="bi bi-search"></i>
+            </button>
+            @if (!string.IsNullOrEmpty(search) || !string.IsNullOrEmpty(dietType))
+            {
+                <a href="@Url.Action("Index")" class="btn-ghost-custom">@(isRtl?"إعادة تعيين":"Reset")</a>
+            }
+        </form>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5 card-glass p-5">
+            <div style="font-size:3rem;margin-bottom:12px"><i data-lucide="utensils" class="icon-green"></i></div>
+            <p class="text-muted">@(isRtl?"لا توجد وصفات تطابق بحثك":"No recipes match your search")</p>
+        </div>
+    }
+
+    <div class="row g-4">
+        @foreach (var recipe in Model)
+        {
+            var isLiked = likedIds.Contains(recipe.Id);
+            var isSaved = savedIds.Contains(recipe.Id);
+            <div class="col-md-6 col-lg-4 animate-on-scroll">
+                <div class="card-glass h-100 d-flex flex-column" style="overflow:hidden">
+                    <!-- Recipe card header with gradient -->
+                    <div style="height:120px;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;font-size:3rem;cursor:pointer"
+                         onclick="location.href='@Url.Action("Detail", new { id = recipe.Id })'">
+                        <i data-lucide="utensils" class="icon-green"></i>
+                    </div>
+                    <div class="p-4 d-flex flex-column flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 style="font-weight:700;margin:0;flex:1">
+                                <a asp-action="Detail" asp-route-id="@recipe.Id" class="text-decoration-none" style="color:var(--text-primary)">
+                                    @(isRtl ? recipe.TitleAr : recipe.TitleEn)
+                                </a>
+                            </h5>
+                            <span class="badge bg-info text-dark ms-2" style="font-size:.7rem;flex-shrink:0">@recipe.DietType</span>
+                        </div>
+
+                        <div class="text-muted small mb-3">
+                            <i class="bi bi-person me-1"></i>@(recipe.User?.FullName ?? "User")
+                            @{ var authorBadge = recipe.UserId != null && badges.TryGetValue(recipe.UserId, out var ab) ? ab : null; }
+                            @if (authorBadge != null) { <span title="@(isRtl?"أعلى إنجاز":"Top achievement")" style="font-size:.85rem">@authorBadge</span> }
+                            &nbsp;•&nbsp;
+                            <i class="bi bi-clock me-1"></i>@recipe.PrepTime @(isRtl?"دقيقة":"min")
+                        </div>
+
+                        <!-- Macros -->
+                        <div class="d-flex gap-3 mb-3 flex-wrap">
+                            <span class="small"><strong>@((int)recipe.Calories)</strong> @(isRtl?"كسع":"cal")</span>
+                            <span class="small text-success"><strong>@((int)recipe.Protein)</strong>g P</span>
+                            <span class="small text-warning"><strong>@((int)recipe.Carbs)</strong>g C</span>
+                            <span class="small icon-purple"><strong>@((int)recipe.Fats)</strong>g F</span>
+                        </div>
+
+                        <div class="mt-auto d-flex gap-2">
+                            <!-- Like button -->
+                            <button class="btn-ghost-custom btn-sm like-btn flex-shrink-0" data-recipe-id="@recipe.Id"
+                                    style="@(isLiked ? "color:var(--primary);border-color:var(--primary)" : "")">
+                                <i class="bi bi-heart@(isLiked ? "-fill" : "")"></i>
+                                <span class="like-count">@recipe.Likes</span>
+                            </button>
+                            <!-- Save button -->
+                            <button class="btn-ghost-custom btn-sm save-btn flex-shrink-0" data-recipe-id="@recipe.Id"
+                                    style="@(isSaved ? "color:var(--accent);border-color:var(--accent)" : "")">
+                                <i class="bi bi-bookmark@(isSaved ? "-fill" : "")"></i>
+                            </button>
+                            <a asp-action="Detail" asp-route-id="@recipe.Id" class="btn-primary-custom btn-sm flex-grow-1">
+                                @(isRtl?"عرض الوصفة":"View Recipe")
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+@Html.AntiForgeryToken()
+<script>
+    function getCsrfToken() {
+        return document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+    }
+
+    document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const recipeId = this.dataset.recipeId;
+            const res = await fetch('/Community/Like', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': getCsrfToken()
+                },
+                body: '__RequestVerificationToken=' + encodeURIComponent(getCsrfToken()) + '&recipeId=' + recipeId
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const icon = this.querySelector('i');
+            const count = this.querySelector('.like-count');
+            if (icon.classList.contains('bi-heart')) {
+                icon.classList.replace('bi-heart', 'bi-heart-fill');
+                this.style.color = 'var(--primary)';
+                this.style.borderColor = 'var(--primary)';
+            } else {
+                icon.classList.replace('bi-heart-fill', 'bi-heart');
+                this.style.color = '';
+                this.style.borderColor = '';
+            }
+            if (count) count.textContent = data.likes;
+        });
+    });
+
+    document.querySelectorAll('.save-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const recipeId = this.dataset.recipeId;
+            const res = await fetch('/Community/Save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': getCsrfToken()
+                },
+                body: '__RequestVerificationToken=' + encodeURIComponent(getCsrfToken()) + '&recipeId=' + recipeId
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const icon = this.querySelector('i');
+            if (data.saved) {
+                icon.classList.replace('bi-bookmark', 'bi-bookmark-fill');
+                this.style.color = 'var(--accent)';
+                this.style.borderColor = 'var(--accent)';
+            } else {
+                icon.classList.replace('bi-bookmark-fill', 'bi-bookmark');
+                this.style.color = '';
+                this.style.borderColor = '';
+            }
+        });
+    });
+</script>
+}

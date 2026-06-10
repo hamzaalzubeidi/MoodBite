@@ -1,0 +1,82 @@
+# Local secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+
+# Optional local configuration files
+appsettings.Local.json
+appsettings.*.local.json
+
+# Build folders
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# JetBrains Rider
+.idea/
+
+# Database local files
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+# User uploaded files
+wwwroot/uploads/
+
+# Build folders
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local uploads / user-generated files
+wwwroot/uploads/
+MoodBite/wwwroot/uploads/
+
+# Nested duplicate project copy - do not track
+MoodBite/
+
+# Local tool/private settings
+.claude/settings.local.json
+MoodBite/.claude/settings.local.json
+
+# Archives / backups
+*.rar
+*.zip
+*.7z
+
+# OS files
+desktop.ini
+.DS_Store
+Thumbs.db
+
+# Local database files
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log

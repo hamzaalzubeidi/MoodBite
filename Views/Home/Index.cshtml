@@ -1,0 +1,277 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.home");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+}
+
+<!-- HERO SECTION -->
+<section class="hero-section" style="position:relative;overflow:hidden">
+    <!-- Background grid pattern -->
+    <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(0,200,150,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,150,0.04) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0"></div>
+    <!-- Floating decorations -->
+    <div style="position:absolute;inset:0;pointer-events:none;z-index:0">
+        <span style="position:absolute;top:12%;@(isRtl?"left":"right"):8%;animation:float 4s ease-in-out infinite;opacity:.4"><i data-lucide="utensils" class="icon-green" style="width:28px;height:28px"></i></span>
+        <span style="position:absolute;top:30%;@(isRtl?"right":"left"):5%;animation:float 3.5s ease-in-out infinite .8s;opacity:.3"><i data-lucide="dumbbell" class="icon-amber" style="width:26px;height:26px"></i></span>
+        <span style="position:absolute;top:60%;@(isRtl?"left":"right"):12%;animation:float 5s ease-in-out infinite 1.2s;opacity:.3"><i data-lucide="scale" class="icon-purple" style="width:24px;height:24px"></i></span>
+        <span style="position:absolute;top:70%;@(isRtl?"right":"left"):8%;animation:float 4.5s ease-in-out infinite .4s;opacity:.3"><i data-lucide="droplets" class="icon-blue" style="width:26px;height:26px"></i></span>
+        <span style="position:absolute;top:20%;@(isRtl?"left":"right"):22%;animation:float 6s ease-in-out infinite 2s;opacity:.2"><i data-lucide="activity" class="icon-teal" style="width:20px;height:20px"></i></span>
+    </div>
+
+    <div class="container-xl" style="position:relative;z-index:1;padding-top:70px;padding-bottom:110px;">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6 fade-in">
+                <div class="section-tag mb-4">
+                    <i data-lucide="sparkles" style="width:13px;height:13px;margin-inline-end:5px"></i>
+                    @(isRtl ? "التغذية الذكية" : "AI-Powered Nutrition")
+                </div>
+                <h1 class="hero-title mb-2" style="font-size:clamp(2.4rem,6vw,4.2rem)">
+                    <span class="text-gradient-hero">MoodBite</span>
+                </h1>
+                <h2 style="font-size:clamp(1.2rem,3vw,1.9rem);font-weight:700;color:rgba(255,255,255,0.82);margin-bottom:20px;line-height:1.35">
+                    @(isRtl ? "نظامك الغذائي الذكي — خطط وتتبع واحقق أهدافك" : "Plan smarter, eat better, live healthier")
+                </h2>
+                <p class="hero-subtitle mb-5">@T.Get("home.hero.subtitle")</p>
+                <div class="d-flex gap-3 flex-wrap">
+                    <a asp-controller="Account" asp-action="Register" class="btn-primary-custom btn-lg-custom">
+                        <i class="bi bi-rocket-takeoff"></i>
+                        @T.Get("home.hero.cta")
+                    </a>
+                    <a asp-controller="Diets" asp-action="Index"
+                       style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.88) !important;border-radius:var(--radius-md);padding:14px 32px;font-weight:600;font-size:1rem;display:inline-flex;align-items:center;gap:8px;text-decoration:none;transition:all .2s;backdrop-filter:blur(8px)"
+                       onmouseover="this.style.background='rgba(255,255,255,.14)'"
+                       onmouseout="this.style.background='rgba(255,255,255,.08)'">
+                        @T.Get("home.hero.cta2")
+                    </a>
+                </div>
+                <div class="d-flex gap-5 mt-5">
+                    <div style="text-align:center">
+                        <div style="font-size:1.6rem;font-weight:900;color:var(--primary)">8+</div>
+                        <div style="font-size:.72rem;color:rgba(255,255,255,.55)">@(isRtl?"أنظمة":"Diets")</div>
+                    </div>
+                    <div style="width:1px;background:rgba(255,255,255,.1)"></div>
+                    <div style="text-align:center">
+                        <div style="font-size:1.6rem;font-weight:900;color:#A78BFA">AI</div>
+                        <div style="font-size:.72rem;color:rgba(255,255,255,.55)">@(isRtl?"مدعوم بالذكاء الاصطناعي":"Gemini Powered")</div>
+                    </div>
+                    <div style="width:1px;background:rgba(255,255,255,.1)"></div>
+                    <div style="text-align:center">
+                        <div style="font-size:1.6rem;font-weight:900;color:#60A5FA">24/7</div>
+                        <div style="font-size:.72rem;color:rgba(255,255,255,.55)">@(isRtl?"مساعد ذكي":"Assistant")</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6 d-none d-lg-block fade-in stagger-2">
+                <div style="position:relative;height:440px;">
+                    <!-- Meal card -->
+                    <div class="hero-card float-anim" style="position:absolute;top:20px;@(isRtl?"right":"left"):0;width:275px;border:1px solid rgba(0,200,150,0.2)">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div style="width:42px;height:42px;background:rgba(0,200,150,0.15);border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,200,150,0.25)">🥗</div>
+                            <div>
+                                <div style="font-weight:700;font-size:.9rem;color:rgba(255,255,255,.9)">@(isRtl?"وجبة الغداء":"Lunch")</div>
+                                <div style="color:rgba(255,255,255,.55);font-size:.75rem">@(isRtl?"دجاج متوسطي مشوي":"Mediterranean Chicken")</div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-around">
+                            <div style="text-align:center"><div style="font-weight:800;color:var(--primary)">450</div><div style="font-size:.7rem;color:rgba(255,255,255,.45)">cal</div></div>
+                            <div style="text-align:center"><div style="font-weight:800;color:#60A5FA">42g</div><div style="font-size:.7rem;color:rgba(255,255,255,.45)">@(isRtl?"بروتين":"protein")</div></div>
+                            <div style="text-align:center"><div style="font-weight:800;color:#A78BFA">18g</div><div style="font-size:.7rem;color:rgba(255,255,255,.45)">@(isRtl?"دهون":"fats")</div></div>
+                        </div>
+                    </div>
+                    <!-- Calorie goal card -->
+                    <div class="hero-card" style="position:absolute;bottom:40px;@(isRtl?"left":"right"):0;width:225px;animation:float 3.5s ease-in-out infinite .5s;border:1px solid rgba(124,58,237,0.2)">
+                        <div style="font-weight:700;margin-bottom:10px;font-size:.88rem;color:rgba(255,255,255,.9)">@(isRtl?"هدف السعرات":"Calorie Goal")</div>
+                        <div style="background:rgba(255,255,255,.08);border-radius:8px;height:7px;margin-bottom:6px;">
+                            <div style="height:100%;width:72%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:8px"></div>
+                        </div>
+                        <div class="d-flex justify-content-between" style="font-size:.72rem;color:rgba(255,255,255,.5)">
+                            <span>1,450 cal</span><span>2,000 cal</span>
+                        </div>
+                    </div>
+                    <!-- Streak card -->
+                    <div class="hero-card" style="position:absolute;top:190px;@(isRtl?"left":"right"):40px;animation:float 4s ease-in-out infinite 1s;text-align:center;border:1px solid rgba(0,200,150,0.15)">
+                        <div style="margin-bottom:6px"><i data-lucide="flame" class="icon-green" style="width:28px;height:28px"></i></div>
+                        <div style="font-weight:900;font-size:1.9rem;color:var(--primary);line-height:1">7</div>
+                        <div style="font-size:.78rem;color:rgba(255,255,255,.6)">@(isRtl?"يوم متتالي":"Day Streak")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES SECTION -->
+<section class="py-5" style="background:var(--background)">
+    <div class="container-xl py-4">
+        <div class="section-header">
+            <div class="section-tag">@(isRtl?"الميزات":"Features")</div>
+            <h2 class="section-title mt-2">@T.Get("home.features.title")</h2>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4 animate-on-scroll">
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-green">🤖</div>
+                    <h5 style="font-weight:700;margin-bottom:10px">@(isRtl?"خطط وجبات بالذكاء الاصطناعي":"AI Meal Plans")</h5>
+                    <p style="color:var(--text-secondary);font-size:.9rem;margin:0">@(isRtl?"خطط مخصصة تماماً لأهدافك الصحية وتفضيلاتك الغذائية":"Fully personalised plans tailored to your health goals and dietary preferences")</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 animate-on-scroll stagger-1">
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-blue">🏋️</div>
+                    <h5 style="font-weight:700;margin-bottom:10px">@(isRtl?"خطط تمارين ذكية":"AI Workout Plans")</h5>
+                    <p style="color:var(--text-secondary);font-size:.9rem;margin:0">@(isRtl?"برامج تدريبية أسبوعية تناسب مستواك وأهدافك":"Weekly training programs suited to your fitness level and goals")</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 animate-on-scroll stagger-2">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7)"><i data-lucide="scale" class="icon-purple"></i></div>
+                    <h5 style="font-weight:700;margin-bottom:10px">@(isRtl?"متابعة الوزن":"Weight Tracker")</h5>
+                    <p style="color:var(--text-secondary);font-size:.9rem;margin:0">@(isRtl?"سجّل وزنك يومياً وشاهد تقدمك على مخطط بياني تفاعلي":"Log daily weight and visualise progress on an interactive chart")</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 animate-on-scroll stagger-3">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background:linear-gradient(135deg,#eff6ff,#dbeafe)"><i data-lucide="droplets" class="icon-blue"></i></div>
+                    <h5 style="font-weight:700;margin-bottom:10px">@(isRtl?"متابعة الماء":"Water Tracker")</h5>
+                    <p style="color:var(--text-secondary);font-size:.9rem;margin:0">@(isRtl?"تذكير بشرب الماء مع تصوير كوب متحرك وبار تقدم":"Water reminder with animated glass and daily progress bar")</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 animate-on-scroll stagger-4">
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-teal"><i data-lucide="trophy" class="icon-amber"></i></div>
+                    <h5 style="font-weight:700;margin-bottom:10px">@(isRtl?"تحديات 30 يوم":"30-Day Challenges")</h5>
+                    <p style="color:var(--text-secondary);font-size:.9rem;margin:0">@(isRtl?"انضم إلى تحديات صحية وتنافس مع مستخدمين آخرين":"Join health challenges and compete with other users on the leaderboard")</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 animate-on-scroll stagger-5">
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-orange">👥</div>
+                    <h5 style="font-weight:700;margin-bottom:10px">@(isRtl?"مجتمع الوصفات":"Recipe Community")</h5>
+                    <p style="color:var(--text-secondary);font-size:.9rem;margin:0">@(isRtl?"شارك وصفاتك الصحية واكتشف وصفات من مستخدمين آخرين":"Share your healthy recipes and discover others from the community")</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="py-5" style="background:var(--surface)">
+    <div class="container-xl py-4">
+        <div class="section-header">
+            <div class="section-tag">@(isRtl?"كيف يعمل":"How It Works")</div>
+            <h2 class="section-title mt-2">@(isRtl?"ثلاث خطوات للبدء":"Three Steps to Start")</h2>
+        </div>
+        <div class="row g-4 text-center">
+            <div class="col-md-4 animate-on-scroll">
+                <div style="width:80px;height:80px;background:var(--primary-100);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 20px;"><i data-lucide="user"></i></div>
+                <div class="badge-primary badge-custom mb-2">1</div>
+                <h5 style="font-weight:700;margin-top:8px">@(isRtl?"أنشئ ملفك الشخصي":"Create Your Profile")</h5>
+                <p style="color:var(--text-secondary);font-size:.9rem">@(isRtl?"أجب على أسئلة بسيطة عن صحتك وأهدافك وتفضيلاتك الغذائية":"Answer simple questions about your health, goals, and food preferences")</p>
+            </div>
+            <div class="col-md-4 animate-on-scroll stagger-1">
+                <div style="width:80px;height:80px;background:var(--primary-100);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 20px;">🤖</div>
+                <div class="badge-primary badge-custom mb-2">2</div>
+                <h5 style="font-weight:700;margin-top:8px">@(isRtl?"احصل على خطتك":"Get Your Plan")</h5>
+                <p style="color:var(--text-secondary);font-size:.9rem">@(isRtl?"يولّد الذكاء الاصطناعي خطة وجبات مخصصة تماماً لأهدافك الصحية":"AI generates a meal plan perfectly tailored to your health goals")</p>
+            </div>
+            <div class="col-md-4 animate-on-scroll stagger-2">
+                <div style="width:80px;height:80px;background:var(--primary-100);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 20px;"><i data-lucide="bar-chart-2" class="icon-blue"></i></div>
+                <div class="badge-primary badge-custom mb-2">3</div>
+                <h5 style="font-weight:700;margin-top:8px">@(isRtl?"تتبع تقدمك":"Track Progress")</h5>
+                <p style="color:var(--text-secondary);font-size:.9rem">@(isRtl?"سجّل وجباتك يومياً وشاهد تحسنك في التقرير الأسبوعي":"Log your meals daily and see your improvement in the weekly report")</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="py-5" style="background:var(--background)">
+    <div class="container-xl py-4">
+        <div class="section-header">
+            <div class="section-tag">@(isRtl?"آراء المستخدمين":"Testimonials")</div>
+            <h2 class="section-title mt-2">@(isRtl?"ماذا يقول مستخدمونا":"What Our Users Say")</h2>
+        </div>
+        <div class="row g-4">
+            <!-- Testimonial 1 -->
+            <div class="col-md-4 animate-on-scroll">
+                <div class="card-glass p-4" style="border-radius:20px;height:100%">
+                    <div class="d-flex gap-1 mb-3">
+                        @for(int s=0;s<5;s++){<span style="color:#f59e0b;font-size:1.1rem">★</span>}
+                    </div>
+                    <p style="font-size:.925rem;color:var(--text-secondary);line-height:1.8;margin-bottom:16px">
+                        @(isRtl
+                            ? "\"موودبايت غيّر حياتي! خسرت 8 كيلوجرامات في شهرين بفضل خطط الوجبات المخصصة والتذكير اليومي. أنصح به كل من يريد حياة صحية.\""
+                            : "\"MoodBite changed my life! I lost 8 kg in two months thanks to the personalised meal plans and daily reminders. I recommend it to anyone seeking a healthier lifestyle.\"")
+                    </p>
+                    <div class="d-flex align-items-center gap-3 mt-auto">
+                        <div style="width:44px;height:44px;background:linear-gradient(135deg,#059669,#0d9488);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1rem;flex-shrink:0">ف</div>
+                        <div>
+                            <div style="font-weight:700;font-size:.9rem">@(isRtl?"فاطمة الزهراني":"Fatima Al-Zahrani")</div>
+                            <div style="font-size:.75rem;color:var(--text-muted)">@(isRtl?"الرياض، السعودية":"Riyadh, Saudi Arabia")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Testimonial 2 -->
+            <div class="col-md-4 animate-on-scroll stagger-1">
+                <div class="card-glass p-4" style="border-radius:20px;height:100%;border:2px solid var(--primary-200)">
+                    <div class="d-flex gap-1 mb-3">
+                        @for(int s=0;s<5;s++){<span style="color:#f59e0b;font-size:1.1rem">★</span>}
+                    </div>
+                    <p style="font-size:.925rem;color:var(--text-secondary);line-height:1.8;margin-bottom:16px">
+                        @(isRtl
+                            ? "\"أفضل تطبيق تغذية جربته! خطط الذكاء الاصطناعي دقيقة جداً وتراعي حساسيتي من الغلوتين. واجهة رائعة وسهلة الاستخدام.\""
+                            : "\"Best nutrition app I've tried! The AI plans are highly accurate and account for my gluten sensitivity. Beautiful and easy to use.\"")
+                    </p>
+                    <div class="d-flex align-items-center gap-3 mt-auto">
+                        <div style="width:44px;height:44px;background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1rem;flex-shrink:0">أ</div>
+                        <div>
+                            <div style="font-weight:700;font-size:.9rem">@(isRtl?"أحمد الحربي":"Ahmad Al-Harbi")</div>
+                            <div style="font-size:.75rem;color:var(--text-muted)">@(isRtl?"عمّان، الأردن":"Amman, Jordan")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Testimonial 3 -->
+            <div class="col-md-4 animate-on-scroll stagger-2">
+                <div class="card-glass p-4" style="border-radius:20px;height:100%">
+                    <div class="d-flex gap-1 mb-3">
+                        @for(int s=0;s<5;s++){<span style="color:#f59e0b;font-size:1.1rem">★</span>}
+                    </div>
+                    <p style="font-size:.925rem;color:var(--text-secondary);line-height:1.8;margin-bottom:16px">
+                        @(isRtl
+                            ? "\"متابعة الوزن والماء اليومي جعلتني أكثر التزاماً بصحتي. التقرير الأسبوعي رائع ويساعدني على فهم تقدمي بشكل واضح.\""
+                            : "\"Daily weight and water tracking made me much more committed to my health. The weekly report is excellent and helps me understand my progress clearly.\"")
+                    </p>
+                    <div class="d-flex align-items-center gap-3 mt-auto">
+                        <div style="width:44px;height:44px;background:linear-gradient(135deg,#0d9488,#0891b2);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1rem;flex-shrink:0">ن</div>
+                        <div>
+                            <div style="font-weight:700;font-size:.9rem">@(isRtl?"نورة المنصور":"Noura Al-Mansour")</div>
+                            <div style="font-size:.75rem;color:var(--text-muted)">@(isRtl?"دبي، الإمارات":"Dubai, UAE")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA SECTION -->
+<section class="py-5 gradient-primary">
+    <div class="container-xl py-4 text-center">
+        <h2 style="color:white;font-weight:800;font-size:clamp(1.5rem,3vw,2.2rem);margin-bottom:16px">
+            @(isRtl?"ابدأ رحلتك الصحية اليوم":"Start Your Health Journey Today")
+        </h2>
+        <p style="color:rgba(255,255,255,.85);margin-bottom:32px;font-size:1rem;max-width:500px;margin-inline:auto">
+            @(isRtl?"انضم إلى موودبايت واحصل على تجربة تغذية ذكية ومخصصة":"Join MoodBite and get a smart, personalized nutrition experience")
+        </p>
+        <a asp-controller="Account" asp-action="Register"
+           class="btn-primary-custom btn-lg-custom"
+           style="background:white;color:var(--primary) !important;box-shadow:0 4px 20px rgba(0,0,0,.15)">
+            <i class="bi bi-person-plus"></i>
+            @T.Get("auth.register")
+        </a>
+    </div>
+</section>

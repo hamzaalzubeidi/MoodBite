@@ -1,0 +1,163 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    var isRtl = T.CurrentLang == "ar";
+    var lang = T.CurrentLang;
+}
+<!DOCTYPE html>
+<html lang="@lang" dir="@(isRtl ? "rtl" : "ltr")">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — MoodBite Admin</title>
+
+    <!-- Anti-flash: apply saved theme before any CSS is parsed -->
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('moodbite-theme');
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = saved || (prefersDark ? 'dark' : 'light');
+                if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            } catch (e) { }
+        })();
+    </script>
+    <!-- Prevent FOUC -->
+    <style>body { opacity: 0; transition: opacity 0.28s ease; }</style>
+
+    @if (isRtl)
+    {
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" />
+    }
+    else
+    {
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    }
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        /* Admin sidebar — theme-aware, logical-property RTL */
+        .admin-sidebar {
+            width: 240px; min-height: 100vh;
+            background: var(--surface);
+            border-inline-end: 1px solid var(--border);
+            position: fixed; top: 0; inset-inline-start: 0;
+            z-index: 100; padding: 24px 0;
+        }
+        .admin-sidebar .brand {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .admin-sidebar .brand h5 { color: var(--text); font-weight: 800; margin: 0; }
+        .admin-sidebar .brand small { color: var(--text-muted); font-size: .75rem; }
+        .admin-nav-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+            color: var(--text-muted); text-decoration: none;
+            font-size: .9rem; font-weight: 600; transition: all .2s;
+            border-inline-start: 3px solid transparent;
+        }
+        .admin-nav-item:hover, .admin-nav-item.active {
+            background: var(--primary-50);
+            color: var(--primary);
+            border-inline-start-color: var(--primary);
+        }
+        .admin-nav-item i { font-size: 1rem; width: 20px; }
+        /* Admin content area */
+        .admin-content {
+            margin-inline-start: 240px;
+            padding: 24px; min-height: 100vh;
+            background: var(--bg);
+        }
+        /* Admin topbar */
+        .admin-topbar {
+            background: var(--navbar-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--navbar-border);
+            border-radius: var(--radius-lg);
+            padding: 16px 20px; margin-bottom: 24px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+        @@media (max-width: 768px) { .admin-sidebar { display: none; } .admin-content { margin: 0; } }
+    </style>
+</head>
+<body>
+
+    <!-- Admin Sidebar -->
+    <nav class="admin-sidebar">
+        <div class="brand">
+            <h5>🌿 MoodBite</h5>
+            <small>Admin Panel</small>
+        </div>
+        @{
+            var currentAction = ViewContext.RouteData.Values["controller"]?.ToString();
+        }
+        <a href="/Admin/AdminDashboard" class="admin-nav-item @(currentAction == "AdminDashboard" ? "active" : "")">
+            <i class="bi bi-speedometer2"></i> @(isRtl?"لوحة التحكم":"Dashboard")
+        </a>
+        <a href="/Admin/AdminUsers" class="admin-nav-item @(currentAction == "AdminUsers" ? "active" : "")">
+            <i class="bi bi-people-fill"></i> @(isRtl?"المستخدمون":"Users")
+        </a>
+        <a href="/Admin/AdminDiets" class="admin-nav-item @(currentAction == "AdminDiets" ? "active" : "")">
+            <i class="bi bi-list-check"></i> @(isRtl?"الأنظمة الغذائية":"Diets")
+        </a>
+        <a href="/Admin/AdminRecipes" class="admin-nav-item @(currentAction == "AdminRecipes" ? "active" : "")">
+            <i class="bi bi-journal-check"></i> @(isRtl?"الوصفات":"Recipes")
+        </a>
+        <hr style="border-color:var(--border);margin:12px 20px" />
+        <a href="/" class="admin-nav-item">
+            <i class="bi bi-house"></i> @(isRtl?"الموقع الرئيسي":"Main Site")
+        </a>
+        <form asp-controller="Account" asp-action="Logout" method="post" class="px-2">
+            <button type="submit" class="admin-nav-item w-100 border-0 bg-transparent text-start">
+                <i class="bi bi-box-arrow-right"></i> @(isRtl?"تسجيل خروج":"Logout")
+            </button>
+        </form>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="admin-content">
+        <div class="admin-topbar">
+            <h6 style="font-weight:700;margin:0">@ViewData["Title"]</h6>
+            <div class="d-flex align-items-center gap-3">
+                <button id="themeToggle"
+                        class="theme-toggle-btn"
+                        type="button"
+                        aria-label="Toggle theme"
+                        title="تبديل المظهر / Toggle Theme">
+                    <i data-lucide="sun"  class="theme-icon-light" id="iconSun"></i>
+                    <i data-lucide="moon" class="theme-icon-dark"  id="iconMoon"></i>
+                </button>
+                <span class="badge bg-danger">@(isRtl?"مدير":"Admin")</span>
+                <span style="font-size:.85rem;color:var(--text-secondary)">@User.Identity?.Name</span>
+            </div>
+        </div>
+
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show mb-4">
+                <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show mb-4">
+                <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        @RenderBody()
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>if (typeof lucide !== 'undefined') lucide.createIcons();</script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

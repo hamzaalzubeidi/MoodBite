@@ -1,0 +1,87 @@
+@model MoodBite.ViewModels.Account.RegisterViewModel
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("auth.register");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+}
+
+<div class="auth-page">
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-100 py-5">
+            <div class="col-md-6 col-lg-5">
+                <div class="auth-card fade-in" style="border-radius:24px">
+                    <div class="auth-logo">
+                        <div class="auth-logo-icon">🌿</div>
+                        <h4 class="auth-brand">MoodBite</h4>
+                    </div>
+                    <h2 class="auth-title">@T.Get("auth.register")</h2>
+                    <p class="auth-subtitle">@(isRtl ? "ابدأ رحلتك الصحية اليوم" : "Start your health journey today")</p>
+
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Register" method="post">
+                        <div class="mb-3">
+                            <label asp-for="FullName" class="form-label">@T.Get("auth.fullName")</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                <input asp-for="FullName" class="form-control" placeholder="@(isRtl ? "الاسم الكامل" : "Full name")" autocomplete="name" />
+                            </div>
+                            <span asp-validation-for="FullName" class="text-danger small"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="Email" class="form-label">@T.Get("auth.email")</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                <input asp-for="Email" class="form-control" placeholder="@(isRtl ? "البريد الإلكتروني" : "Email address")" autocomplete="email" />
+                            </div>
+                            <span asp-validation-for="Email" class="text-danger small"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="Password" class="form-label">@T.Get("auth.password")</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                <input asp-for="Password" class="form-control" placeholder="@(isRtl ? "كلمة المرور (8+ أحرف)" : "Password (8+ chars)")" autocomplete="new-password" id="passwordInput" />
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('passwordInput', this)">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <span asp-validation-for="Password" class="text-danger small"></span>
+                        </div>
+                        <div class="mb-4">
+                            <label asp-for="ConfirmPassword" class="form-label">@T.Get("auth.confirmPassword")</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                                <input asp-for="ConfirmPassword" class="form-control" placeholder="@(isRtl ? "تأكيد كلمة المرور" : "Confirm password")" autocomplete="new-password" id="confirmPasswordInput" />
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmPasswordInput', this)">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                        </div>
+                        <button type="submit" class="btn-primary-custom w-100 btn-lg-custom">
+                            <i class="bi bi-person-plus"></i>
+                            @T.Get("auth.register")
+                        </button>
+                    </form>
+
+                    <p class="text-center mt-4 mb-0" style="color:var(--text-secondary);font-size:.9rem">
+                        @(isRtl ? "لديك حساب بالفعل؟" : "Already have an account?")
+                        <a asp-action="Login" class="text-primary fw-600 text-decoration-none">@T.Get("auth.login")</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

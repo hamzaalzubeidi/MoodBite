@@ -1,0 +1,81 @@
+@model List<MoodBite.Models.ApplicationUser>
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.CurrentLang == "ar" ? "إدارة المستخدمين" : "Manage Users";
+    var isRtl = T.CurrentLang == "ar";
+    var userRoles = ViewBag.UserRoles as Dictionary<string, IList<string>> ?? new();
+}
+
+<div class="card-glass p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 style="font-weight:700;margin:0">
+            <i class="bi bi-people-fill text-primary me-2"></i>
+            @(isRtl?"المستخدمون":"Users") (@Model.Count)
+        </h5>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>@(isRtl?"المستخدم":"User")</th>
+                    <th>@(isRtl?"البريد":"Email")</th>
+                    <th>@(isRtl?"الدور":"Role")</th>
+                    <th>@(isRtl?"الحالة":"Status")</th>
+                    <th>@(isRtl?"انضم":"Joined")</th>
+                    <th>@(isRtl?"الإجراءات":"Actions")</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Model)
+                {
+                    var roles = userRoles.GetValueOrDefault(user.Id) ?? new List<string>();
+                    var role = roles.FirstOrDefault() ?? "User";
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width:36px;height:36px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.85rem;flex-shrink:0">
+                                    @(user.FullName.Length > 0 ? user.FullName[0].ToString().ToUpper() : "?")
+                                </div>
+                                <div>
+                                    <div style="font-weight:600">@user.FullName</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="small text-muted">@user.Email</td>
+                        <td>
+                            <span class="badge bg-@(role == "Admin" ? "danger" : "secondary")">@role</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-@(user.IsActive ? "success" : "secondary")">
+                                @(user.IsActive ? (isRtl?"نشط":"Active") : (isRtl?"معطل":"Inactive"))
+                            </span>
+                        </td>
+                        <td class="small">@user.CreatedAt.ToString("yyyy/MM/dd")</td>
+                        <td>
+                            <div class="d-flex gap-1 flex-wrap">
+                                <!-- Toggle Active -->
+                                <form asp-action="ToggleActive" method="post" class="d-inline">
+                                    <input type="hidden" name="userId" value="@user.Id" />
+                                    <button type="submit" class="btn-@(user.IsActive ? "danger" : "primary")-custom btn-sm"
+                                            style="padding:4px 10px;font-size:.75rem">
+                                        @(user.IsActive ? (isRtl?"تعطيل":"Disable") : (isRtl?"تفعيل":"Enable"))
+                                    </button>
+                                </form>
+                                <!-- Change Role -->
+                                <form asp-action="ChangeRole" method="post" class="d-inline">
+                                    <input type="hidden" name="userId" value="@user.Id" />
+                                    <select name="newRole" class="form-select form-select-sm d-inline-block" style="width:auto;font-size:.75rem" onchange="this.form.submit()">
+                                        <option value="User" selected="@(role == "User")">User</option>
+                                        <option value="Admin" selected="@(role == "Admin")">Admin</option>
+                                    </select>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

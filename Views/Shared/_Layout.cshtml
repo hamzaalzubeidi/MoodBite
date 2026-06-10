@@ -1,0 +1,368 @@
+@using MoodBite.Services
+@inject TranslationService T
+@inject Microsoft.AspNetCore.Identity.UserManager<MoodBite.Models.ApplicationUser> UserManager
+@inject MoodBite.Services.NotificationService NotificationService
+@{
+    var lang = T.CurrentLang;
+    var isRtl = lang == "ar";
+    var dir = isRtl ? "rtl" : "ltr";
+    var bootstrapCdn = isRtl
+        ? "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
+        : "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css";
+    var user = await UserManager.GetUserAsync(User);
+    var unreadCount = 0;
+    if (user != null) {
+        unreadCount = await NotificationService.GetUnreadCountAsync(user.Id);
+    }
+    var displayName = user?.FullName ?? (isRtl ? "مستخدم" : "User");
+    var avatarInitial = displayName.Length > 0 ? displayName[0].ToString() : "M";
+}
+<!DOCTYPE html>
+<html lang="@lang" dir="@dir">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- ANTI-FLASH: runs synchronously before any CSS is parsed or rendered -->
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('moodbite-theme');
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = saved || (prefersDark ? 'dark' : 'light');
+                if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+                // dark is default — no attribute needed
+            } catch (e) { }
+        })();
+    </script>
+    <!-- Body hidden until ThemeManager.init() reveals it — prevents FOUC -->
+    <style>body { opacity: 0; transition: opacity 0.28s ease; }</style>
+
+    <title>@(ViewData["Title"] != null ? ViewData["Title"] + " — MoodBite" : "MoodBite")</title>
+    <meta name="description" content="@(isRtl ? "موودبايت — تطبيق التغذية الذكي باللغة العربية" : "MoodBite — AI-powered nutrition app")" />
+
+    <!-- Bootstrap CSS RTL/LTR -->
+    <link rel="stylesheet" href="@bootstrapCdn" />
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body dir="@dir">
+<div class="main-wrapper">
+
+    <!-- NAVBAR -->
+    <nav class="navbar-moodbite" id="mainNavbar">
+        <div class="container-xl d-flex align-items-center justify-content-between h-100">
+
+            <!-- Logo -->
+            <a asp-controller="Home" asp-action="Index" class="navbar-brand-logo text-decoration-none">
+                <div class="brand-icon">🥗</div>
+                <span>MoodBite</span>
+            </a>
+
+            <!-- Nav Links (Desktop) -->
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+            <div class="d-none d-xl-flex align-items-center gap-1">
+                <a asp-controller="Dashboard" asp-action="Index" class="nav-link-custom @(ViewContext.RouteData.Values["controller"]?.ToString() == "Dashboard" ? "active" : "")">
+                    <i class="bi bi-speedometer2 me-1"></i>@T.Get("nav.dashboard")
+                </a>
+                <a asp-controller="MealPlan" asp-action="Index" class="nav-link-custom @(ViewContext.RouteData.Values["controller"]?.ToString() == "MealPlan" ? "active" : "")">
+                    <i class="bi bi-calendar2-week me-1"></i>@T.Get("nav.mealPlan")
+                </a>
+                <a asp-controller="Diets" asp-action="Index" class="nav-link-custom @(ViewContext.RouteData.Values["controller"]?.ToString() == "Diets" ? "active" : "")">
+                    <i class="bi bi-leaf me-1"></i>@T.Get("nav.diets")
+                </a>
+                <a asp-controller="Report" asp-action="Index" class="nav-link-custom @(ViewContext.RouteData.Values["controller"]?.ToString() == "Report" ? "active" : "")">
+                    <i class="bi bi-bar-chart-line me-1"></i>@T.Get("nav.report")
+                </a>
+                <div class="dropdown">
+                    <button class="nav-link-custom border-0 bg-transparent dropdown-toggle" data-bs-toggle="dropdown">
+                        @T.Get("common.more")
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a asp-controller="Workout" asp-action="Index" class="dropdown-item">@T.Get("nav.workout")</a></li>
+                        <li><a asp-controller="Challenge" asp-action="Index" class="dropdown-item">@T.Get("nav.challenge")</a></li>
+                        <li><a asp-controller="Community" asp-action="Index" class="dropdown-item">@T.Get("nav.community")</a></li>
+                        <li><a asp-controller="Buddy" asp-action="Index" class="dropdown-item">@T.Get("nav.buddy")</a></li>
+                        <li><a asp-controller="Restaurants" asp-action="Index" class="dropdown-item">@T.Get("nav.restaurants")</a></li>
+                        <li><a asp-controller="CostCalculator" asp-action="Index" class="dropdown-item">@T.Get("nav.costCalc")</a></li>
+                        <li><a asp-controller="Scanner" asp-action="Index" class="dropdown-item">@T.Get("nav.scanner")</a></li>
+                        <li><hr class="dropdown-divider" /></li>
+                        <li><a asp-controller="Weight" asp-action="Index" class="dropdown-item"><i data-lucide="scale" class="icon-purple"></i> @(T.CurrentLang == "ar" ? "متابعة الوزن" : "Weight Tracker")</a></li>
+                        <li><a asp-controller="Progress" asp-action="Index" class="dropdown-item"><i data-lucide="trending-up"></i> @(T.CurrentLang == "ar" ? "التقدم الجسدي" : "Body Progress")</a></li>
+                        <li><a asp-controller="MealPlan" asp-action="History" class="dropdown-item">📚 @(T.CurrentLang == "ar" ? "سجل خطط الوجبات" : "Meal Plan History")</a></li>
+                        <li><a asp-controller="Achievements" asp-action="Index" class="dropdown-item">🏅 @(T.CurrentLang == "ar" ? "الإنجازات" : "Achievements")</a></li>
+                        <li><a asp-controller="Emergency" asp-action="Index" class="dropdown-item text-danger"><i data-lucide="alert-triangle" class="icon-red"></i> @T.Get("nav.emergency")</a></li>
+                    </ul>
+                </div>
+            </div>
+            }
+
+            <!-- Right Actions -->
+            <div class="d-flex align-items-center gap-2">
+                <!-- Language Toggle -->
+                <form asp-controller="Account" asp-action="SetLanguage" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="lang" value="@(isRtl ? "en" : "ar")" />
+                    <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                    <button type="submit" class="lang-toggle-btn">
+                        @(isRtl ? "EN" : "عر")
+                    </button>
+                </form>
+
+                <!-- Theme Toggle -->
+                <button id="themeToggle"
+                        class="theme-toggle-btn"
+                        type="button"
+                        aria-label="Toggle theme"
+                        title="تبديل المظهر / Toggle Theme">
+                    <i data-lucide="sun"  class="theme-icon-light" id="iconSun"></i>
+                    <i data-lucide="moon" class="theme-icon-dark"  id="iconMoon"></i>
+                </button>
+
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                <!-- Notifications Bell -->
+                <a asp-controller="Notifications" asp-action="Index" class="notification-bell">
+                    <i class="bi bi-bell"></i>
+                    @if (unreadCount > 0)
+                    {
+                    <span class="notification-badge">@(unreadCount > 9 ? "9+" : unreadCount.ToString())</span>
+                    }
+                </a>
+
+                <!-- User Dropdown -->
+                <div class="dropdown">
+                    <button class="d-flex align-items-center gap-2 bg-transparent border-0 cursor-pointer" data-bs-toggle="dropdown">
+                        @if (!string.IsNullOrEmpty(user?.ProfilePicture))
+                        {
+                            <img src="~/uploads/@user.ProfilePicture" class="user-avatar" alt="avatar" />
+                        }
+                        else
+                        {
+                            <div class="user-avatar d-flex align-items-center justify-content-center" style="background:linear-gradient(135deg,#059669,#0d9488);color:white;font-weight:700;font-size:.9rem;border-radius:50%;width:38px;height:38px;">
+                                @avatarInitial
+                            </div>
+                        }
+                        <span class="d-none d-md-block" style="font-size:.875rem;font-weight:600;color:var(--text-primary)">@displayName.Split(' ')[0]</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li class="px-3 py-2 border-bottom">
+                            <div style="font-weight:700">@displayName</div>
+                            <div style="font-size:.75rem;color:var(--text-muted)">@user?.Email</div>
+                        </li>
+                        <li><a asp-controller="Profile" asp-action="Index" class="dropdown-item"><i class="bi bi-person me-2"></i>@T.Get("nav.myProfile")</a></li>
+                        <li><a asp-controller="Account" asp-action="MyAccount" class="dropdown-item"><i class="bi bi-gear me-2"></i>@T.Get("nav.myAccount")</a></li>
+                        @if (User.IsInRole("Admin"))
+                        {
+                        <li><a asp-area="Admin" asp-controller="AdminDashboard" asp-action="Index" class="dropdown-item"><i class="bi bi-shield-check me-2"></i>@T.Get("nav.admin")</a></li>
+                        }
+                        <li><hr class="dropdown-divider" /></li>
+                        <li>
+                            <form asp-controller="Account" asp-action="Logout" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="dropdown-item text-danger"><i class="bi bi-box-arrow-right me-2"></i>@T.Get("nav.logout")</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Mobile menu toggle -->
+                <button class="d-xl-none btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNav">
+                    <i class="bi bi-list"></i>
+                </button>
+                }
+                else
+                {
+                <a asp-controller="Account" asp-action="Login" class="btn-secondary-custom btn-sm-custom">@T.Get("nav.login")</a>
+                <a asp-controller="Account" asp-action="Register" class="btn-primary-custom btn-sm-custom d-none d-sm-inline-flex">@T.Get("nav.register")</a>
+                }
+            </div>
+        </div>
+
+        <!-- Mobile Nav Collapse -->
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+        <div class="collapse" id="mobileNav">
+            <div class="container-xl py-3 d-xl-none border-top">
+                <div class="row g-2">
+                    <div class="col-6"><a asp-controller="Dashboard" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.dashboard")</a></div>
+                    <div class="col-6"><a asp-controller="MealPlan" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.mealPlan")</a></div>
+                    <div class="col-6"><a asp-controller="Diets" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.diets")</a></div>
+                    <div class="col-6"><a asp-controller="Report" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.report")</a></div>
+                    <div class="col-6"><a asp-controller="Workout" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.workout")</a></div>
+                    <div class="col-6"><a asp-controller="Challenge" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.challenge")</a></div>
+                    <div class="col-6"><a asp-controller="Community" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.community")</a></div>
+                    <div class="col-6"><a asp-controller="Buddy" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.buddy")</a></div>
+                    <div class="col-6"><a asp-controller="Restaurants" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.restaurants")</a></div>
+                    <div class="col-6"><a asp-controller="Emergency" asp-action="Index" class="d-block nav-link-custom text-center py-2 text-danger">@T.Get("nav.emergency")</a></div>
+                </div>
+            </div>
+        </div>
+        }
+    </nav>
+
+    <!-- CONTENT -->
+    <div class="content-wrapper">
+        @RenderBody()
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer-moodbite">
+        <div class="container-xl">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="footer-logo mb-3">
+                        <div class="brand-icon" style="width:38px;height:38px;background:linear-gradient(135deg,#059669,#0d9488);border-radius:12px;display:flex;align-items:center;justify-content:center;">🥗</div>
+                        MoodBite
+                    </div>
+                    <p style="font-size:.875rem;color:rgba(255,255,255,.6);line-height:1.7">
+                        @(isRtl ? "نظامك الغذائي الذكي — خطط وتتبع وحقق أهدافك الصحية." : "Your smart nutrition companion — plan, track, and achieve your health goals.")
+                    </p>
+                </div>
+                <div class="col-lg-2 col-6 footer-links">
+                    <h6 style="color:white;font-weight:700;margin-bottom:16px">@(isRtl ? "الرئيسية" : "Main")</h6>
+                    <div class="d-flex flex-column gap-2">
+                        <a asp-controller="Home" asp-action="Index">@T.Get("nav.home")</a>
+                        <a asp-controller="Profile" asp-action="Index">@T.Get("nav.profile")</a>
+                        <a asp-controller="Dashboard" asp-action="Index">@T.Get("nav.dashboard")</a>
+                        <a asp-controller="Diets" asp-action="Index">@T.Get("nav.diets")</a>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-6 footer-links">
+                    <h6 style="color:white;font-weight:700;margin-bottom:16px">@(isRtl ? "الميزات" : "Features")</h6>
+                    <div class="d-flex flex-column gap-2">
+                        <a asp-controller="MealPlan" asp-action="Index">@T.Get("nav.mealPlan")</a>
+                        <a asp-controller="Workout" asp-action="Index">@T.Get("nav.workout")</a>
+                        <a asp-controller="Challenge" asp-action="Index">@T.Get("nav.challenge")</a>
+                        <a asp-controller="Community" asp-action="Index">@T.Get("nav.community")</a>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <h6 style="color:white;font-weight:700;margin-bottom:16px">@(isRtl ? "البدء السريع" : "Quick Start")</h6>
+                    <p style="font-size:.8rem;color:rgba(255,255,255,.6);margin-bottom:16px">
+                        @(isRtl ? "ابدأ رحلتك الصحية الآن مع موودبايت" : "Start your health journey now with MoodBite")
+                    </p>
+                    @if (User.Identity?.IsAuthenticated != true)
+                    {
+                    <a asp-controller="Account" asp-action="Register" class="btn-primary-custom btn-sm-custom">
+                        @T.Get("nav.register")
+                    </a>
+                    }
+                    else
+                    {
+                    <a asp-controller="Dashboard" asp-action="Index" class="btn-primary-custom btn-sm-custom">
+                        @T.Get("nav.dashboard")
+                    </a>
+                    }
+                </div>
+            </div>
+            <div class="footer-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span>© 2026 MoodBite. @T.Get("footer.rights")</span>
+                <div class="d-flex gap-3">
+                    <a href="#" style="color:rgba(255,255,255,.5)">@T.Get("footer.privacy")</a>
+                    <a href="#" style="color:rgba(255,255,255,.5)">@T.Get("footer.terms")</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</div><!-- /main-wrapper -->
+
+<!-- CHATBOT (authenticated only) -->
+@if (User.Identity?.IsAuthenticated == true)
+{
+    @await Html.PartialAsync("_Chatbot")
+}
+
+<!-- jQuery (must load before validation scripts) -->
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<!-- Leaflet (for map pages) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Custom JS -->
+<script src="~/js/site.js" asp-append-version="true"></script>
+
+<!-- canvas-confetti -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+@await RenderSectionAsync("Scripts", required: false)
+
+<!-- Ensure Lucide icons rendered by page scripts are initialised -->
+<script>if (typeof lucide !== 'undefined') lucide.createIcons();</script>
+
+@if (User.Identity?.IsAuthenticated == true)
+{
+<script>
+(function () {
+    // Check for newly unlocked achievements once per page load
+    fetch('/Achievements/CheckNew', { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.keys || !data.keys.length) return;
+            data.keys.forEach((item, i) => {
+                if (!item) return;
+                setTimeout(() => {
+                    showAchievementToast(item.emoji, item.name, item.pts);
+                    fireConfetti();
+                }, i * 1200);
+            });
+        })
+        .catch(() => {});
+})();
+
+function fireConfetti() {
+    if (typeof confetti === 'undefined') return;
+    confetti({ particleCount: 120, spread: 80, origin: { y: 0.55 }, colors: ['#059669','#10b981','#34d399','#fbbf24','#f59e0b','#6366f1'] });
+    setTimeout(() => confetti({ particleCount: 60, spread: 110, origin: { y: 0.4 }, angle: 60 }), 300);
+    setTimeout(() => confetti({ particleCount: 60, spread: 110, origin: { y: 0.4 }, angle: 120 }), 300);
+}
+
+function showAchievementToast(emoji, name, pts) {
+    var isRtl = document.documentElement.dir === 'rtl';
+    var toast = document.createElement('div');
+    toast.style.cssText = [
+        'position:fixed;bottom:24px;' + (isRtl ? 'right' : 'left') + ':24px;z-index:10000',
+        'background:linear-gradient(135deg,#059669,#0d9488)',
+        'color:white;border-radius:16px;padding:14px 20px',
+        'display:flex;align-items:center;gap:12px',
+        'box-shadow:0 8px 32px rgba(5,150,105,.4)',
+        'animation:slideUp .4s ease;max-width:320px;min-width:240px'
+    ].join(';');
+    toast.innerHTML =
+        '<div style="font-size:2rem;line-height:1">' + emoji + '</div>' +
+        '<div>' +
+          '<div style="font-weight:800;font-size:.95rem">' + (isRtl ? 'إنجاز جديد! 🎉' : 'Achievement Unlocked! 🎉') + '</div>' +
+          '<div style="font-size:.85rem;opacity:.9">' + name + '</div>' +
+          '<div style="font-size:.75rem;opacity:.75;margin-top:2px">+' + pts + ' ' + (isRtl ? 'نقطة' : 'pts') + '</div>' +
+        '</div>';
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity .4s'; setTimeout(() => toast.remove(), 400); }, 4500);
+}
+</script>
+}
+
+</body>
+</html>

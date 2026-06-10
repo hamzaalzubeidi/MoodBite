@@ -1,0 +1,159 @@
+@model MoodBite.Models.Diet
+@using MoodBite.Services
+@using System.Text.Json
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.CurrentLang == "ar" ? Model.NameAr : Model.NameEn;
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var benefits = ViewBag.Benefits as List<string> ?? new();
+    var foods = ViewBag.Foods as List<Dictionary<string, string>> ?? new();
+    var sampleMeals = ViewBag.SampleMeals as List<Dictionary<string, JsonElement>> ?? new();
+    var tips = ViewBag.Tips as List<string> ?? new();
+}
+
+<div class="container-xl py-4">
+
+    <!-- Hero -->
+    <div class="mb-5 p-5 rounded-4 text-white fade-in" style="background:@Model.ColorGradient;min-height:240px;display:flex;align-items:flex-end">
+        <div>
+            <div style="font-size:3rem;margin-bottom:8px">@Model.Emoji</div>
+            <h1 style="font-weight:800;margin-bottom:8px">@(isRtl ? Model.NameAr : Model.NameEn)</h1>
+            <p style="opacity:.9;max-width:600px;line-height:1.7">@(isRtl ? Model.DescriptionAr : Model.DescriptionEn)</p>
+            <div class="d-flex gap-2 flex-wrap mt-3">
+                <span class="badge bg-white text-dark">@Model.Category</span>
+                <span class="badge bg-white text-dark">@Model.Difficulty</span>
+                <span class="badge bg-white text-dark">@Model.CalorieMin–@Model.CalorieMax @(isRtl?"كسع":"cal")</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+
+            <!-- Benefits -->
+            @if (benefits.Count > 0)
+            {
+                <div class="card-glass p-4 mb-4 animate-on-scroll">
+                    <h4 style="font-weight:700;margin-bottom:16px">
+                        <i class="bi bi-star-fill text-warning me-2"></i>
+                        @(isRtl?"الفوائد الرئيسية":"Key Benefits")
+                    </h4>
+                    <div class="row g-2">
+                        @foreach (var b in benefits)
+                        {
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start gap-2">
+                                    <i class="bi bi-check-circle-fill text-success mt-1 flex-shrink-0"></i>
+                                    <span style="font-size:.9rem">@b</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Foods Allowed/Forbidden -->
+            @if (foods.Count > 0)
+            {
+                <div class="card-glass p-4 mb-4 animate-on-scroll">
+                    <h4 style="font-weight:700;margin-bottom:16px">
+                        <i class="bi bi-list-check text-primary me-2"></i>
+                        @(isRtl?"قائمة الأطعمة":"Food List")
+                    </h4>
+                    <div class="row g-2">
+                        @foreach (var food in foods)
+                        {
+                            var name = isRtl ? (food.GetValueOrDefault("nameAr") ?? food.GetValueOrDefault("name") ?? "") : (food.GetValueOrDefault("name") ?? "");
+                            var status = food.GetValueOrDefault("status") ?? "allowed";
+                            var (icon, color) = status switch {
+                                "forbidden" => ("bi-x-circle-fill", "text-danger"),
+                                "limited" => ("bi-exclamation-circle-fill", "text-warning"),
+                                _ => ("bi-check-circle-fill", "text-success")
+                            };
+                            <div class="col-6 col-md-4">
+                                <div class="d-flex align-items-center gap-2 py-1">
+                                    <i class="bi @icon @color flex-shrink-0"></i>
+                                    <span style="font-size:.85rem">@name</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Sample Meals -->
+            @if (sampleMeals.Count > 0)
+            {
+                <div class="card-glass p-4 mb-4 animate-on-scroll">
+                    <h4 style="font-weight:700;margin-bottom:16px">
+                        <i class="bi bi-egg-fried text-primary me-2"></i>
+                        @(isRtl?"أمثلة على الوجبات":"Sample Meals")
+                    </h4>
+                    <div class="row g-3">
+                        @foreach (var meal in sampleMeals)
+                        {
+                            var mealName = isRtl
+                                ? (meal.ContainsKey("nameAr") ? meal["nameAr"].GetString() : meal.ContainsKey("name") ? meal["name"].GetString() : "")
+                                : (meal.ContainsKey("name") ? meal["name"].GetString() : "");
+                            var mealType = meal.ContainsKey("type") ? meal["type"].GetString() : "";
+                            var calories = meal.ContainsKey("calories") ? meal["calories"].ToString() : "0";
+                            var protein = meal.ContainsKey("protein") ? meal["protein"].ToString() : "0";
+                            var carbs = meal.ContainsKey("carbs") ? meal["carbs"].ToString() : "0";
+                            var fats = meal.ContainsKey("fats") ? meal["fats"].ToString() : "0";
+                            <div class="col-md-6">
+                                <div class="p-3" style="background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border)">
+                                    <div class="fw-700 mb-1">@mealName</div>
+                                    <div class="text-muted small mb-2">@mealType</div>
+                                    <div class="d-flex gap-3 flex-wrap">
+                                        <span class="small"><strong>@calories</strong> @(isRtl?"كسع":"cal")</span>
+                                        <span class="small text-success"><strong>@protein</strong>g @(isRtl?"بروتين":"P")</span>
+                                        <span class="small text-warning"><strong>@carbs</strong>g @(isRtl?"كربوهيدرات":"C")</span>
+                                        <span class="small text-purple"><strong>@fats</strong>g @(isRtl?"دهون":"F")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+        </div>
+        <div class="col-lg-4">
+
+            <!-- Tips -->
+            @if (tips.Count > 0)
+            {
+                <div class="card-glass p-4 mb-4 animate-on-scroll">
+                    <h5 style="font-weight:700;margin-bottom:12px">
+                        <i class="bi bi-lightbulb-fill text-warning me-2"></i>
+                        @(isRtl?"نصائح مفيدة":"Useful Tips")
+                    </h5>
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var tip in tips)
+                        {
+                            <li class="d-flex align-items-start gap-2 mb-3">
+                                <i class="bi bi-arrow-right-circle-fill text-primary mt-1 flex-shrink-0"></i>
+                                <span style="font-size:.85rem">@tip</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <!-- CTA -->
+            <div class="gradient-primary p-4 rounded-4 text-white text-center animate-on-scroll">
+                <div style="font-size:2rem;margin-bottom:8px">🚀</div>
+                <h5 style="font-weight:700;margin-bottom:8px">@(isRtl?"ابدأ هذا النظام":"Start This Diet")</h5>
+                <p style="opacity:.9;font-size:.85rem;margin-bottom:16px">
+                    @(isRtl?"أنشئ خطة وجبات مخصصة بالذكاء الاصطناعي":"Generate a personalized AI meal plan")
+                </p>
+                <a asp-controller="MealPlan" asp-action="Index"
+                   style="display:inline-block;background:white;color:var(--primary);padding:10px 24px;border-radius:var(--radius-full);font-weight:700;text-decoration:none">
+                    @T.Get("nav.mealPlan")
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>

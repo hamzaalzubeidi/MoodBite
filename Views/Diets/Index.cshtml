@@ -1,0 +1,146 @@
+@model List<MoodBite.Models.Diet>
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.diets");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var category = ViewBag.Category as string;
+    var difficulty = ViewBag.Difficulty as string;
+    var selectedSlug = ViewBag.SelectedDietSlug as string;
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+}
+
+<div class="container-xl py-5">
+
+    <div class="section-header text-center mb-5">
+        <div class="section-tag">@(isRtl?"الأنظمة الغذائية":"Diets")</div>
+        <h1 class="section-title mt-2">@T.Get("diets.title")</h1>
+        <p style="color:var(--text-secondary);max-width:600px;margin:0 auto">@T.Get("diets.subtitle")</p>
+        @if (!string.IsNullOrEmpty(selectedSlug))
+        {
+            var selDiet = Model.FirstOrDefault(d => d.Slug == selectedSlug);
+            <div style="display:inline-flex;align-items:center;gap:8px;margin-top:14px;background:var(--primary-100);color:var(--primary);border-radius:20px;padding:7px 18px;font-size:.85rem;font-weight:700">
+                <span>✅</span>
+                <span>@(isRtl ? "نظامك الحالي:" : "Your current diet:")</span>
+                <span>@(selDiet != null ? (isRtl ? selDiet.NameAr : selDiet.NameEn) : selectedSlug)</span>
+            </div>
+        }
+    </div>
+
+    @* Flash messages *@
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-4">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Filters -->
+    <div class="card-glass p-3 mb-5">
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <span class="fw-600 me-2">@(isRtl?"تصفية:":"Filter:")</span>
+            <a href="@Url.Action("Index")" class="badge-custom @(category == null && difficulty == null ? "badge-primary" : "badge-neutral")">
+                @(isRtl?"الكل":"All")
+            </a>
+            @foreach (var cat in new[] { ("low-carb","🥩",isRtl?"كربوهيدرات منخفضة":"Low Carb"), ("plant-based","🌿",isRtl?"نباتي":"Plant-Based"), ("balanced","<i data-lucide=\"scale\" class=\"icon-purple\"></i>",isRtl?"متوازن":"Balanced"), ("fasting","⏰",isRtl?"صيام":"Fasting"), ("high-protein","<i data-lucide=\"dumbbell\" class=\"icon-amber\"></i>",isRtl?"بروتين عالٍ":"High Protein") })
+            {
+                <a href="@Url.Action("Index", new { category = cat.Item1 })"
+                   class="badge-custom @(category == cat.Item1 ? "badge-primary" : "badge-neutral")">
+                    @Html.Raw(cat.Item2) @cat.Item3
+                </a>
+            }
+            <div class="vr mx-2 d-none d-md-block"></div>
+            @foreach (var diff in new[] { ("easy",isRtl?"سهل":"Easy"), ("medium",isRtl?"متوسط":"Medium"), ("hard",isRtl?"صعب":"Hard") })
+            {
+                <a href="@Url.Action("Index", new { difficulty = diff.Item1 })"
+                   class="badge-custom @(difficulty == diff.Item1 ? "badge-primary" : "badge-neutral")">
+                    @diff.Item2
+                </a>
+            }
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5">
+            <div style="font-size:3rem;margin-bottom:12px">🔍</div>
+            <p class="text-muted">@(isRtl?"لم يتم العثور على نتائج":"No results found")</p>
+            <a href="@Url.Action("Index")" class="btn-primary-custom mt-3">@(isRtl?"إعادة تعيين":"Reset")</a>
+        </div>
+    }
+
+    <div class="row g-4">
+        @foreach (var diet in Model)
+        {
+            var isSelected = diet.Slug == selectedSlug;
+            <div class="col-md-6 col-lg-4 animate-on-scroll">
+                <div style="border-radius:var(--radius-xl);overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:@(isSelected ? "0 0 0 3px #059669, 0 8px 32px rgba(5,150,105,.25)" : "var(--shadow-md)");transition:box-shadow .2s">
+
+                    @* Selected badge *@
+                    @if (isSelected)
+                    {
+                        <div style="position:absolute;top:12px;inset-inline-end:12px;z-index:10;background:#059669;color:white;border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:800;display:flex;align-items:center;gap:5px">
+                            <i class="bi bi-check-circle-fill"></i> @(isRtl ? "نظامك الحالي" : "Current Diet")
+                        </div>
+                    }
+
+                    @* Image / gradient top *@
+                    <div class="diet-card" style="background:@diet.ColorGradient;min-height:220px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer"
+                         onclick="location.href='@Url.Action("Detail", new { slug = diet.Slug })'">
+                        <div style="padding:24px 24px 16px;color:white;background:linear-gradient(to top,rgba(0,0,0,.75) 0%,transparent 100%)">
+                            <div style="font-size:2.2rem;margin-bottom:6px">@diet.Emoji</div>
+                            <h4 style="font-weight:800;margin-bottom:4px;font-size:1.1rem">@(isRtl ? diet.NameAr : diet.NameEn)</h4>
+                            <p style="opacity:.9;font-size:.82rem;margin-bottom:10px;line-height:1.5">
+                                @(isRtl ? diet.DescriptionAr.Substring(0, Math.Min(75, diet.DescriptionAr.Length)) : diet.DescriptionEn.Substring(0, Math.Min(75, diet.DescriptionEn.Length)))...
+                            </p>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <span style="background:rgba(255,255,255,.2);padding:2px 9px;border-radius:20px;font-size:.72rem">@diet.Category</span>
+                                <span style="background:rgba(255,255,255,.2);padding:2px 9px;border-radius:20px;font-size:.72rem">@diet.Difficulty</span>
+                                <span style="background:rgba(255,255,255,.2);padding:2px 9px;border-radius:20px;font-size:.72rem">@diet.CalorieMin–@diet.CalorieMax @(isRtl?"كسع":"cal")</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* Bottom action bar *@
+                    <div style="background:var(--surface);padding:12px 16px;display:flex;gap:8px;align-items:center;border-top:1px solid var(--border)">
+                        <a asp-action="Detail" asp-route-slug="@diet.Slug"
+                           style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;color:var(--text-secondary);font-weight:600;font-size:.83rem;text-decoration:none;padding:7px 0;border-radius:10px;border:1px solid var(--border);transition:all .2s"
+                           onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                            @(isRtl?"التفاصيل":"Details") <i class="bi bi-arrow-right-circle"></i>
+                        </a>
+
+                        @if (isAuthenticated)
+                        {
+                            @if (isSelected)
+                            {
+                                <span style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--primary-100);color:var(--primary-700);font-weight:800;font-size:.83rem;padding:7px 0;border-radius:10px;border:1px solid var(--primary-200)">
+                                    <i class="bi bi-check-lg"></i> @(isRtl ? "مختار" : "Selected")
+                                </span>
+                            }
+                            else
+                            {
+                                <form asp-action="SelectDiet" method="post" style="flex:1;margin:0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="slug" value="@diet.Slug" />
+                                    <button type="submit" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#059669,#047857);color:white;font-weight:700;font-size:.83rem;padding:7px 0;border-radius:10px;border:none;cursor:pointer;transition:opacity .2s"
+                                            onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+                                        <i class="bi bi-check2-circle"></i> @(isRtl ? "اختر هذا النظام" : "Select Diet")
+                                    </button>
+                                </form>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

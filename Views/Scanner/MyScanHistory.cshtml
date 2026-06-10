@@ -1,0 +1,152 @@
+@model List<MoodBite.Models.FoodScan>
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.CurrentLang == "ar" ? "سجل المسح" : "Scan History";
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+}
+
+<div class="container-xl py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 style="font-weight:800;font-size:1.6rem;margin:0">
+                <i class="bi bi-clock-history text-primary me-2"></i>
+                @(isRtl ? "سجل تحليل الطعام" : "Food Scan History")
+            </h1>
+            <p class="text-muted mb-0">@Model.Count @(isRtl ? "صورة محلَّلة" : "photos analyzed")</p>
+        </div>
+        <a asp-action="Index" class="btn-primary-custom">
+            <i class="bi bi-camera"></i> @(isRtl ? "مسح جديد" : "New Scan")
+        </a>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="empty-state-card">
+            <div class="empty-icon"><i data-lucide="camera" class="icon-muted"></i></div>
+            <h5>@(isRtl ? "لا توجد صور محلَّلة بعد" : "No scans yet")</h5>
+            <p>@(isRtl ? "صوّر طعامك وسيظهر هنا مع قيمه الغذائية" : "Photograph your food and it will appear here with nutritional values")</p>
+            <a asp-action="Index" class="btn-primary-custom">
+                <i data-lucide="camera"></i> @(isRtl ? "ابدأ التحليل" : "Start Scanning")
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var scan in Model)
+            {
+                var conf = scan.Confidence;
+                var confClass = conf >= 80 ? "success" : conf >= 50 ? "warning" : "danger";
+                var confLabel = isRtl
+                    ? (conf >= 80 ? "عالية" : conf >= 50 ? "متوسطة" : "منخفضة")
+                    : (conf >= 80 ? "High" : conf >= 50 ? "Medium" : "Low");
+                var name = isRtl ? (scan.FoodNameAr.Length > 0 ? scan.FoodNameAr : scan.FoodNameEn) : (scan.FoodNameEn.Length > 0 ? scan.FoodNameEn : scan.FoodNameAr);
+
+                <div class="col-sm-6 col-lg-4 animate-on-scroll">
+                    <div class="card-glass p-0 h-100 overflow-hidden">
+
+                        <!-- Food image -->
+                        <div style="position:relative;height:160px;overflow:hidden;background:var(--surface-2)">
+                            @if (!string.IsNullOrEmpty(scan.ImagePath))
+                            {
+                                <img src="@scan.ImagePath" alt="@name"
+                                     style="width:100%;height:100%;object-fit:cover" loading="lazy" />
+                            }
+                            else
+                            {
+                                <div class="d-flex align-items-center justify-content-center h-100" style="font-size:3rem"><i data-lucide="utensils" class="icon-green"></i></div>
+                            }
+                            <span class="badge bg-@confClass position-absolute" style="top:8px;inset-inline-start:8px;font-size:.7rem">
+                                @conf% @confLabel
+                            </span>
+                            @if (scan.LoggedToDashboard)
+                            {
+                                <span class="badge bg-success position-absolute" style="top:8px;inset-inline-end:8px;font-size:.7rem">
+                                    <i class="bi bi-check2"></i> @(isRtl ? "مسجّل" : "Logged")
+                                </span>
+                            }
+                        </div>
+
+                        <div class="p-3">
+                            <div style="font-weight:800;font-size:.95rem;margin-bottom:4px">@name</div>
+                            <div class="text-muted small mb-2">
+                                <i class="bi bi-clock me-1"></i>@scan.ScannedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
+                            </div>
+                            @if (!string.IsNullOrEmpty(isRtl ? scan.ServingSizeAr : scan.ServingSize))
+                            {
+                                <div class="text-muted small mb-2">
+                                    <i class="bi bi-rulers me-1"></i>@(isRtl ? scan.ServingSizeAr : scan.ServingSize)
+                                </div>
+                            }
+
+                            <!-- Macros row -->
+                            <div class="d-flex gap-2 text-center mb-3">
+                                <div style="flex:1;background:var(--surface-2);border-radius:8px;padding:6px 2px">
+                                    <div style="font-weight:800;font-size:.9rem;color:var(--primary)">@((int)scan.Calories)</div>
+                                    <div style="font-size:.65rem;color:var(--text-secondary)">@(isRtl?"كسع":"Cal")</div>
+                                </div>
+                                <div style="flex:1;background:var(--surface-2);border-radius:8px;padding:6px 2px">
+                                    <div style="font-weight:800;font-size:.9rem;color:#10b981">@((int)scan.Protein)g</div>
+                                    <div style="font-size:.65rem;color:var(--text-secondary)">@(isRtl?"بروتين":"Prot")</div>
+                                </div>
+                                <div style="flex:1;background:var(--surface-2);border-radius:8px;padding:6px 2px">
+                                    <div style="font-weight:800;font-size:.9rem;color:#f59e0b">@((int)scan.Carbs)g</div>
+                                    <div style="font-size:.65rem;color:var(--text-secondary)">@(isRtl?"كربو":"Carbs")</div>
+                                </div>
+                                <div style="flex:1;background:var(--surface-2);border-radius:8px;padding:6px 2px">
+                                    <div style="font-weight:800;font-size:.9rem;color:#8b5cf6">@((int)scan.Fats)g</div>
+                                    <div style="font-size:.65rem;color:var(--text-secondary)">@(isRtl?"دهون":"Fats")</div>
+                                </div>
+                            </div>
+
+                            @if (!scan.LoggedToDashboard)
+                            {
+                                <form asp-action="LogScan" method="post" class="log-form" data-scan-id="@scan.Id">
+                                    <input type="hidden" name="scanId" value="@scan.Id" />
+                                    <button type="submit" class="btn-primary-custom w-100" style="font-size:.82rem;padding:7px">
+                                        <i class="bi bi-plus-circle"></i>
+                                        @(isRtl ? "أضف لسجل اليوم" : "Log to Dashboard")
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+<script>
+document.querySelectorAll('.log-form').forEach(form => {
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+        const params = new URLSearchParams(new FormData(this));
+        params.append('__RequestVerificationToken', token);
+        const res  = await fetch(this.action, { method: 'POST', body: params, credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.success) {
+            const btn = this.querySelector('button');
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> ' + (document.documentElement.dir === 'rtl' ? 'تم الإضافة!' : 'Logged!');
+            btn.disabled  = true;
+            btn.className = 'btn-ghost-custom w-100';
+            // Add logged badge
+            const card = this.closest('.card-glass');
+            const img  = card.querySelector('div[style*="height:160px"]');
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-success position-absolute';
+            badge.style.cssText = 'top:8px;inset-inline-end:8px;font-size:.7rem';
+            badge.innerHTML = '<i class="bi bi-check2"></i> ' + (document.documentElement.dir === 'rtl' ? 'مسجّل' : 'Logged');
+            img.appendChild(badge);
+        }
+    });
+});
+</script>
+@Html.AntiForgeryToken()
+}

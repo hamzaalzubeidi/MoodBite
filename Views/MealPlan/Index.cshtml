@@ -1,0 +1,407 @@
+@using MoodBite.Services
+@using System.Text.Json
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.mealPlan");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var profile  = ViewBag.Profile as MoodBite.Models.HealthProfile;
+
+    // Root JSON is { "days": [...] } — unwrap the days array
+    JsonElement[]? stdDays = null;
+    JsonElement[]? aiDays  = null;
+
+    if (ViewBag.StandardDays is JsonElement sdRoot)
+    {
+        if (sdRoot.ValueKind == JsonValueKind.Object && sdRoot.TryGetProperty("days", out var sdArr) && sdArr.ValueKind == JsonValueKind.Array)
+            stdDays = sdArr.EnumerateArray().ToArray();
+        else if (sdRoot.ValueKind == JsonValueKind.Array)
+            stdDays = sdRoot.EnumerateArray().ToArray();
+    }
+
+    if (ViewBag.AiDays is JsonElement aiRoot)
+    {
+        if (aiRoot.ValueKind == JsonValueKind.Object && aiRoot.TryGetProperty("days", out var aiArr) && aiArr.ValueKind == JsonValueKind.Array)
+            aiDays = aiArr.EnumerateArray().ToArray();
+        else if (aiRoot.ValueKind == JsonValueKind.Array)
+            aiDays = aiRoot.EnumerateArray().ToArray();
+    }
+
+    // Meal type → display label + emoji
+    string MealEmoji(string? type) => type switch {
+        "breakfast" => "🌅",
+        "snack1"    => "🍎",
+        "lunch"     => "<i data-lucide=\"utensils\" class=\"icon-green\"></i>",
+        "snack2"    => "☕",
+        "dinner"    => "🌙",
+        _           => "🥗"
+    };
+    string MealLabel(string? type) => type switch {
+        "breakfast" => isRtl ? "فطور"   : "Breakfast",
+        "snack1"    => isRtl ? "وجبة خفيفة" : "AM Snack",
+        "lunch"     => isRtl ? "غداء"   : "Lunch",
+        "snack2"    => isRtl ? "وجبة خفيفة" : "PM Snack",
+        "dinner"    => isRtl ? "عشاء"   : "Dinner",
+        _           => type ?? ""
+    };
+}
+
+@* ─────────────── Flash alerts ─────────────── *@
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-0" style="border-radius:0">
+        <div class="container-xl"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mb-0" style="border-radius:0">
+        <div class="container-xl"><i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </div>
+}
+
+@* ─────────────── Page header ─────────────── *@
+<div style="background:linear-gradient(135deg,#064e3b 0%,#065f46 40%,#0d9488 100%);padding:28px 0 44px;margin-bottom:-20px">
+    <div class="container-xl">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h1 style="color:white;font-weight:900;font-size:clamp(1.3rem,3vw,1.8rem);margin:0">
+                    <i data-lucide="calendar" class="icon-green"></i> @T.Get("nav.mealPlan")
+                </h1>
+                <p style="color:rgba(255,255,255,.7);margin:4px 0 0;font-size:.875rem">
+                    @(isRtl ? "خطة وجباتك الأسبوعية" : "Your personalised weekly food schedule")
+                    @if (profile != null) { <span> — <strong style="color:rgba(255,255,255,.9)">@profile.DietSlug</strong></span> }
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <form asp-action="Regenerate" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit"
+                            style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:white;border-radius:10px;padding:9px 16px;font-size:.85rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                        <i class="bi bi-arrow-repeat"></i> @(isRtl?"تجديد":"Regenerate")
+                    </button>
+                </form>
+                <a asp-action="ShoppingList" class="shopping-list-card"
+                   style="background:white;color:var(--primary);box-shadow:0 4px 12px rgba(0,0,0,.15)">
+                    <i class="bi bi-bag-check-fill card-icon"></i> @(isRtl?"قائمة التسوق":"Shopping List")
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-xl py-4">
+
+    @* ─────────────── Tabs ─────────────── *@
+    <div class="tabs-custom mb-4" data-tabs-container>
+        <button class="tab-btn active" data-target="tab-standard">
+            <i class="bi bi-calendar-week me-1"></i>@(isRtl?"الخطة القياسية":"Standard Plan")
+        </button>
+        <button class="tab-btn" data-target="tab-ai">
+            <i class="bi bi-stars me-1"></i>@(isRtl?"خطة الذكاء الاصطناعي":"AI Plan")
+        </button>
+    </div>
+
+    @* ══════════════ STANDARD PLAN ══════════════ *@
+    <div id="tab-standard" class="tab-pane active">
+        @if (stdDays != null && stdDays.Length > 0)
+        {
+            <div style="overflow-x:auto;padding-bottom:8px">
+                <div style="display:grid;grid-template-columns:repeat(@stdDays.Length,minmax(170px,1fr));gap:12px;min-width:@(stdDays.Length * 175)px">
+                    @foreach (var day in stdDays)
+                    {
+                        var dayNameEn = day.TryGetProperty("dayNameEn", out var dne) ? dne.GetString() : "Day";
+                        var dayNameAr = day.TryGetProperty("dayNameAr", out var dna) ? dna.GetString() : "يوم";
+                        var dayName   = isRtl ? dayNameAr : dayNameEn;
+                        var totalCal  = day.TryGetProperty("totalCalories", out var tc) ? tc.GetInt32() : 0;
+                        var totalProt = day.TryGetProperty("totalProtein",  out var tp) ? (int)tp.GetDouble() : 0;
+                        var totalCarb = day.TryGetProperty("totalCarbs",    out var tca)? (int)tca.GetDouble(): 0;
+                        var totalFat  = day.TryGetProperty("totalFats",     out var tf) ? (int)tf.GetDouble() : 0;
+
+                        <div style="background:var(--surface);border-radius:16px;border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow-sm);display:flex;flex-direction:column">
+                            @* Day header *@
+                            <div style="background:linear-gradient(135deg,var(--primary),var(--accent));color:white;padding:12px 14px;text-align:center">
+                                <div style="font-weight:800;font-size:.95rem">@dayName</div>
+                                <div style="font-size:.75rem;opacity:.85;margin-top:2px">@totalCal @(isRtl?"كسع":"cal")</div>
+                            </div>
+
+                            @* Meals *@
+                            <div style="padding:10px;flex:1;display:flex;flex-direction:column;gap:6px">
+                                @if (day.TryGetProperty("meals", out var mealsEl) && mealsEl.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var meal in mealsEl.EnumerateArray())
+                                    {
+                                        var mType = meal.TryGetProperty("type",   out var mt)  ? mt.GetString()   : "";
+                                        var mName = meal.TryGetProperty(isRtl ? "nameAr" : "nameEn", out var mn) ? mn.GetString()
+                                                  : meal.TryGetProperty("nameEn", out var mne)  ? mne.GetString() : "—";
+                                        var mCal  = meal.TryGetProperty("calories", out var mc) ? mc.GetInt32()   : 0;
+                                        var mProt = meal.TryGetProperty("protein",  out var mp) ? (int)mp.GetDouble() : 0;
+
+                                        <div style="background:var(--surface-2);border-radius:10px;padding:8px 10px;border-inline-start:3px solid var(--primary)">
+                                            <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                                                <span style="font-size:.85rem">@Html.Raw(MealEmoji(mType))</span>
+                                                <span style="font-size:.68rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.3px">@MealLabel(mType)</span>
+                                            </div>
+                                            <div style="font-size:.82rem;font-weight:600;color:var(--text-primary);line-height:1.35">@mName</div>
+                                            <div style="display:flex;gap:8px;margin-top:4px">
+                                                <span style="font-size:.68rem;color:var(--text-secondary)"><i data-lucide="flame" class="icon-green"></i> @mCal</span>
+                                                <span style="font-size:.68rem;color:#10b981"><i data-lucide="dumbbell" class="icon-amber"></i> @mProt g</span>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+
+                            @* Day footer macros *@
+                            <div style="border-top:1px solid var(--border);padding:8px 10px;display:flex;justify-content:space-around;background:var(--surface-2)">
+                                <div style="text-align:center">
+                                    <div style="font-size:.72rem;font-weight:800;color:#10b981">@totalProt g</div>
+                                    <div style="font-size:.62rem;color:var(--text-muted)">@(isRtl?"بروتين":"P")</div>
+                                </div>
+                                <div style="text-align:center">
+                                    <div style="font-size:.72rem;font-weight:800;color:#f59e0b">@totalCarb g</div>
+                                    <div style="font-size:.62rem;color:var(--text-muted)">@(isRtl?"كارب":"C")</div>
+                                </div>
+                                <div style="text-align:center">
+                                    <div style="font-size:.72rem;font-weight:800;color:#8b5cf6">@totalFat g</div>
+                                    <div style="font-size:.62rem;color:var(--text-muted)">@(isRtl?"دهون":"F")</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5 card-glass p-5" style="border-radius:20px">
+                <div style="font-size:3rem;margin-bottom:16px">📅</div>
+                <h5 style="font-weight:700;margin-bottom:8px">@(isRtl?"جاري إنشاء الخطة...":"Building your plan...")</h5>
+                <p class="text-muted mb-4">@(isRtl?"يرجى الانتظار أو إعادة تحميل الصفحة":"Please wait or refresh the page")</p>
+                <form asp-action="Regenerate" method="post" onsubmit="spinBtn(this)">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-primary-custom">
+                        <i class="bi bi-arrow-repeat me-1"></i>@(isRtl?"توليد خطة جديدة":"Generate Plan")
+                    </button>
+                </form>
+            </div>
+        }
+    </div>
+
+    @* ══════════════ AI PLAN ══════════════ *@
+    <div id="tab-ai" class="tab-pane">
+        @if (profile == null)
+        {
+            <div class="alert-warning" style="border-radius:16px;padding:20px 24px">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                @(isRtl ? "أكمل ملفك الشخصي أولاً لتفعيل خطة الذكاء الاصطناعي." : "Complete your health profile first to unlock the AI plan.")
+                <a asp-controller="Profile" asp-action="Index" style="font-weight:700;margin-inline-start:6px">
+                    @(isRtl?"إكمال الملف →":"Complete Profile →")
+                </a>
+            </div>
+        }
+        else if (aiDays == null)
+        {
+            <div class="text-center py-5 card-glass p-5" style="border-radius:20px">
+                <div style="font-size:3.5rem;margin-bottom:16px">🤖</div>
+                <h4 style="font-weight:800;margin-bottom:8px">@(isRtl?"خطة ذكية مخصصة لك":"AI-Personalised Plan")</h4>
+                <p class="text-muted mb-4" style="max-width:380px;margin-inline:auto">
+                    @(isRtl?"يولّد الذكاء الاصطناعي خطة وجبات مخصصة بناءً على ملفك الصحي وهدفك ونظامك الغذائي"
+                           :"Gemini AI generates a personalised 7-day meal plan tailored to your health profile, goals, and diet type")
+                </p>
+                <form asp-action="GenerateAI" method="post" onsubmit="spinBtn(this)">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-primary-custom btn-lg-custom" id="generateAiBtn">
+                        <i class="bi bi-stars me-1"></i>@(isRtl?"توليد الخطة الذكية":"Generate AI Plan")
+                    </button>
+                </form>
+                <p class="text-muted mt-2" style="font-size:.78rem">
+                    ⏱ @(isRtl?"قد يستغرق التوليد 20-40 ثانية":"Generation may take 20-40 seconds")
+                </p>
+            </div>
+        }
+        else
+        {
+            @* AI plan toolbar *@
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div>
+                    <h5 style="font-weight:800;margin:0"><i class="bi bi-stars text-warning me-2"></i>@(isRtl?"خطتك الذكية":"Your AI Plan")</h5>
+                    <p style="font-size:.8rem;color:var(--text-secondary);margin:3px 0 0">@(isRtl?"مولّدة بواسطة Gemini AI":"Generated by Gemini AI")</p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <form asp-action="GenerateAI" method="post" class="d-inline" onsubmit="spinBtn(this)">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-ghost-custom" style="padding:8px 14px;font-size:.85rem">
+                            <i class="bi bi-arrow-repeat"></i> @(isRtl?"إعادة توليد":"Regenerate")
+                        </button>
+                    </form>
+                    <a asp-action="History" style="background:var(--surface);border:1px solid var(--border);color:var(--text-primary);border-radius:10px;padding:8px 14px;font-size:.85rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:5px">
+                        <i class="bi bi-clock-history"></i> @(isRtl?"السجل":"History")
+                    </a>
+                    <button class="btn-secondary-custom" style="padding:8px 14px;font-size:.85rem" onclick="toggleEditChat()">
+                        <i class="bi bi-pencil"></i> @(isRtl?"تعديل بالذكاء الاصطناعي":"AI Edit")
+                    </button>
+                </div>
+            </div>
+
+            @* AI Edit chat *@
+            <div id="aiEditChat" style="display:none;background:var(--surface);border:1px solid var(--primary-200);border-radius:16px;padding:20px;margin-bottom:20px">
+                <h6 style="font-weight:700;margin-bottom:12px">
+                    <i class="bi bi-chat-dots-fill text-primary me-2"></i>@(isRtl?"اطلب تعديلاً على خطتك":"Request a plan edit")
+                </h6>
+                <div id="editChatMessages" style="min-height:48px;max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+                <div class="d-flex gap-2">
+                    <input type="text" id="editInstruction" class="form-control"
+                           placeholder="@(isRtl?"مثال: احذف الأسماك واستبدلها بالدجاج":"e.g. Remove fish and replace with chicken")" />
+                    <button class="btn-primary-custom flex-shrink-0" onclick="submitEdit()" style="padding:8px 16px">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </div>
+            </div>
+
+            @* AI day grid *@
+            <div style="overflow-x:auto;padding-bottom:8px">
+                <div style="display:grid;grid-template-columns:repeat(@aiDays.Length,minmax(170px,1fr));gap:12px;min-width:@(aiDays.Length * 175)px">
+                    @foreach (var day in aiDays)
+                    {
+                        var dayNameEn = day.TryGetProperty("dayNameEn", out var dne) ? dne.GetString() : day.TryGetProperty("day", out var di) ? $"Day {di}" : "Day";
+                        var dayNameAr = day.TryGetProperty("dayNameAr", out var dna) ? dna.GetString() : dayNameEn;
+                        var dayName   = isRtl ? dayNameAr : dayNameEn;
+                        var totalCal  = day.TryGetProperty("totalCalories", out var tc)  ? tc.GetInt32()      : 0;
+                        var totalProt = day.TryGetProperty("totalProtein",  out var tpv) ? (int)tpv.GetDouble(): 0;
+                        var totalCarb = day.TryGetProperty("totalCarbs",    out var tcv) ? (int)tcv.GetDouble(): 0;
+                        var totalFat  = day.TryGetProperty("totalFats",     out var tfv) ? (int)tfv.GetDouble(): 0;
+
+                        <div style="background:var(--surface);border-radius:16px;border:1px solid var(--primary-200,#a7f3d0);overflow:hidden;box-shadow:var(--shadow-sm);display:flex;flex-direction:column">
+                            <div style="background:linear-gradient(135deg,#059669,#0d9488);color:white;padding:12px 14px;text-align:center">
+                                <div style="font-size:.75rem;opacity:.85"><i data-lucide="sparkles" class="icon-green"></i> AI</div>
+                                <div style="font-weight:800;font-size:.95rem">@dayName</div>
+                                <div style="font-size:.75rem;opacity:.85;margin-top:2px">@totalCal @(isRtl?"كسع":"cal")</div>
+                            </div>
+
+                            <div style="padding:10px;flex:1;display:flex;flex-direction:column;gap:6px">
+                                @{
+                                    // AI may return meals as array or as named object properties
+                                    IEnumerable<JsonElement>? aiMeals = null;
+                                    if (day.TryGetProperty("meals", out var aiMealsEl))
+                                    {
+                                        if (aiMealsEl.ValueKind == JsonValueKind.Array)
+                                            aiMeals = aiMealsEl.EnumerateArray();
+                                    }
+                                }
+                                @if (aiMeals != null)
+                                {
+                                    foreach (var meal in aiMeals)
+                                    {
+                                        var mType = meal.TryGetProperty("type",   out var mt)  ? mt.GetString()  : "";
+                                        var mName = meal.TryGetProperty(isRtl ? "nameAr" : "nameEn", out var mn) ? mn.GetString()
+                                                  : meal.TryGetProperty("nameEn", out var mne)  ? mne.GetString(): "—";
+                                        var mCal  = meal.TryGetProperty("calories", out var mc) ? mc.GetInt32()  : 0;
+                                        var mProt = meal.TryGetProperty("protein",  out var mp) ? (int)mp.GetDouble() : 0;
+
+                                        <div style="background:var(--primary-50);border-radius:10px;padding:8px 10px;border-inline-start:3px solid var(--primary)">
+                                            <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                                                <span style="font-size:.85rem">@Html.Raw(MealEmoji(mType))</span>
+                                                <span style="font-size:.68rem;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.3px">@MealLabel(mType)</span>
+                                            </div>
+                                            <div style="font-size:.82rem;font-weight:600;color:var(--text-primary);line-height:1.35">@mName</div>
+                                            <div style="display:flex;gap:8px;margin-top:4px">
+                                                <span style="font-size:.68rem;color:var(--text-secondary)"><i data-lucide="flame" class="icon-green"></i> @mCal</span>
+                                                <span style="font-size:.68rem;color:#10b981"><i data-lucide="dumbbell" class="icon-amber"></i> @mProt g</span>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div style="font-size:.8rem;color:var(--text-muted);padding:8px;text-align:center">
+                                        @(isRtl?"لا توجد بيانات":"No meal data")
+                                    </div>
+                                }
+                            </div>
+
+                            @if (totalProt > 0 || totalCarb > 0 || totalFat > 0)
+                            {
+                                <div style="border-top:1px solid var(--primary-200);padding:8px 10px;display:flex;justify-content:space-around;background:var(--primary-50)">
+                                    <div style="text-align:center">
+                                        <div style="font-size:.72rem;font-weight:800;color:#10b981">@totalProt g</div>
+                                        <div style="font-size:.62rem;color:var(--text-muted)">@(isRtl?"بروتين":"P")</div>
+                                    </div>
+                                    <div style="text-align:center">
+                                        <div style="font-size:.72rem;font-weight:800;color:#f59e0b">@totalCarb g</div>
+                                        <div style="font-size:.62rem;color:var(--text-muted)">@(isRtl?"كارب":"C")</div>
+                                    </div>
+                                    <div style="text-align:center">
+                                        <div style="font-size:.72rem;font-weight:800;color:#8b5cf6">@totalFat g</div>
+                                        <div style="font-size:.62rem;color:var(--text-muted)">@(isRtl?"دهون":"F")</div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+</div>
+
+@section Scripts {
+@Html.AntiForgeryToken()
+<script>
+function spinBtn(form) {
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>@(isRtl?"جاري المعالجة...":"Processing...")';
+        btn.disabled = true;
+    }
+}
+
+function toggleEditChat() {
+    const el = document.getElementById('aiEditChat');
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitEdit() {
+    const instruction = document.getElementById('editInstruction')?.value.trim();
+    if (!instruction) return;
+
+    const msgs   = document.getElementById('editChatMessages');
+    const sendBtn = document.querySelector('#aiEditChat button[onclick="submitEdit()"]');
+    msgs.innerHTML += `<div style="text-align:end;margin-bottom:6px"><span style="background:var(--primary);color:white;padding:4px 10px;border-radius:20px;font-size:.82rem">${instruction}</span></div>`;
+    document.getElementById('editInstruction').value = '';
+
+    // Loading skeleton
+    const skId = 'sk_' + Date.now();
+    msgs.innerHTML += `<div id="${skId}" style="margin-bottom:6px;display:flex;gap:6px;align-items:center"><div style="width:120px;height:28px;border-radius:14px" class="scan-shimmer"></div><div style="width:80px;height:28px;border-radius:14px" class="scan-shimmer"></div></div>`;
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>'; }
+
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+    try {
+        const res  = await fetch('/MealPlan/EditAIPlan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'instruction=' + encodeURIComponent(instruction) + '&__RequestVerificationToken=' + encodeURIComponent(token)
+        });
+        const data = await res.json();
+        document.getElementById(skId)?.remove();
+        if (data.success) {
+            msgs.innerHTML += `<div style="margin-bottom:6px;animation:fadeIn .4s ease"><span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:20px;font-size:.82rem">@(isRtl?"✅ تم التعديل بنجاح، جاري إعادة التحميل...":"✅ Applied! Reloading...")</span></div>`;
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            msgs.innerHTML += `<div style="margin-bottom:6px"><span class="alert alert-danger d-inline-block py-1 px-2" style="font-size:.82rem;border-radius:10px"><i class="bi bi-exclamation-circle me-1"></i>${data.error ?? 'حدث خطأ'}</span></div>`;
+        }
+    } catch {
+        document.getElementById(skId)?.remove();
+        msgs.innerHTML += `<div style="margin-bottom:6px"><span class="alert alert-danger d-inline-block py-1 px-2" style="font-size:.82rem;border-radius:10px">❌ @(isRtl?"خطأ في الاتصال":"Network error")</span></div>`;
+    } finally {
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="bi bi-send-fill"></i>'; }
+    }
+}
+
+// Allow Enter key in edit input
+document.getElementById('editInstruction')?.addEventListener('keydown', e => { if (e.key === 'Enter') submitEdit(); });
+</script>
+}

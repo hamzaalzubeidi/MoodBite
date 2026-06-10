@@ -1,0 +1,37 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    var isRtl = T.CurrentLang == "ar";
+}
+
+<!-- Chatbot Window -->
+<div id="chatbotWindow" class="chatbot-window">
+    <div class="chatbot-header">
+        <div class="d-flex align-items-center gap-2">
+            <div style="width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">🤖</div>
+            <div>
+                <div style="font-weight:700;font-size:.95rem">@T.Get("chatbot.title")</div>
+                <div style="font-size:.7rem;opacity:.8">@(isRtl ? "متصل الآن" : "Online now")</div>
+            </div>
+        </div>
+        <button onclick="toggleChatbot()" style="background:none;border:none;color:white;font-size:1.2rem;cursor:pointer;opacity:.8">✕</button>
+    </div>
+
+    <div class="chatbot-messages" id="chatMessages">
+        <div class="chat-message bot">
+            @T.Get("chatbot.welcome")
+        </div>
+    </div>
+
+    <div class="chatbot-input-area">
+        <input type="text" id="chatInput" class="chatbot-input" placeholder="@T.Get("chatbot.placeholder")" />
+        <button onclick="sendChatMessage()" class="btn-primary-custom btn-sm-custom" style="padding:8px 14px !important;border-radius:10px !important;">
+            <i class="bi bi-send@(isRtl ? "-fill" : "")"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Chatbot FAB -->
+<button class="chatbot-fab" onclick="toggleChatbot()" title="@T.Get("chatbot.title")">
+    <span id="chatFabIcon">🤖</span>
+</button>

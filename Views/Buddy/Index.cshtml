@@ -1,0 +1,240 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.buddy");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var potential = ViewBag.Potential as List<MoodBite.Models.ApplicationUser> ?? new();
+    var myBuddies = ViewBag.MyBuddies as List<MoodBite.Models.ApplicationUser> ?? new();
+    var requests = ViewBag.Requests as List<MoodBite.Models.BuddyRequest> ?? new();
+    var pendingSentIds = ViewBag.PendingSentIds as List<string> ?? new();
+    var goalFilter = ViewBag.GoalFilter as string;
+    var badges = ViewBag.Badges as Dictionary<string, string?> ?? new();
+}
+
+<div class="container-xl py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 style="font-weight:800;font-size:1.6rem;margin:0">@T.Get("nav.buddy")</h1>
+            <p class="text-muted mb-0">@(isRtl?"ابحث عن رفيق صحي لتحفيز بعضكما":"Find a health buddy to motivate each other")</p>
+        </div>
+        @if (requests.Count > 0)
+        {
+            <span class="badge bg-danger rounded-pill" style="font-size:.9rem">@requests.Count @(isRtl?"طلبات جديدة":"new requests")</span>
+        }
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Tabs -->
+    <div data-tabs-container>
+    <div class="tabs-container mb-4">
+        <button class="tab-btn active" data-target="find">
+            <i class="bi bi-search"></i> @(isRtl?"بحث عن رفيق":"Find Buddy")
+        </button>
+        <button class="tab-btn" data-target="mybuddies">
+            <i class="bi bi-people-fill"></i> @(isRtl?"رفاقي":"My Buddies")
+            @if (myBuddies.Count > 0) { <span class="badge bg-primary ms-1">@myBuddies.Count</span> }
+        </button>
+        <button class="tab-btn" data-target="requests">
+            <i class="bi bi-bell"></i> @(isRtl?"الطلبات":"Requests")
+            @if (requests.Count > 0) { <span class="badge bg-danger ms-1">@requests.Count</span> }
+        </button>
+    </div>
+
+    <!-- FIND BUDDY TAB -->
+    <div id="find" class="tab-pane active">
+        <!-- Goal Filter -->
+        <div class="d-flex gap-2 flex-wrap mb-4">
+            <a href="@Url.Action("Index")" class="badge-custom @(goalFilter == null ? "badge-primary" : "badge-neutral")">
+                @(isRtl?"الكل":"All")
+            </a>
+            @foreach (var (val, label) in new[] { ("lose_weight",isRtl?"خسارة وزن":"Lose Weight"), ("build_muscle",isRtl?"بناء عضلات":"Build Muscle"), ("maintain",isRtl?"حفاظ على الوزن":"Maintain"), ("improve_health",isRtl?"تحسين الصحة":"Improve Health") })
+            {
+                <a href="@Url.Action("Index", new { goal = val })"
+                   class="badge-custom @(goalFilter == val ? "badge-primary" : "badge-neutral")">@label</a>
+            }
+        </div>
+
+        @if (!potential.Any())
+        {
+            <div class="empty-state-card">
+                <div class="empty-icon"><i data-lucide="users" class="icon-muted"></i></div>
+                <p>@(isRtl?"لا يوجد مستخدمون متاحون حالياً":"No users available right now")</p>
+            </div>
+        }
+
+        <div class="row g-3">
+            @foreach (var u in potential)
+            {
+                var isPending = pendingSentIds.Contains(u.Id);
+                <div class="col-md-6 col-lg-4">
+                    <div class="card-glass p-4 h-100">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div style="position:relative;flex-shrink:0">
+                                <div style="width:48px;height:48px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1.1rem">
+                                    @(u.FullName.Length > 0 ? u.FullName[0].ToString().ToUpper() : "?")
+                                </div>
+                                @{ var badge = badges.TryGetValue(u.Id, out var b) ? b : null; }
+                                @if (badge != null)
+                                {
+                                    <span title="@(isRtl?"أعلى إنجاز":"Top achievement")"
+                                          style="position:absolute;bottom:-4px;inset-inline-end:-4px;font-size:.85rem;line-height:1;background:var(--surface);border-radius:50%;padding:2px;box-shadow:0 1px 4px rgba(0,0,0,.2)">@badge</span>
+                                }
+                            </div>
+                            <div>
+                                <div style="font-weight:700">@u.FullName</div>
+                                @if (u.HealthProfile != null)
+                                {
+                                    <div style="font-size:.8rem;color:var(--text-secondary)">
+                                        @(isRtl?"الهدف: ":"Goal: ")@u.HealthProfile.Goal
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        @if (u.HealthProfile != null)
+                        {
+                            <div class="d-flex gap-2 flex-wrap mb-3">
+                                <span class="badge bg-secondary" style="font-size:.7rem">@u.HealthProfile.ActivityLevel</span>
+                                <span class="badge bg-info text-dark" style="font-size:.7rem">@((int)u.HealthProfile.CalorieTarget) @(isRtl?"كسع":"cal")</span>
+                            </div>
+                        }
+                        @if (isPending)
+                        {
+                            <button class="btn-ghost-custom w-100" disabled>
+                                <i class="bi bi-clock"></i> @(isRtl?"تم الإرسال":"Request Sent")
+                            </button>
+                        }
+                        else
+                        {
+                            <form asp-action="SendRequest" method="post">
+                                <input type="hidden" name="receiverId" value="@u.Id" />
+                                <input type="hidden" name="message" value="@(isRtl?"مرحباً! هل تريد أن نكون رفاق صحيين؟":"Hi! Want to be health buddies?")" />
+                                <button type="submit" class="btn-primary-custom w-100">
+                                    <i class="bi bi-person-plus"></i> @(isRtl?"إرسال طلب":"Send Request")
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- MY BUDDIES TAB -->
+    <div id="mybuddies" class="tab-pane">
+        @if (!myBuddies.Any())
+        {
+            <div class="empty-state-card">
+                <div class="empty-icon"><i data-lucide="user-plus" class="icon-green"></i></div>
+                <p>@(isRtl?"لا يوجد رفاق بعد. ابحث وأرسل طلبات!":"No buddies yet. Search and send requests!")</p>
+            </div>
+        }
+        <div class="row g-3">
+            @foreach (var buddy in myBuddies)
+            {
+                var buddyDays = buddy.DayLogs?.Count ?? 0;
+                var adherent = buddy.DayLogs?.Count(l => l.Adherent) ?? 0;
+                var adherencePct = buddyDays > 0 ? (int)(adherent * 100.0 / buddyDays) : 0;
+                <div class="col-md-6">
+                    <div class="card-glass p-4">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div style="position:relative;flex-shrink:0">
+                                <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1.2rem">
+                                    @(buddy.FullName.Length > 0 ? buddy.FullName[0].ToString().ToUpper() : "?")
+                                </div>
+                                @{ var buddyBadge = badges.TryGetValue(buddy.Id, out var bb) ? bb : null; }
+                                @if (buddyBadge != null)
+                                {
+                                    <span style="position:absolute;bottom:-4px;inset-inline-end:-4px;font-size:.85rem;line-height:1;background:var(--surface);border-radius:50%;padding:2px;box-shadow:0 1px 4px rgba(0,0,0,.2)">@buddyBadge</span>
+                                }
+                            </div>
+                            <div>
+                                <div style="font-weight:700;font-size:1rem">@buddy.FullName</div>
+                                @if (buddy.HealthProfile != null)
+                                {
+                                    <div class="text-muted small">@buddy.HealthProfile.Goal</div>
+                                }
+                            </div>
+                            <div class="ms-auto text-center">
+                                <div style="font-size:1.2rem;font-weight:800;color:var(--primary)">@adherencePct%</div>
+                                <div style="font-size:.7rem;color:var(--text-secondary)">@(isRtl?"التزام":"adherence")</div>
+                            </div>
+                        </div>
+                        <div style="background:var(--border);border-radius:4px;height:6px">
+                            <div style="height:100%;width:@adherencePct%;background:var(--primary);border-radius:4px;transition:width .6s"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2" style="font-size:.75rem;color:var(--text-secondary)">
+                            <span>@buddyDays @(isRtl?"يوم مسجل":"days logged")</span>
+                            <span>@adherent @(isRtl?"يوم ملتزم":"adherent days")</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- REQUESTS TAB -->
+    <div id="requests" class="tab-pane">
+        @if (!requests.Any())
+        {
+            <div class="empty-state-card">
+                <div class="empty-icon"><i data-lucide="mail-open" class="icon-blue"></i></div>
+                <p>@(isRtl?"لا توجد طلبات واردة":"No incoming requests")</p>
+            </div>
+        }
+        <div class="d-flex flex-column gap-3">
+            @foreach (var req in requests)
+            {
+                <div class="card-glass p-4">
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <div style="position:relative;flex-shrink:0">
+                            <div style="width:48px;height:48px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:700">
+                                @(req.Sender?.FullName?.Length > 0 ? req.Sender.FullName[0].ToString().ToUpper() : "?")
+                            </div>
+                            @{ var reqBadge = req.Sender != null && badges.TryGetValue(req.Sender.Id, out var rb) ? rb : null; }
+                            @if (reqBadge != null)
+                            {
+                                <span style="position:absolute;bottom:-4px;inset-inline-end:-4px;font-size:.85rem;line-height:1;background:var(--surface);border-radius:50%;padding:2px;box-shadow:0 1px 4px rgba(0,0,0,.2)">@reqBadge</span>
+                            }
+                        </div>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-weight:700">@req.Sender?.FullName</div>
+                            @if (!string.IsNullOrEmpty(req.Message))
+                            {
+                                <div class="text-muted small">"@req.Message"</div>
+                            }
+                            @if (req.Sender?.HealthProfile != null)
+                            {
+                                <div class="text-muted" style="font-size:.75rem">@req.Sender.HealthProfile.Goal</div>
+                            }
+                        </div>
+                        <div class="d-flex gap-2">
+                            <form asp-action="AcceptRequest" method="post" class="d-inline">
+                                <input type="hidden" name="requestId" value="@req.Id" />
+                                <button type="submit" class="btn-primary-custom btn-sm">
+                                    <i class="bi bi-check-lg"></i> @(isRtl?"قبول":"Accept")
+                                </button>
+                            </form>
+                            <form asp-action="DeclineRequest" method="post" class="d-inline">
+                                <input type="hidden" name="requestId" value="@req.Id" />
+                                <button type="submit" class="btn-danger-custom btn-sm">
+                                    <i class="bi bi-x-lg"></i> @(isRtl?"رفض":"Decline")
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+    </div>
+
+</div>

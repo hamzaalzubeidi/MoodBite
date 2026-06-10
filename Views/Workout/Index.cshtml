@@ -1,0 +1,342 @@
+@using MoodBite.Services
+@using System.Text.Json
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.workout");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var profile = ViewBag.Profile as MoodBite.Models.HealthProfile;
+    var plan    = ViewBag.Plan is JsonElement p ? p : (JsonElement?)null;
+
+    // Helpers
+    string FocusEmoji(string? focus) {
+        if (focus == null) return "<i data-lucide=\"dumbbell\" class=\"icon-amber\"></i>";
+        var f = focus.ToLower();
+        if (f.Contains("chest") || f.Contains("صدر"))  return "<i data-lucide=\"dumbbell\" class=\"icon-purple\"></i>";
+        if (f.Contains("leg")   || f.Contains("رجل"))  return "<i data-lucide=\"activity\" class=\"icon-amber\"></i>";
+        if (f.Contains("back")  || f.Contains("ظهر"))  return "<i data-lucide=\"arrow-right\" class=\"icon-muted\"></i>";
+        if (f.Contains("arm")   || f.Contains("ذراع")) return "<i data-lucide=\"dumbbell\" class=\"icon-amber\"></i>";
+        if (f.Contains("cardio")|| f.Contains("كارديو"))return "<i data-lucide=\"activity\" class=\"icon-green\"></i>";
+        if (f.Contains("rest")  || f.Contains("راحة")) return "<i data-lucide=\"moon\" class=\"icon-muted\"></i>";
+        if (f.Contains("full")  || f.Contains("كامل")) return "<i data-lucide=\"flame\" class=\"icon-green\"></i>";
+        return "<i data-lucide=\"dumbbell\" class=\"icon-amber\"></i>";
+    }
+
+    // Unwrap plan JSON — root can be { days:[...] } or { weeks:[...] } or plain array
+    JsonElement[]? days = null;
+    string? planTitle = null;
+    string? planDesc  = null;
+    string? planFreq  = null;
+
+    if (plan.HasValue)
+    {
+        var pv = plan.Value;
+        if (pv.ValueKind == JsonValueKind.Object)
+        {
+            planTitle = pv.TryGetProperty("planName",  out var pt)  ? pt.GetString()
+                      : pv.TryGetProperty("name",      out var pt2) ? pt2.GetString() : null;
+            planDesc  = pv.TryGetProperty(isRtl ? "descriptionAr" : "description", out var pd) ? pd.GetString()
+                      : pv.TryGetProperty("description", out var pd2) ? pd2.GetString() : null;
+            planFreq  = pv.TryGetProperty("frequency", out var pf) ? pf.GetString() : null;
+
+            if (pv.TryGetProperty("days", out var da) && da.ValueKind == JsonValueKind.Array)
+                days = da.EnumerateArray().ToArray();
+            else if (pv.TryGetProperty("weeks", out var wa) && wa.ValueKind == JsonValueKind.Array)
+            {
+                // weeks[0].days or weeks[0] itself as days
+                var firstWeek = wa.EnumerateArray().FirstOrDefault();
+                if (firstWeek.ValueKind == JsonValueKind.Object && firstWeek.TryGetProperty("days", out var wd) && wd.ValueKind == JsonValueKind.Array)
+                    days = wd.EnumerateArray().ToArray();
+            }
+        }
+        else if (pv.ValueKind == JsonValueKind.Array)
+        {
+            days = pv.EnumerateArray().ToArray();
+        }
+    }
+}
+
+@* ─────────────── Flash alerts ─────────────── *@
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-0" style="border-radius:0">
+        <div class="container-xl"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mb-0" style="border-radius:0">
+        <div class="container-xl"><i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </div>
+}
+
+@* ─────────────── Header ─────────────── *@
+<div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4c1d95 100%);padding:28px 0 44px;margin-bottom:-20px">
+    <div class="container-xl">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h1 style="color:white;font-weight:900;font-size:clamp(1.3rem,3vw,1.8rem);margin:0">
+                    <i data-lucide="dumbbell" class="icon-amber"></i> @T.Get("nav.workout")
+                </h1>
+                <p style="color:rgba(255,255,255,.7);margin:4px 0 0;font-size:.875rem">
+                    @(isRtl ? "خطة تمارين مخصصة بالذكاء الاصطناعي" : "AI-powered personalised workout plan")
+                </p>
+            </div>
+            @if (profile != null)
+            {
+                <a asp-action="Questionnaire" class="btn-primary-custom" id="generateBtn"
+                   style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);color:white;box-shadow:0 4px 16px rgba(0,0,0,.2);text-decoration:none">
+                    <i class="bi bi-stars me-1"></i>@(isRtl?"توليد خطة جديدة":"Generate New Plan")
+                </a>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="container-xl py-4">
+
+    @* ── No profile ── *@
+    @if (profile == null)
+    {
+        <div class="text-center py-5 card-glass p-5 fade-in" style="border-radius:24px">
+            <div style="font-size:3.5rem;margin-bottom:16px"><i data-lucide="user"></i></div>
+            <h4 style="font-weight:800;margin-bottom:8px">@(isRtl?"أكمل ملفك الشخصي أولاً":"Complete Your Profile First")</h4>
+            <p class="text-muted mb-4" style="max-width:360px;margin-inline:auto">
+                @(isRtl ? "نحتاج بياناتك الصحية (العمر، الوزن، الهدف، مستوى النشاط) لتوليد خطة تمارين ملائمة"
+                        : "We need your health data — age, weight, goal, and activity level — to generate a suitable workout plan")
+            </p>
+            <a asp-controller="Profile" asp-action="Index" class="btn-primary-custom btn-lg-custom">
+                <i class="bi bi-person-fill me-1"></i>@(isRtl?"إكمال الملف الشخصي":"Complete My Profile")
+            </a>
+        </div>
+    }
+
+    @* ── No plan yet ── *@
+    else if (days == null)
+    {
+        <div class="text-center py-5 card-glass p-5 fade-in" style="border-radius:24px">
+            <div style="font-size:2rem;margin-bottom:16px"><i data-lucide="dumbbell" class="icon-purple"></i></div>
+            <h4 style="font-weight:800;margin-bottom:8px">@(isRtl?"لا توجد خطة تمارين بعد":"No Workout Plan Yet")</h4>
+            <p class="text-muted mb-4" style="max-width:400px;margin-inline:auto">
+                @(isRtl ? "اضغط على زر 'توليد خطة جديدة' وسيقوم الذكاء الاصطناعي بإنشاء خطة أسبوعية مخصصة بناءً على ملفك الصحي"
+                        : "Click 'Generate New Plan' and the AI will build a personalised weekly workout schedule based on your health profile, goal and fitness level")
+            </p>
+            <a asp-action="Questionnaire" class="btn-primary-custom btn-lg-custom" id="generateBtnEmpty"
+               style="background:linear-gradient(135deg,#4c1d95,#7c3aed);text-decoration:none">
+                <i class="bi bi-stars me-1"></i>@(isRtl?"توليد خطة التمارين":"Generate Workout Plan")
+            </a>
+        </div>
+    }
+
+    @* ── Plan exists ── *@
+    else
+    {
+        @* Plan title banner *@
+        @if (!string.IsNullOrEmpty(planTitle) || !string.IsNullOrEmpty(planDesc))
+        {
+            <div class="card-glass p-4 mb-4 text-center fade-in" style="border-radius:20px;border:1px solid #ddd6fe">
+                <div style="font-size:2rem;margin-bottom:8px"><i data-lucide="dumbbell" class="icon-purple"></i></div>
+                @if (!string.IsNullOrEmpty(planTitle))
+                {
+                    <h3 style="font-weight:900;color:#7c3aed;margin-bottom:6px">@planTitle</h3>
+                }
+                @if (!string.IsNullOrEmpty(planDesc))
+                {
+                    <p class="text-muted mb-0" style="max-width:500px;margin-inline:auto">@planDesc</p>
+                }
+                @if (!string.IsNullOrEmpty(planFreq))
+                {
+                    <span style="display:inline-block;margin-top:10px;background:rgba(124,58,237,.15);color:#a78bfa;border-radius:20px;padding:4px 14px;font-size:.8rem;font-weight:700">
+                        <i class="bi bi-calendar-check me-1"></i>@planFreq
+                    </span>
+                }
+            </div>
+        }
+
+        @* Day tabs *@
+        <div data-tabs-container>
+
+            @* Tab button row *@
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;margin-bottom:16px">
+                <div class="d-flex gap-2" style="min-width:max-content">
+                    @{int tabNum = 1;}
+                    @foreach (var day in days)
+                    {
+                        var tabDayName = day.TryGetProperty(isRtl ? "dayNameAr" : "dayNameEn", out var tdn) && tdn.ValueKind == JsonValueKind.String ? tdn.GetString()
+                                       : day.TryGetProperty("dayNameEn", out var tdn2) && tdn2.ValueKind == JsonValueKind.String ? tdn2.GetString()
+                                       : $"{(isRtl ? "اليوم" : "Day")} {tabNum}";
+                        var tabIsRest  = (day.TryGetProperty("isRest", out var tri) && tri.ValueKind == JsonValueKind.True)
+                                       || (day.TryGetProperty("focus", out var tfc) && (tfc.GetString()?.ToLower().Contains("rest") == true || tfc.GetString()?.Contains("راحة") == true));
+                        <button class="tab-btn day-tab-btn @(tabNum == 1 ? "active" : "")"
+                                data-target="day-@tabNum"
+                                type="button">
+                            @Html.Raw(tabIsRest ? "<i data-lucide=\"moon\" class=\"icon-muted\"></i> " : "")@tabDayName
+                        </button>
+                        tabNum++;
+                    }
+                </div>
+            </div>
+
+            @* Day panels *@
+            @{int dayNum = 1;}
+            @foreach (var day in days)
+            {
+                var dayName  = day.TryGetProperty(isRtl ? "dayNameAr" : "dayNameEn", out var dn) && dn.ValueKind == JsonValueKind.String ? dn.GetString()
+                             : day.TryGetProperty("dayNameEn", out var dn2) && dn2.ValueKind == JsonValueKind.String ? dn2.GetString()
+                             : $"{(isRtl ? "اليوم" : "Day")} {dayNum}";
+                var focus    = day.TryGetProperty(isRtl ? "focusAr" : "focus", out var fc) ? fc.GetString()
+                             : day.TryGetProperty("focus", out var fc2) ? fc2.GetString() : "";
+                var isRest   = (day.TryGetProperty("isRest", out var re) && re.ValueKind == JsonValueKind.True)
+                             || (focus?.ToLower().Contains("rest") == true)
+                             || (focus?.Contains("راحة") == true);
+                var duration = day.TryGetProperty("duration", out var dur) ? dur.GetString() : null;
+                var warmup   = day.TryGetProperty("warmup", out var wu) ? wu.GetString() : null;
+                var cooldown = day.TryGetProperty("cooldown", out var cd) ? cd.GetString() : null;
+                var hasEx    = day.TryGetProperty("exercises", out var exArr) && exArr.ValueKind == JsonValueKind.Array;
+
+                <div id="day-@dayNum" class="tab-pane @(dayNum == 1 ? "active" : "")">
+                    <div style="background:var(--surface);border-radius:18px;border:1px solid @(isRest ? "var(--border)" : "#ddd6fe");box-shadow:var(--shadow-sm);overflow:hidden">
+
+                        @* Day header *@
+                        <div style="background:@(isRest ? "linear-gradient(135deg,#f5f5f4,#e7e5e4)" : "linear-gradient(135deg,#4c1d95,#7c3aed)");padding:14px 16px;display:flex;align-items:center;gap:10px">
+                            <div style="width:38px;height:38px;border-radius:10px;background:@(isRest ? "rgba(0,0,0,.08)" : "rgba(255,255,255,.2)");display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">
+                                @Html.Raw(FocusEmoji(focus))
+                            </div>
+                            <div>
+                                <div style="font-weight:800;font-size:.95rem;color:@(isRest ? "var(--text-primary)" : "white")">@dayName</div>
+                                @if (!string.IsNullOrEmpty(focus))
+                                {
+                                    <div style="font-size:.75rem;color:@(isRest ? "var(--text-secondary)" : "rgba(255,255,255,.8)")">@focus</div>
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(duration))
+                            {
+                                <span style="margin-inline-start:auto;font-size:.72rem;font-weight:700;background:@(isRest ? "var(--border)" : "rgba(255,255,255,.2)");color:@(isRest ? "var(--text-secondary)" : "white");border-radius:20px;padding:3px 9px;white-space:nowrap">
+                                    ⏱️ @duration
+                                </span>
+                            }
+                        </div>
+
+                        @* Body *@
+                        <div style="padding:14px">
+                            @if (isRest)
+                            {
+                                <div class="text-center py-3">
+                                    <div style="font-size:2rem;margin-bottom:8px"><i data-lucide="moon" class="icon-muted"></i></div>
+                                    <p style="font-size:.875rem;color:var(--text-secondary);margin:0">
+                                        @(isRtl ? "يوم راحة واسترجاع — دع جسمك يتعافى" : "Rest & recovery — let your body repair and grow")
+                                    </p>
+                                </div>
+                            }
+                            else
+                            {
+                                @if (!string.IsNullOrEmpty(warmup))
+                                {
+                                    <div style="background:var(--primary-50);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:.8rem;color:var(--primary)">
+                                        <i class="bi bi-thermometer-half me-1"></i><strong>@(isRtl?"إحماء":"Warm-up"):</strong> @warmup
+                                    </div>
+                                }
+
+                                @if (hasEx)
+                                {
+                                    <div class="d-flex flex-column gap-2">
+                                        @foreach (var ex in exArr.EnumerateArray())
+                                        {
+                                            var exName = ex.TryGetProperty(isRtl ? "nameAr" : "name", out var en) ? en.GetString()
+                                                       : ex.TryGetProperty("name", out var en2) ? en2.GetString()
+                                                       : ex.ValueKind == JsonValueKind.String ? ex.GetString() : "—";
+                                            var sets  = ex.TryGetProperty("sets",  out var sv) ? sv.ToString() : "";
+                                            var reps  = ex.TryGetProperty("reps",  out var rv) ? rv.ToString() : "";
+                                            var rest2 = ex.TryGetProperty("rest",  out var rsv) ? rsv.GetString() : "";
+                                            var exDur = ex.TryGetProperty("duration", out var dv) ? dv.GetString() : "";
+                                            var notes = ex.TryGetProperty("notes", out var nv) ? nv.GetString() : "";
+
+                                            <div style="background:var(--surface-2);border-radius:10px;padding:9px 12px;border-inline-start:3px solid #7c3aed">
+                                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                                                    <span style="font-size:.855rem;font-weight:700;color:var(--text-primary);line-height:1.3">@exName</span>
+                                                    @if (!string.IsNullOrEmpty(sets) && !string.IsNullOrEmpty(reps))
+                                                    {
+                                                        <span style="font-size:.75rem;font-weight:800;color:#7c3aed;white-space:nowrap;background:rgba(124,58,237,.15);border-radius:8px;padding:2px 8px">@sets × @reps</span>
+                                                    }
+                                                    else if (!string.IsNullOrEmpty(exDur))
+                                                    {
+                                                        <span style="font-size:.75rem;font-weight:800;color:#7c3aed;white-space:nowrap;background:rgba(124,58,237,.15);border-radius:8px;padding:2px 8px">⏱️ @exDur</span>
+                                                    }
+                                                </div>
+                                                @if (!string.IsNullOrEmpty(rest2) || !string.IsNullOrEmpty(notes))
+                                                {
+                                                    <div style="margin-top:4px;font-size:.72rem;color:var(--text-muted)">
+                                                        @if (!string.IsNullOrEmpty(rest2)) { <span class="me-2">🕐 @(isRtl?"راحة":"Rest"): @rest2</span> }
+                                                        @if (!string.IsNullOrEmpty(notes)) { <span>📝 @notes</span> }
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p style="font-size:.85rem;color:var(--text-muted);text-align:center;padding:12px 0">
+                                        @(isRtl?"لا توجد تمارين مسجلة لهذا اليوم":"No exercises listed for this day")
+                                    </p>
+                                }
+
+                                @if (!string.IsNullOrEmpty(cooldown))
+                                {
+                                    <div style="background:rgba(37,99,235,.1);border-radius:10px;padding:8px 12px;margin-top:10px;font-size:.8rem;color:#60a5fa">
+                                        <i class="bi bi-snow me-1"></i><strong>@(isRtl?"تبريد":"Cool-down"):</strong> @cooldown
+                                    </div>
+                                }
+                            }
+                        </div>
+
+                        @* Footer — day number badge *@
+                        <div style="border-top:1px solid var(--border);padding:7px 14px;background:var(--surface-2);display:flex;justify-content:space-between;align-items:center">
+                            <span style="font-size:.72rem;color:var(--text-muted)">
+                                @(isRtl ? $"اليوم {dayNum}" : $"Day {dayNum}")
+                            </span>
+                            @if (!isRest && hasEx)
+                            {
+                                <span style="font-size:.72rem;color:#7c3aed;font-weight:700">
+                                    @exArr.EnumerateArray().Count() @(isRtl?"تمرين":"exercises")
+                                </span>
+                            }
+                            else if (isRest)
+                            {
+                                <span style="font-size:.72rem;color:var(--text-muted)">@(isRtl?"راحة":"Rest")</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+                dayNum++;
+            }
+
+        </div>
+
+        @* Regenerate CTA at bottom *@
+        <div class="text-center mt-5">
+            <p style="font-size:.875rem;color:var(--text-secondary);margin-bottom:14px">
+                @(isRtl?"غير راضٍ عن الخطة؟ يمكنك توليد خطة جديدة في أي وقت":"Not happy with this plan? Generate a new one anytime")
+            </p>
+            <a asp-action="Questionnaire" class="btn-ghost-custom" id="regenerateBtn" style="text-decoration:none">
+                <i class="bi bi-arrow-repeat me-1"></i>@(isRtl?"توليد خطة جديدة":"Regenerate Plan")
+            </a>
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+<script>
+    // Strip emojis from AI-generated exercise names rendered by the server
+    document.addEventListener('DOMContentLoaded', function () {
+        const emojiRe = /[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|\u{FE0F}/gu;
+        document.querySelectorAll('.tab-pane span[style*="font-weight:700"]').forEach(el => {
+            el.textContent = el.textContent.replace(emojiRe, '').trim();
+        });
+    });
+</script>
+}
+

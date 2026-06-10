@@ -1,0 +1,124 @@
+@model List<MoodBite.Models.Restaurant>
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.restaurants");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var selectedType = ViewBag.SelectedType as string;
+}
+
+<div class="container-xl py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 style="font-weight:800;font-size:1.6rem;margin:0">@T.Get("nav.restaurants")</h1>
+            <p class="text-muted mb-0">@(isRtl?"اكتشف المطاعم الصحية القريبة منك":"Discover healthy restaurants near you")</p>
+        </div>
+    </div>
+
+    <!-- Type Filter -->
+    <div class="d-flex gap-2 flex-wrap mb-4">
+        <a href="@Url.Action("Index")" class="badge-custom @(selectedType == null ? "badge-primary" : "badge-neutral")">
+            @(isRtl?"الكل":"All")
+        </a>
+        @foreach (var t in new[] { ("healthy",isRtl?"صحي":"Healthy"), ("vegan",isRtl?"نباتي":"Vegan"), ("mediterranean",isRtl?"متوسطي":"Mediterranean"), ("keto",isRtl?"كيتو":"Keto"), ("cafe",isRtl?"كافيه":"Cafe") })
+        {
+            <a href="@Url.Action("Index", new { type = t.Item1 })"
+               class="badge-custom @(selectedType == t.Item1 ? "badge-primary" : "badge-neutral")">@t.Item2</a>
+        }
+    </div>
+
+    <div class="row g-4">
+        <!-- Map -->
+        <div class="col-lg-7">
+            <div class="card-glass p-0 overflow-hidden" style="height:500px">
+                <div id="map" style="height:100%;width:100%;border-radius:var(--radius-xl)"></div>
+            </div>
+        </div>
+
+        <!-- Restaurant List -->
+        <div class="col-lg-5">
+            <div style="max-height:500px;overflow-y:auto;border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface)">
+                @if (!Model.Any())
+                {
+                    <div class="text-center py-5">
+                        <div style="font-size:3rem;margin-bottom:12px">🗺️</div>
+                        <p class="text-muted">@(isRtl?"لا توجد مطاعم تطابق الفلتر":"No restaurants match the filter")</p>
+                    </div>
+                }
+                @foreach (var r in Model)
+                {
+                    <div class="restaurant-list-item"
+                         onclick="flyToRestaurant(@r.Latitude.ToString("F6", System.Globalization.CultureInfo.InvariantCulture), @r.Longitude.ToString("F6", System.Globalization.CultureInfo.InvariantCulture))">
+                        <div class="restaurant-list-info">
+                            <div class="restaurant-list-name">@(isRtl ? r.NameAr : r.NameEn)</div>
+                            <div class="restaurant-list-meta">
+                                <span class="badge-type">@r.Type</span>
+                                <span class="restaurant-city">@r.City</span>
+                                <span class="restaurant-rating">
+                                    <i data-lucide="star" class="icon-amber"></i>
+                                    @r.Rating.ToString("F1")
+                                </span>
+                            </div>
+                        </div>
+                        <button class="btn-view-on-map" type="button">
+                            <i data-lucide="map-pin" class="icon-green"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+
+    window._darkTileLayer = L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        { attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 19 }
+    );
+    window._lightTileLayer = L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        { attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 19 }
+    );
+
+    window._leafletMap = L.map('map', {
+        center: [25.2048, 55.2708],
+        zoom: 5,
+        layers: [isDark ? window._darkTileLayer : window._lightTileLayer]
+    });
+    const map = window._leafletMap;
+
+    const restaurantData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Select(r => new {
+        lat = r.Latitude,
+        lng = r.Longitude,
+        name = isRtl ? r.NameAr : r.NameEn,
+        type = r.Type,
+        city = r.City,
+        rating = r.Rating
+    })));
+
+    const markers = [];
+    restaurantData.forEach(r => {
+        if (r.lat === 0 && r.lng === 0) return;
+        const marker = L.marker([r.lat, r.lng])
+            .addTo(map)
+            .bindPopup(`<strong>${r.name}</strong><br>${r.city}<br>⭐ ${r.rating} • ${r.type}`);
+        markers.push({ lat: r.lat, lng: r.lng, marker });
+    });
+
+    const validData = restaurantData.filter(r => r.lat !== 0 || r.lng !== 0);
+    if (validData.length > 0) {
+        try { map.fitBounds(validData.map(r => [r.lat, r.lng]), { padding: [20, 20] }); } catch(e) {}
+    }
+
+    function flyToRestaurant(lat, lng) {
+        map.flyTo([lat, lng], 15, { duration: 1 });
+        const m = markers.find(m => Math.abs(m.lat - lat) < 0.001 && Math.abs(m.lng - lng) < 0.001);
+        m?.marker.openPopup();
+    }
+</script>
+}

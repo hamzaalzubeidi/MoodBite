@@ -1,0 +1,378 @@
+@using MoodBite.Services
+@using System.Text.Json
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("profile.title");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var profile = ViewBag.Profile as MoodBite.Models.HealthProfile;
+
+    List<string> existingConditions = new();
+    List<string> existingAllergens = new();
+    List<string> existingPrefs = new();
+    if (profile != null)
+    {
+        try { existingConditions = JsonSerializer.Deserialize<List<string>>(profile.HealthConditions ?? "[]") ?? []; } catch { }
+        try { existingAllergens = JsonSerializer.Deserialize<List<string>>(profile.Allergens ?? "[]") ?? []; } catch { }
+        try { existingPrefs = JsonSerializer.Deserialize<List<string>>(profile.FoodPreferences ?? "[]") ?? []; } catch { }
+    }
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <div class="text-center mb-5 fade-in">
+                <div class="section-tag mb-2">@(isRtl?"بصمتك الغذائية":"Food Fingerprint")</div>
+                <h1 style="font-weight:800;font-size:clamp(1.5rem,3vw,2rem)">@T.Get("profile.title")</h1>
+                <p style="color:var(--text-secondary)">@T.Get("profile.subtitle")</p>
+            </div>
+
+            <!-- Step Indicator -->
+            <div class="wizard-steps mb-5">
+                @for (int i = 1; i <= 5; i++)
+                {
+                    <div class="wizard-step @(i == 1 ? "active" : "")" id="indicator-@i">
+                        <div class="wizard-step-circle">@i</div>
+                        <div class="wizard-step-label d-none d-md-block">
+                            @switch (i)
+                            {
+                                case 1: @(isRtl ? "البيانات" : "Info"); break;
+                                case 2: @(isRtl ? "الهدف" : "Goal"); break;
+                                case 3: @(isRtl ? "النشاط" : "Activity"); break;
+                                case 4: @(isRtl ? "الصحة" : "Health"); break;
+                                case 5: @(isRtl ? "التفضيلات" : "Prefs"); break;
+                            }
+                        </div>
+                    </div>
+                    if (i < 5) { <div class="wizard-step-line" id="line-@i"></div> }
+                }
+            </div>
+
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show mb-4">
+                    <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <form asp-action="Save" method="post" id="profileForm">
+
+                <!-- STEP 1: Personal Info -->
+                <div class="profile-step card-glass p-4 mb-4 fade-in" id="step1">
+                    <h4 class="mb-4" style="font-weight:700">
+                        <span class="badge-primary badge-custom me-2">1</span>
+                        @(isRtl ? "المعلومات الشخصية" : "Personal Information")
+                    </h4>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">@(isRtl ? "العمر (سنة)" : "Age (years)")</label>
+                            <input name="age" type="number" class="form-control" min="10" max="100" placeholder="25" value="@(profile?.Age > 0 ? profile.Age.ToString() : "")" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@(isRtl ? "الجنس" : "Gender")</label>
+                            <select name="gender" class="form-select" required>
+                                <option value="">@(isRtl ? "اختر..." : "Select...")</option>
+                                <option value="male" selected="@(profile?.Gender == "male")">@(isRtl ? "ذكر" : "Male")</option>
+                                <option value="female" selected="@(profile?.Gender == "female")">@(isRtl ? "أنثى" : "Female")</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@(isRtl ? "الطول (سم)" : "Height (cm)")</label>
+                            <input name="height" type="number" step="0.1" class="form-control" min="100" max="250" placeholder="170" value="@(profile?.Height > 0 ? profile.Height.ToString() : "")" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@(isRtl ? "الوزن (كغ)" : "Weight (kg)")</label>
+                            <input name="weight" type="number" step="0.1" class="form-control" min="30" max="300" placeholder="70" value="@(profile?.Weight > 0 ? profile.Weight.ToString() : "")" required />
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn-primary-custom" onclick="nextStep(1)">
+                            @(isRtl ? "التالي" : "Next") <i class="bi bi-arrow-@(isRtl?"left":"right")"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 2: Goal -->
+                <div class="profile-step card-glass p-4 mb-4" id="step2" style="display:none">
+                    <h4 class="mb-4" style="font-weight:700">
+                        <span class="badge-primary badge-custom me-2">2</span>
+                        @(isRtl ? "هدفك الصحي" : "Your Health Goal")
+                    </h4>
+                    <div class="goal-grid">
+                        @{
+                            var goals = new[] {
+                                ("lose_weight", "<i data-lucide=\"flame\" class=\"icon-green\"></i>", isRtl ? "خسارة الوزن" : "Lose Weight", isRtl ? "حرق الدهون وتحسين القوام" : "Burn fat and improve body composition"),
+                                ("build_muscle", "<i data-lucide=\"dumbbell\" class=\"icon-amber\"></i>", isRtl ? "بناء العضلات" : "Build Muscle", isRtl ? "زيادة الكتلة العضلية والقوة" : "Increase muscle mass and strength"),
+                                ("maintain", "<i data-lucide=\"scale\" class=\"icon-purple\"></i>", isRtl ? "الحفاظ على الوزن" : "Maintain Weight", isRtl ? "الحفاظ على وزنك الحالي" : "Maintain your current weight"),
+                                ("improve_health", "<i data-lucide=\"heart\" class=\"icon-red\"></i>", isRtl ? "تحسين الصحة" : "Improve Health", isRtl ? "تحسين الصحة العامة والطاقة" : "Improve overall health and energy"),
+                                ("manage_condition", "🏥", isRtl ? "إدارة حالة صحية" : "Manage Condition", isRtl ? "التحكم بحالة صحية مزمنة" : "Manage a chronic health condition")
+                            };
+                        }
+                        @foreach (var (val, emoji, label, desc) in goals)
+                        {
+                            <label class="goal-option @(profile?.Goal == val ? "selected" : "")">
+                                <input type="radio" name="goal" value="@val" class="d-none" @(profile?.Goal == val ? "checked" : "") />
+                                <div class="goal-option-inner">
+                                    <span style="font-size:1.5rem">@Html.Raw(emoji)</span>
+                                    <div>
+                                        <div style="font-weight:700">@label</div>
+                                        <div style="font-size:.8rem;color:var(--text-secondary)">@desc</div>
+                                    </div>
+                                    <i class="bi bi-check-circle-fill text-success goal-check" style="display:none"></i>
+                                </div>
+                            </label>
+                        }
+                    </div>
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn-ghost-custom" onclick="prevStep(2)">
+                            <i class="bi bi-arrow-@(isRtl?"right":"left")"></i> @(isRtl ? "السابق" : "Back")
+                        </button>
+                        <button type="button" class="btn-primary-custom" onclick="nextStep(2)">
+                            @(isRtl ? "التالي" : "Next") <i class="bi bi-arrow-@(isRtl?"left":"right")"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: Activity Level -->
+                <div class="profile-step card-glass p-4 mb-4" id="step3" style="display:none">
+                    <h4 class="mb-4" style="font-weight:700">
+                        <span class="badge-primary badge-custom me-2">3</span>
+                        @(isRtl ? "مستوى النشاط" : "Activity Level")
+                    </h4>
+                    <div class="d-flex flex-column gap-3">
+                        @{
+                            var activities = new[] {
+                                ("sedentary", isRtl ? "خامل" : "Sedentary", isRtl ? "مكتب فقط، لا رياضة" : "Office only, no exercise"),
+                                ("light", isRtl ? "خفيف" : "Lightly Active", isRtl ? "رياضة 1-3 أيام/أسبوع" : "Exercise 1-3 days/week"),
+                                ("moderate", isRtl ? "متوسط" : "Moderately Active", isRtl ? "رياضة 3-5 أيام/أسبوع" : "Exercise 3-5 days/week"),
+                                ("active", isRtl ? "نشيط" : "Active", isRtl ? "رياضة 6-7 أيام/أسبوع" : "Exercise 6-7 days/week"),
+                                ("very_active", isRtl ? "نشيط جداً" : "Very Active", isRtl ? "رياضة مكثفة يومياً" : "Intense daily exercise")
+                            };
+                        }
+                        @foreach (var (val, label, desc) in activities)
+                        {
+                            <label class="goal-option @(profile?.ActivityLevel == val ? "selected" : "")">
+                                <input type="radio" name="activityLevel" value="@val" class="d-none" @(profile?.ActivityLevel == val ? "checked" : "") />
+                                <div class="goal-option-inner">
+                                    <div>
+                                        <div style="font-weight:700">@label</div>
+                                        <div style="font-size:.8rem;color:var(--text-secondary)">@desc</div>
+                                    </div>
+                                    <i class="bi bi-check-circle-fill text-success goal-check" style="display:none"></i>
+                                </div>
+                            </label>
+                        }
+                    </div>
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn-ghost-custom" onclick="prevStep(3)">
+                            <i class="bi bi-arrow-@(isRtl?"right":"left")"></i> @(isRtl ? "السابق" : "Back")
+                        </button>
+                        <button type="button" class="btn-primary-custom" onclick="nextStep(3)">
+                            @(isRtl ? "التالي" : "Next") <i class="bi bi-arrow-@(isRtl?"left":"right")"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 4: Health Conditions & Allergens -->
+                <div class="profile-step card-glass p-4 mb-4" id="step4" style="display:none">
+                    <h4 class="mb-4" style="font-weight:700">
+                        <span class="badge-primary badge-custom me-2">4</span>
+                        @(isRtl ? "الحالات الصحية والحساسية" : "Health Conditions & Allergens")
+                    </h4>
+
+                    <label class="form-section-label">@(isRtl ? "الحالات الصحية:" : "Health conditions:")</label>
+                    <div class="row g-2 mb-4">
+                        @{
+                            var conditions = new[] {
+                                ("diabetes", isRtl ? "السكري" : "Diabetes"),
+                                ("hypertension", isRtl ? "ضغط الدم" : "High Blood Pressure"),
+                                ("heart_disease", isRtl ? "أمراض القلب" : "Heart Disease"),
+                                ("high_cholesterol", isRtl ? "كوليسترول مرتفع" : "High Cholesterol"),
+                                ("ibs", isRtl ? "متلازمة القولون" : "IBS"),
+                                ("thyroid", isRtl ? "مشاكل الغدة الدرقية" : "Thyroid Issues")
+                            };
+                        }
+                        @foreach (var (val, label) in conditions)
+                        {
+                            <div class="col-6 col-md-4">
+                                <label class="checkbox-tag">
+                                    <input type="checkbox" name="healthConditions" value="@val" @(existingConditions.Contains(val) ? "checked" : "") />
+                                    <span>@label</span>
+                                </label>
+                            </div>
+                        }
+                    </div>
+
+                    <label class="form-section-label">@(isRtl ? "الحساسية الغذائية:" : "Food allergens:")</label>
+                    <div class="row g-2">
+                        @{
+                            var allergens = new[] {
+                                ("gluten", isRtl ? "الغلوتين" : "Gluten"),
+                                ("lactose", isRtl ? "اللاكتوز" : "Lactose"),
+                                ("nuts", isRtl ? "المكسرات" : "Nuts"),
+                                ("eggs", isRtl ? "البيض" : "Eggs"),
+                                ("shellfish", isRtl ? "المحار" : "Shellfish"),
+                                ("soy", isRtl ? "الصويا" : "Soy")
+                            };
+                        }
+                        @foreach (var (val, label) in allergens)
+                        {
+                            <div class="col-6 col-md-4">
+                                <label class="checkbox-tag">
+                                    <input type="checkbox" name="allergens" value="@val" @(existingAllergens.Contains(val) ? "checked" : "") />
+                                    <span>@label</span>
+                                </label>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn-ghost-custom" onclick="prevStep(4)">
+                            <i class="bi bi-arrow-@(isRtl?"right":"left")"></i> @(isRtl ? "السابق" : "Back")
+                        </button>
+                        <button type="button" class="btn-primary-custom" onclick="nextStep(4)">
+                            @(isRtl ? "التالي" : "Next") <i class="bi bi-arrow-@(isRtl?"left":"right")"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 5: Preferences -->
+                <div class="profile-step card-glass p-4 mb-4" id="step5" style="display:none">
+                    <h4 class="mb-4" style="font-weight:700">
+                        <span class="badge-primary badge-custom me-2">5</span>
+                        @(isRtl ? "التفضيلات الغذائية" : "Food Preferences")
+                    </h4>
+
+                    <label class="form-section-label">@(isRtl ? "الأطعمة التي تفضلها:" : "Foods you prefer:")</label>
+                    <div class="row g-2 mb-4">
+                        @{
+                            var prefs = new[] {
+                                ("chicken", isRtl ? "دجاج" : "Chicken"), ("fish", isRtl ? "سمك" : "Fish"),
+                                ("beef", isRtl ? "لحم بقري" : "Beef"), ("vegetables", isRtl ? "خضروات" : "Vegetables"),
+                                ("fruits", isRtl ? "فواكه" : "Fruits"), ("legumes", isRtl ? "بقوليات" : "Legumes"),
+                                ("dairy", isRtl ? "منتجات ألبان" : "Dairy"), ("grains", isRtl ? "حبوب" : "Grains")
+                            };
+                        }
+                        @foreach (var (val, label) in prefs)
+                        {
+                            <div class="col-6 col-md-3">
+                                <label class="checkbox-tag">
+                                    <input type="checkbox" name="foodPreferences" value="@val" @(existingPrefs.Contains(val) ? "checked" : "") />
+                                    <span>@label</span>
+                                </label>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">@(isRtl ? "أسلوب الطهي" : "Cooking Style")</label>
+                            <select name="cookingStyle" class="form-select">
+                                <option value="quick" selected="@(profile?.CookingStyle == "quick")">@(isRtl ? "سريع (أقل من 20 دقيقة)" : "Quick (under 20 min)")</option>
+                                <option value="moderate" selected="@(profile?.CookingStyle == "moderate")">@(isRtl ? "متوسط (20-45 دقيقة)" : "Moderate (20-45 min)")</option>
+                                <option value="adventurous" selected="@(profile?.CookingStyle == "adventurous")">@(isRtl ? "متقدم (وصفات معقدة)" : "Adventurous (complex recipes)")</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@(isRtl ? "الميزانية الشهرية" : "Monthly Budget")</label>
+                            <select name="budget" class="form-select">
+                                <option value="low" selected="@(profile?.Budget == "low")">@(isRtl ? "منخفضة" : "Low")</option>
+                                <option value="medium" selected="@(profile?.Budget == "medium")">@(isRtl ? "متوسطة" : "Medium")</option>
+                                <option value="high" selected="@(profile?.Budget == "high")">@(isRtl ? "مرتفعة" : "High")</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Water Goal -->
+                    <div class="mt-4">
+                        <label class="form-label fw-600">
+                            <i class="bi bi-droplet-half text-primary me-1"></i>
+                            @(isRtl ? "هدف الماء اليومي (أكواب)" : "Daily Water Goal (glasses)")
+                        </label>
+                        <div class="d-flex align-items-center gap-3">
+                            <input type="range" name="waterGoal" id="waterGoalSlider"
+                                   class="form-range flex-grow-1" min="4" max="16" step="1"
+                                   value="@(profile?.WaterGoal > 0 ? profile.WaterGoal : 8)"
+                                   oninput="onWaterGoalChange(this.value)" />
+                            <span class="badge bg-primary fs-6 px-3 py-2" id="waterGoalVal"
+                                  style="min-width:2.5rem;text-align:center">@(profile?.WaterGoal > 0 ? profile.WaterGoal : 8)</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-1" style="font-size:.8rem;color:var(--text-secondary)">
+                            <span>4 @(isRtl?"أكواب":"glasses")</span>
+                            <span id="waterGoalLiters" style="font-weight:600;color:var(--primary)">= @(((profile?.WaterGoal > 0 ? profile.WaterGoal : 8) * 0.25).ToString("0.##"))L</span>
+                            <span>16 @(isRtl?"أكواب":"glasses")</span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn-ghost-custom" onclick="prevStep(5)">
+                            <i class="bi bi-arrow-@(isRtl?"right":"left")"></i> @(isRtl ? "السابق" : "Back")
+                        </button>
+                        <button type="submit" class="btn-primary-custom btn-lg-custom">
+                            <i class="bi bi-check-circle"></i>
+                            @(isRtl ? "احفظ وأنشئ خطتي" : "Save & Create My Plan")
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function onWaterGoalChange(val) {
+        val = parseInt(val, 10);
+        document.getElementById('waterGoalVal').textContent = val;
+        document.getElementById('waterGoalLiters').textContent = '= ' + (val * 0.25).toFixed(2).replace(/\.?0+$/, '') + 'L';
+    }
+
+    let currentStep = 1;
+
+    // Goal option click
+    document.querySelectorAll('.goal-option').forEach(opt => {
+        opt.addEventListener('click', function () {
+            const radio = this.querySelector('input[type="radio"]');
+            const name = radio.name;
+            document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+                r.closest('.goal-option')?.classList.remove('selected');
+                r.closest('.goal-option')?.querySelector('.goal-check')?.style && (r.closest('.goal-option').querySelector('.goal-check').style.display = 'none');
+            });
+            this.classList.add('selected');
+            radio.checked = true;
+            const check = this.querySelector('.goal-check');
+            if (check) check.style.display = '';
+        });
+        // Init state
+        const radio = opt.querySelector('input[type="radio"]');
+        if (radio?.checked) {
+            opt.classList.add('selected');
+            const check = opt.querySelector('.goal-check');
+            if (check) check.style.display = '';
+        }
+    });
+
+    function goToStep(step) {
+        document.querySelectorAll('.profile-step').forEach(el => el.style.display = 'none');
+        document.getElementById('step' + step).style.display = 'block';
+        for (let i = 1; i <= 5; i++) {
+            const ind = document.getElementById('indicator-' + i);
+            if (!ind) continue;
+            ind.classList.remove('active', 'completed');
+            if (i === step) ind.classList.add('active');
+            else if (i < step) ind.classList.add('completed');
+        }
+        for (let i = 1; i <= 4; i++) {
+            const line = document.getElementById('line-' + i);
+            if (line) line.classList.toggle('active', i < step);
+        }
+        currentStep = step;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextStep(step) { goToStep(step + 1); }
+    function prevStep(step) { goToStep(step - 1); }
+</script>
+}

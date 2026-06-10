@@ -1,0 +1,138 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.costCalculator");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var diets = ViewBag.Diets as List<MoodBite.Models.Diet> ?? new();
+    var costData = ViewBag.CostData as Dictionary<string, Dictionary<string, double>> ?? new();
+}
+
+<div class="container-xl py-4">
+
+    <div class="section-header text-center mb-5">
+        <div class="section-tag">@(isRtl?"تكلفة الغذاء":"Food Cost")</div>
+        <h1 class="page-title mt-2">@T.Get("nav.costCalculator")</h1>
+        <p class="page-subtitle">@T.Get("costCalculator.subtitle")</p>
+    </div>
+
+    <!-- Country Selector -->
+    <div class="card-glass p-4 mb-5 text-center">
+        <h5 style="font-weight:700;margin-bottom:16px">
+            <i class="bi bi-globe text-primary me-2"></i>
+            @(isRtl?"اختر بلدك":"Select Your Country")
+        </h5>
+        <div class="d-flex gap-3 justify-content-center flex-wrap">
+            @{
+                var countries = new[] {
+                    ("jordan", "🇯🇴", isRtl?"الأردن":"Jordan", "JOD"),
+                    ("saudi", "🇸🇦", isRtl?"السعودية":"Saudi Arabia", "SAR"),
+                    ("uae", "🇦🇪", isRtl?"الإمارات":"UAE", "AED"),
+                    ("egypt", "🇪🇬", isRtl?"مصر":"Egypt", "EGP"),
+                    ("kuwait", "🇰🇼", isRtl?"الكويت":"Kuwait", "KWD")
+                };
+            }
+            @foreach (var (id, flag, name, currency) in countries)
+            {
+                <button class="country-btn" data-country="@id" data-currency="@currency" onclick="selectCountry(this)">
+                    <div style="font-size:1.5rem">@flag</div>
+                    <div style="font-weight:600;font-size:.85rem">@name</div>
+                    <div style="font-size:.75rem;color:var(--text-secondary)">@currency</div>
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- Cost Grid -->
+    <div class="row g-4" id="costGrid">
+        @foreach (var diet in diets)
+        {
+            var slugCosts = costData.GetValueOrDefault(diet.Slug) ?? new();
+            <div class="col-md-6 col-lg-4 animate-on-scroll diet-cost-card" data-slug="@diet.Slug">
+                <div class="card-glass p-4 h-100">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span style="font-size:2rem">@diet.Emoji</span>
+                        <div>
+                            <h5 style="font-weight:700;margin:0">@(isRtl ? diet.NameAr : diet.NameEn)</h5>
+                            <span class="badge bg-secondary">@diet.Difficulty</span>
+                        </div>
+                    </div>
+
+                    <div class="text-center py-3 mb-3" style="background:var(--primary-100,#d1fae5);border-radius:var(--radius-lg)">
+                        <div class="cost-amount" style="font-size:2rem;font-weight:900;color:var(--primary)"
+                             data-costs='@System.Text.Json.JsonSerializer.Serialize(slugCosts)'>
+                            —
+                        </div>
+                        <div style="font-size:.8rem;color:var(--text-secondary)">
+                            <span class="currency-label">@(isRtl?"اختر البلد أولاً":"Select a country first")</span>
+                            <span class="currency-suffix d-none"> / @(isRtl?"شهر":"month")</span>
+                        </div>
+                    </div>
+
+                    <div style="font-size:.85rem;color:var(--text-secondary)">
+                        @(isRtl ? diet.DescriptionAr.Substring(0, Math.Min(70, diet.DescriptionAr.Length)) : diet.DescriptionEn.Substring(0, Math.Min(70, diet.DescriptionEn.Length)))...
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Tips -->
+    <div class="card-glass p-4 mt-5 animate-on-scroll">
+        <h4 style="font-weight:700;margin-bottom:16px">
+            <i class="bi bi-piggy-bank text-success me-2"></i>
+            @(isRtl?"نصائح لتوفير المال":"Money-Saving Tips")
+        </h4>
+        <div class="row g-3">
+            @{
+                var tips = new[] {
+                    ("bi-shop", isRtl?"اشترِ من أسواق الجملة لتوفير 30-40%":"Buy from wholesale markets to save 30-40%"),
+                    ("bi-calendar-check", isRtl?"خطط وجباتك مسبقاً لتقليل الهدر":"Plan meals ahead to reduce waste"),
+                    ("bi-egg-fried", isRtl?"البقوليات بروتين رخيص وصحي":"Legumes are a cheap healthy protein source"),
+                    ("bi-snow", isRtl?"اشترِ الخضار موسمياً وجمّدها":"Buy seasonal vegetables and freeze them"),
+                    ("bi-patch-check", isRtl?"تجنب الأطعمة المعلبة والجاهزة":"Avoid canned and ready-made foods"),
+                    ("bi-cart", isRtl?"ضع قائمة تسوق قبل الذهاب للسوق":"Make a shopping list before going to the market")
+                };
+            }
+            @foreach (var (icon, tip) in tips)
+            {
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi @icon text-success mt-1 flex-shrink-0"></i>
+                        <span style="font-size:.9rem">@tip</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+.country-btn { background:var(--surface); border:2px solid var(--border); border-radius:var(--radius-lg); padding:12px 20px; cursor:pointer; transition:all .2s; text-align:center; min-width:90px; }
+.country-btn:hover, .country-btn.active { border-color:var(--primary); background:var(--primary-100,#d1fae5); }
+</style>
+
+@section Scripts {
+<script>
+    const currencyNames = { jordan:'JOD', saudi:'SAR', uae:'AED', egypt:'EGP', kuwait:'KWD' };
+    let selectedCountry = null;
+
+    function selectCountry(btn) {
+        document.querySelectorAll('.country-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedCountry = btn.dataset.country;
+        const currency = btn.dataset.currency;
+
+        document.querySelectorAll('.cost-amount').forEach(el => {
+            const costs = JSON.parse(el.dataset.costs || '{}');
+            const amount = costs[selectedCountry];
+            el.textContent = amount !== undefined ? amount.toLocaleString() : '—';
+            const label = el.nextElementSibling;
+            if (label) {
+                label.querySelector('.currency-label').textContent = currency;
+                label.querySelector('.currency-suffix').classList.remove('d-none');
+            }
+        });
+    }
+</script>
+}

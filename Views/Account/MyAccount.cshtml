@@ -1,0 +1,121 @@
+@using MoodBite.Models
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("account.myAccount");
+    Layout = "_Layout";
+    var isRtl   = T.CurrentLang == "ar";
+    var user    = ViewBag.User as ApplicationUser;
+    var profile = ViewBag.Profile as HealthProfile;
+}
+
+<div class="container-xl py-4">
+
+    <div class="mb-4">
+        <h1 class="page-title">@T.Get("account.myAccount")</h1>
+        <p class="page-subtitle">@T.Get("account.subtitle")</p>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Stats row -->
+    <div class="stats-row">
+        <div class="stat-mini">
+            <span class="stat-mini-value">@ViewBag.TotalLogs</span>
+            <span class="stat-mini-label">@T.Get("account.totalLogs")</span>
+        </div>
+        <div class="stat-mini">
+            <span class="stat-mini-value">@ViewBag.WeightLogs</span>
+            <span class="stat-mini-label">@T.Get("account.weightEntries")</span>
+        </div>
+        <div class="stat-mini">
+            <span class="stat-mini-value">@(profile?.DietSlug ?? "—")</span>
+            <span class="stat-mini-label">@T.Get("account.currentDiet")</span>
+        </div>
+        <div class="stat-mini">
+            <span class="stat-mini-value">@ViewBag.MemberSince</span>
+            <span class="stat-mini-label">@(isRtl ? "عضو منذ" : "Member Since")</span>
+        </div>
+    </div>
+
+    <div class="account-grid">
+
+        <!-- Profile Picture -->
+        <div class="card-glass account-card">
+            <h3 class="account-card-title">@T.Get("account.profilePicture")</h3>
+            <div class="avatar-section">
+                @if (!string.IsNullOrEmpty(user?.ProfilePicture))
+                {
+                    <img src="~/uploads/@user.ProfilePicture" class="account-avatar" alt="avatar" />
+                }
+                else
+                {
+                    <div class="account-avatar-placeholder">
+                        @(user?.FullName?.Length > 0 ? user.FullName[0].ToString().ToUpper() : "?")
+                    </div>
+                }
+                <form method="post" asp-action="UploadPicture" asp-controller="Profile" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <label class="btn-ghost-custom" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                        <i class="bi bi-upload"></i>
+                        @T.Get("account.changePicture")
+                        <input type="file" name="picture" accept="image/*" style="display:none" onchange="this.form.submit()" />
+                    </label>
+                </form>
+            </div>
+        </div>
+
+        <!-- Personal Info -->
+        <div class="card-glass account-card">
+            <h3 class="account-card-title">@T.Get("account.personalInfo")</h3>
+            <form method="post" asp-action="UpdateName">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">@T.Get("account.fullName")</label>
+                    <input type="text" name="fullName" class="form-control" value="@user?.FullName" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">@T.Get("account.email")</label>
+                    <input type="email" class="form-control" value="@user?.Email" disabled />
+                    <small class="form-hint">@T.Get("account.emailHint")</small>
+                </div>
+                <button type="submit" class="btn-primary-custom w-100">
+                    <i class="bi bi-check-lg me-1"></i>@T.Get("account.saveChanges")
+                </button>
+            </form>
+        </div>
+
+        <!-- Change Password -->
+        <div class="card-glass account-card">
+            <h3 class="account-card-title">@T.Get("account.changePassword")</h3>
+            <form method="post" asp-action="ChangePassword">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">@T.Get("account.currentPassword")</label>
+                    <input type="password" name="currentPassword" class="form-control" required autocomplete="current-password" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">@T.Get("account.newPassword")</label>
+                    <input type="password" name="newPassword" class="form-control" minlength="6" required autocomplete="new-password" />
+                </div>
+                <button type="submit" class="btn-primary-custom w-100">
+                    <i class="bi bi-key me-1"></i>@T.Get("account.updatePassword")
+                </button>
+            </form>
+        </div>
+
+    </div>
+</div>

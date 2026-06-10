@@ -1,0 +1,182 @@
+@model List<MoodBite.Models.MealPlan>
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.CurrentLang == "ar" ? "سجل خطط الوجبات" : "Meal Plan History";
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+}
+
+<!-- Page header -->
+<div style="background:linear-gradient(135deg,#064e3b 0%,#065f46 40%,#0d9488 100%);padding:28px 0 44px;margin-bottom:-20px">
+    <div class="container-xl d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1 style="color:white;font-weight:900;font-size:clamp(1.3rem,3vw,1.8rem);margin:0">
+                📚 @(isRtl ? "سجل خطط الوجبات" : "Meal Plan History")
+            </h1>
+            <p style="color:rgba(255,255,255,.7);margin:4px 0 0;font-size:.875rem">
+                @(isRtl ? "آخر 10 خطط ذكاء اصطناعي" : "Your last 10 AI-generated plans")
+            </p>
+        </div>
+        <a asp-action="Index" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:white;border-radius:10px;padding:9px 16px;font-size:.85rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+            <i class="bi bi-arrow-@(isRtl?"right":"left")"></i> @(isRtl ? "العودة للخطة" : "Back to Plans")
+        </a>
+    </div>
+</div>
+
+<div class="container-xl py-4">
+    @Html.AntiForgeryToken()
+
+    @if (!Model.Any())
+    {
+        <div class="empty-state-card">
+            <div class="empty-icon"><i data-lucide="inbox" class="icon-muted"></i></div>
+            <h5>@(isRtl ? "لا توجد خطط محفوظة" : "No saved plans yet")</h5>
+            <p>@(isRtl ? "قم بتوليد خطة ذكاء اصطناعي لتحفظ هنا" : "Generate an AI plan to save it here")</p>
+            <a asp-action="Index" class="btn-primary-custom">
+                <i class="bi bi-stars me-1"></i>@(isRtl ? "توليد خطة" : "Generate Plan")
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3" id="historyGrid">
+            @foreach (var plan in Model)
+            {
+                var title    = plan.Title ?? (isRtl ? "خطة ذكاء اصطناعي" : "AI Plan");
+                var dietType = plan.DietType ?? "—";
+                var cal      = plan.CalorieTarget > 0 ? $"{plan.CalorieTarget:F0}" : "—";
+                <div class="col-md-6 col-lg-4" data-plan-id="@plan.Id">
+                    <div class="card-glass p-4" style="border-radius:20px;height:100%;display:flex;flex-direction:column">
+                        <div class="d-flex align-items-start justify-content-between mb-2 gap-2">
+                            <div>
+                                <div style="font-weight:800;font-size:.95rem;color:var(--text-primary)">@title</div>
+                                <div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">
+                                    @plan.CreatedAt.ToString(isRtl ? "yyyy/MM/dd HH:mm" : "MMM d, yyyy HH:mm")
+                                </div>
+                            </div>
+                            <span class="badge-custom badge-primary" style="font-size:.7rem;white-space:nowrap">AI</span>
+                        </div>
+
+                        <div class="d-flex gap-3 mb-3" style="font-size:.8rem;color:var(--text-secondary)">
+                            <span><i class="bi bi-leaf me-1 text-success"></i>@dietType</span>
+                            <span><i class="bi bi-fire me-1 text-danger"></i>@cal kcal</span>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-auto">
+                            <button class="btn-primary-custom flex-fill" style="font-size:.82rem;padding:8px 12px" onclick="loadPlan(@plan.Id)">
+                                <i class="bi bi-arrow-up-right-circle me-1"></i>@(isRtl ? "تحميل" : "Load")
+                            </button>
+                            <button class="btn btn-outline-danger" style="font-size:.82rem;padding:8px 12px;border-radius:10px" onclick="deletePlan(@plan.Id)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+</div>
+
+<!-- Loaded Plan Preview Modal -->
+<div id="planPreviewOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;overflow-y:auto;padding:24px 16px">
+    <div style="max-width:960px;margin:0 auto;background:var(--surface);border-radius:24px;padding:28px;position:relative;animation:scaleIn .3s ease">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <h4 style="font-weight:800;margin:0" id="previewTitle">@(isRtl ? "معاينة الخطة" : "Plan Preview")</h4>
+            <button onclick="closePreview()" style="background:var(--surface-2);border:none;border-radius:12px;padding:8px 18px;font-weight:700;cursor:pointer;color:var(--text-primary)">
+                @(isRtl ? "إغلاق" : "Close")
+            </button>
+        </div>
+        <div id="previewContent" style="overflow-x:auto"></div>
+        <div class="mt-4 d-flex gap-2 justify-content-end flex-wrap">
+            <button onclick="setAsCurrentPlan()" class="btn-primary-custom" id="setCurrentBtn" style="display:none">
+                <i class="bi bi-check-circle me-1"></i>@(isRtl ? "جعلها خطتي الحالية" : "Set as Current Plan")
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let loadedPlanId = null;
+
+async function loadPlan(id) {
+    loadedPlanId = id;
+    try {
+        const res  = await fetch(`/MealPlan/Load/${id}`);
+        const data = await res.json();
+        if (!data.success) { alert(data.error); return; }
+
+        document.getElementById('previewTitle').textContent =
+            data.title || '@(isRtl ? "معاينة الخطة" : "Plan Preview")';
+        renderDays(data.planJson);
+        document.getElementById('setCurrentBtn').style.display = 'inline-flex';
+        document.getElementById('planPreviewOverlay').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    } catch { alert('@(isRtl ? "خطأ في التحميل" : "Load error")'); }
+}
+
+function renderDays(planJson) {
+    let plan;
+    try { plan = JSON.parse(planJson); } catch { document.getElementById('previewContent').innerHTML = '<p>Invalid JSON</p>'; return; }
+    const days = plan.days || (Array.isArray(plan) ? plan : []);
+    const isRtl = document.documentElement.dir === 'rtl';
+    let html = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">`;
+    days.forEach(day => {
+        const name = isRtl ? (day.dayNameAr || day.dayNameEn) : (day.dayNameEn || day.dayNameAr);
+        const cal  = day.totalCalories || 0;
+        const meals = Array.isArray(day.meals) ? day.meals : [];
+        html += `<div style="background:var(--surface-2);border-radius:14px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#059669,#0d9488);color:white;padding:10px;text-align:center">
+                <div style="font-weight:800;font-size:.9rem">${name}</div>
+                <div style="font-size:.72rem;opacity:.85">${cal} cal</div>
+            </div>
+            <div style="padding:8px;display:flex;flex-direction:column;gap:5px">`;
+        meals.forEach(m => {
+            const mname = isRtl ? (m.nameAr || m.nameEn) : (m.nameEn || m.nameAr);
+            html += `<div style="background:var(--surface);border-radius:8px;padding:6px 8px;border-inline-start:2px solid #059669">
+                <div style="font-size:.68rem;color:#059669;font-weight:700;text-transform:uppercase">${m.type || ''}</div>
+                <div style="font-size:.78rem;font-weight:600;line-height:1.3">${mname || '—'}</div>
+                <div style="font-size:.65rem;color:var(--text-muted)"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c0-3 2.5-5 2.5-8A7 7 0 0 0 5 9c0 3 2 4.5 2 7"/><path d="M12 22c-3.3 0-6-2.7-6-6 0-4 3-6 3-9"/><path d="M18 22c-1.7 0-3-1.3-3-3 0-2.5 3-4 3-7"/></svg> ${m.calories||0} cal</div>
+            </div>`;
+        });
+        html += `</div></div>`;
+    });
+    html += '</div>';
+    document.getElementById('previewContent').innerHTML = html;
+}
+
+function closePreview() {
+    document.getElementById('planPreviewOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function setAsCurrentPlan() {
+    // Navigate to meal plan index — the plan is already saved
+    window.location.href = '/MealPlan/Index#tab-ai';
+}
+
+async function deletePlan(id) {
+    if (!confirm('@(isRtl ? "هل تريد حذف هذه الخطة نهائياً؟" : "Delete this plan permanently?")')) return;
+    try {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+        const res  = await fetch(`/MealPlan/Delete/${id}`, {
+            method: 'DELETE',
+            headers: { 'RequestVerificationToken': token }
+        });
+        const data = await res.json();
+        if (data.success) {
+            const card = document.querySelector(`[data-plan-id="${id}"]`);
+            if (card) { card.style.opacity='0'; card.style.transition='opacity .3s'; setTimeout(()=>card.remove(),300); }
+        } else {
+            alert(data.error || 'Error');
+        }
+    } catch { alert('Network error'); }
+}
+
+document.getElementById('planPreviewOverlay')?.addEventListener('click', function(e) {
+    if (e.target === this) closePreview();
+});
+</script>
+}

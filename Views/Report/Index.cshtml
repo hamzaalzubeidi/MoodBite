@@ -1,0 +1,297 @@
+@model MoodBite.Services.ReportData
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.report");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var profile = ViewBag.Profile as MoodBite.Models.HealthProfile;
+}
+
+<div class="container-xl py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 style="font-weight:800;font-size:1.6rem;margin:0">@T.Get("nav.report")</h1>
+            <p class="text-muted mb-0">@(isRtl?"تقرير صحتك الأسبوعي":"Your weekly health report")</p>
+        </div>
+        <a asp-action="ExportPdf" class="btn-secondary-custom">
+            <i class="bi bi-download"></i> @(isRtl?"تصدير التقرير":"Export Report")
+        </a>
+    </div>
+
+    @if (!Model.HasEnoughData)
+    {
+        <div class="text-center py-5 card-glass p-5 fade-in">
+            <div style="font-size:3rem;margin-bottom:16px"><i data-lucide="bar-chart-2" class="icon-blue"></i></div>
+            <h4 style="font-weight:700">@(isRtl?"لا توجد بيانات كافية بعد":"Not enough data yet")</h4>
+            <p class="text-muted mb-4">@(isRtl?"سجّل وجباتك لمدة يومين على الأقل لعرض التقرير":"Log your meals for at least 2 days to see the report")</p>
+            <a asp-controller="Dashboard" asp-action="Index" class="btn-primary-custom">
+                <i class="bi bi-pencil"></i> @(isRtl?"سجّل وجباتك":"Log Meals")
+            </a>
+        </div>
+    }
+    else
+    {
+        <!-- Summary Stats -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-6 d-flex">
+                <div class="stat-card p-4 text-center animate-on-scroll h-100 w-100 d-flex flex-column align-items-center justify-content-center" style="min-height:130px;max-height:130px">
+                    <div style="font-size:1.6rem;line-height:1;margin-bottom:4px"><i class="bi bi-check-circle-fill" style="color:var(--primary)"></i></div>
+                    <div style="font-size:1.9rem;font-weight:900;color:var(--primary);line-height:1">@Model.AdherencePercent%</div>
+                    <div style="font-size:.8rem;color:var(--text-secondary);margin-top:4px">@(isRtl?"الالتزام":"Adherence")</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 d-flex">
+                <div class="stat-card p-4 text-center animate-on-scroll stagger-1 h-100 w-100 d-flex flex-column align-items-center justify-content-center" style="min-height:130px;max-height:130px">
+                    <div style="font-size:1.9rem;font-weight:900;color:var(--accent);line-height:1">@((int)Model.AvgCalories)</div>
+                    <div style="font-size:.72rem;color:var(--text-secondary);margin-top:4px">@(isRtl?"من":"of") @((int)Model.CalorieTarget)</div>
+                    <div style="font-size:.8rem;color:var(--text-secondary);margin-top:2px">@(isRtl?"متوسط السعرات":"Avg Calories")</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 d-flex">
+                <div class="stat-card p-4 text-center animate-on-scroll stagger-2 h-100 w-100 d-flex flex-column align-items-center justify-content-center" style="min-height:130px;max-height:130px">
+                    @{ var trendIcon = Model.Trend >= 0 ? "bi-arrow-up-right text-danger" : "bi-arrow-down-right text-success"; }
+                    <div style="font-size:1.6rem;line-height:1;margin-bottom:4px"><i class="bi @trendIcon"></i></div>
+                    <div style="font-size:1.9rem;font-weight:900;line-height:1">@(Model.Trend >= 0 ? "+" : "")@Model.Trend%</div>
+                    <div style="font-size:.8rem;color:var(--text-secondary);margin-top:6px">@(isRtl?"الاتجاه الأسبوعي":"Weekly Trend")</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 d-flex">
+                <div class="stat-card p-4 text-center animate-on-scroll stagger-3 h-100 w-100 d-flex flex-column align-items-center justify-content-center" style="min-height:130px;max-height:130px">
+                    @{
+                        var waterPct = Model.WaterGoal > 0 ? (int)Math.Min(100, Model.AvgWater / Model.WaterGoal * 100) : 0;
+                        var waterColor = waterPct >= 100 ? "#10b981" : waterPct >= 60 ? "#06b6d4" : "#f59e0b";
+                    }
+                    <div style="font-size:1.4rem;line-height:1;margin-bottom:4px"><i class="bi bi-droplet-half" style="color:#06b6d4"></i></div>
+                    <div style="font-size:1.9rem;font-weight:900;color:@waterColor;line-height:1">@Model.AvgWater</div>
+                    <div style="font-size:.72rem;color:var(--text-secondary);margin-top:4px">@(isRtl?"من":"of") @Model.WaterGoal @(isRtl?"أكواب":"glasses")</div>
+                    <div style="font-size:.8rem;color:var(--text-secondary);margin-top:2px">@(isRtl?"متوسط الماء":"Avg Water/Day")</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+
+                <!-- Calorie Chart -->
+                <div class="card-glass p-4 mb-4 animate-on-scroll">
+                    <h5 style="font-weight:700;margin-bottom:16px">
+                        <i class="bi bi-bar-chart text-primary me-2"></i>
+                        @(isRtl?"السعرات اليومية":"Daily Calories")
+                    </h5>
+                    <div style="position:relative;height:220px">
+                        <canvas id="reportCalChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Water Intake Chart -->
+                <div class="card-glass p-4 mb-4 animate-on-scroll">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 style="font-weight:700;margin-bottom:0">
+                            <i class="bi bi-droplet-half text-primary me-2"></i>
+                            @(isRtl?"شرب الماء — آخر 7 أيام":"Water Intake — Last 7 Days")
+                        </h5>
+                        <div class="text-center">
+                            <div style="font-size:1.3rem;font-weight:800;color:var(--primary)">@Model.AvgWater</div>
+                            <div style="font-size:.72rem;color:var(--text-secondary)">@(isRtl?"متوسط أكواب/يوم":"avg glasses/day")</div>
+                        </div>
+                    </div>
+                    <div style="position:relative;height:220px">
+                        <canvas id="reportWaterChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Nutritional Gaps -->
+                <div class="card-glass p-4 mb-4 animate-on-scroll">
+                    <h5 style="font-weight:700;margin-bottom:16px">
+                        <i class="bi bi-pie-chart text-primary me-2"></i>
+                        @(isRtl?"تحليل المغذيات":"Nutritional Analysis")
+                    </h5>
+                    <div class="row g-3">
+                        @{
+                            var macros = new[] {
+                                (isRtl?"بروتين":"Protein", Model.AvgProtein, Model.ProteinTarget, "#10b981"),
+                                (isRtl?"كربوهيدرات":"Carbs", Model.AvgCarbs, Model.CarbsTarget, "#f59e0b"),
+                                (isRtl?"دهون":"Fats", Model.AvgFats, Model.FatsTarget, "#8b5cf6")
+                            };
+                        }
+                        @foreach (var (macroName, actual, macroTarget, color) in macros)
+                        {
+                            var pct = macroTarget > 0 ? Math.Min(100, (int)(actual / macroTarget * 100)) : 0;
+                            var gap = macroTarget - actual;
+                            <div class="col-md-4 text-center">
+                                <div style="font-size:1.4rem;font-weight:900;color:@color;line-height:1;margin-bottom:6px">@pct%</div>
+                                <div style="background:var(--border);border-radius:6px;height:8px;overflow:hidden;margin-bottom:8px">
+                                    <div style="height:100%;width:@pct%;background:@color;border-radius:6px;transition:width .6s"></div>
+                                </div>
+                                <div style="font-weight:700">@((int)actual)g / @((int)macroTarget)g</div>
+                                <div style="font-size:.8rem;color:var(--text-secondary)">@macroName</div>
+                                @if (gap > 5)
+                                {
+                                    <div class="badge bg-warning text-dark mt-1" style="font-size:.7rem">
+                                        @(isRtl?"ناقص":"deficit") @((int)gap)g
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="badge bg-success mt-1" style="font-size:.7rem">✓ @(isRtl?"ممتاز":"Great")</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            </div>
+            <div class="col-lg-4">
+
+                <!-- Mood Frequency -->
+                @if (Model.MoodFrequency.Count > 0)
+                {
+                    <div class="card-glass p-4 mb-4 animate-on-scroll">
+                        <h5 style="font-weight:700;margin-bottom:16px">
+                            @(isRtl?"الحالة المزاجية":"Mood Analysis")
+                        </h5>
+                        @{
+                            var moodEmojis = new Dictionary<string, string> {
+                                {"tired","😴"}, {"stressed","😰"}, {"energetic","<i data-lucide=\"zap\" class=\"icon-amber\"></i>"},
+                                {"hungry","<i data-lucide=\"utensils\" class=\"icon-green\"></i>"}, {"happy","😊"}, {"sick","🤒"}
+                            };
+                            var maxMoodCount = Model.MoodFrequency.Values.DefaultIfEmpty(1).Max();
+                        }
+                        @foreach (var (mood, count) in Model.MoodFrequency.OrderByDescending(x => x.Value))
+                        {
+                            var moodPct = maxMoodCount > 0 ? (int)(count * 100.0 / maxMoodCount) : 0;
+                            var emoji = moodEmojis.GetValueOrDefault(mood, "😶");
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span style="font-size:.85rem">@emoji @mood</span>
+                                    <span class="badge-primary badge-custom" style="font-size:.7rem">@count @(isRtl?"مرة":"times")</span>
+                                </div>
+                                <div style="background:var(--border);border-radius:4px;height:6px">
+                                    <div style="height:100%;width:@moodPct%;background:var(--primary);border-radius:4px;transition:width .6s"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- Personalized Tips -->
+                <div class="card-glass p-4 animate-on-scroll">
+                    <h5 style="font-weight:700;margin-bottom:12px">
+                        <i class="bi bi-lightbulb-fill text-warning me-2"></i>
+                        @(isRtl?"توصيات شخصية":"Personal Tips")
+                    </h5>
+                    <ul class="list-unstyled mb-0">
+                        @if (Model.AvgCalories < Model.CalorieTarget * 0.85)
+                        {
+                            <li class="d-flex gap-2 mb-3">
+                                <i class="bi bi-arrow-up-circle-fill text-warning mt-1 flex-shrink-0"></i>
+                                <span style="font-size:.85rem">@(isRtl?"سعراتك أقل من الهدف. حاول زيادة حجم وجباتك.":"Your calories are below target. Try increasing meal portions.")</span>
+                            </li>
+                        }
+                        @if (Model.AvgCalories > Model.CalorieTarget * 1.15)
+                        {
+                            <li class="d-flex gap-2 mb-3">
+                                <i class="bi bi-arrow-down-circle-fill text-danger mt-1 flex-shrink-0"></i>
+                                <span style="font-size:.85rem">@(isRtl?"سعراتك تتجاوز الهدف. راجع أحجام الوجبات.":"Your calories exceed target. Review portion sizes.")</span>
+                            </li>
+                        }
+                        @if (Model.AvgProtein < Model.ProteinTarget * 0.8)
+                        {
+                            <li class="d-flex gap-2 mb-3">
+                                <i class="bi bi-exclamation-circle-fill text-info mt-1 flex-shrink-0"></i>
+                                <span style="font-size:.85rem">@(isRtl?"البروتين منخفض. أضف البقوليات أو الدجاج لوجباتك.":"Low protein. Add legumes or chicken to your meals.")</span>
+                            </li>
+                        }
+                        @if (Model.AdherencePercent >= 80)
+                        {
+                            <li class="d-flex gap-2 mb-3">
+                                <i class="bi bi-trophy-fill text-warning mt-1 flex-shrink-0"></i>
+                                <span style="font-size:.85rem">@(isRtl?"ممتاز! التزامك عالٍ هذا الأسبوع. استمر!":"Excellent! Your adherence is high this week. Keep it up!")</span>
+                            </li>
+                        }
+                        @if (Model.AvgWater < Model.WaterGoal * 0.75)
+                        {
+                            <li class="d-flex gap-2 mb-3">
+                                <i class="bi bi-droplet text-info mt-1 flex-shrink-0"></i>
+                                <span style="font-size:.85rem">@(isRtl?"شربك للماء أقل من هدفك. حاول الوصول إلى " + Model.WaterGoal + " أكواب يومياً.":"Your water intake is below your goal. Aim for " + Model.WaterGoal + " glasses daily.")</span>
+                            </li>
+                        }
+                        @if (Model.DaysLogged < 5)
+                        {
+                            <li class="d-flex gap-2 mb-3">
+                                <i class="bi bi-calendar-check text-primary mt-1 flex-shrink-0"></i>
+                                <span style="font-size:.85rem">@(isRtl?"حاول تسجيل وجباتك يومياً للحصول على تقرير أدق.":"Try logging daily for a more accurate report.")</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+@if (Model.HasEnoughData)
+{
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const labels = [@Html.Raw(string.Join(",", Model.DailyCalories.Select(d => $"'{d.Date}'")))];
+        const data = [@Html.Raw(string.Join(",", Model.DailyCalories.Select(d => d.Calories)))];
+        const target = @((int)Model.CalorieTarget);
+        renderCalorieChart('reportCalChart', labels, data, target);
+
+        // Water intake line chart
+        const wLabels = [@Html.Raw(string.Join(",", Model.DailyWater.Select(d => $"'{d.Date}'")))];
+        const wData   = [@Html.Raw(string.Join(",", Model.DailyWater.Select(d => d.Glasses)))];
+        const wGoal   = @Model.WaterGoal;
+        const isDark  = document.documentElement.getAttribute('data-theme') === 'dark';
+        const gridColor = isDark ? 'rgba(148,163,184,0.1)' : 'rgba(0,0,0,0.06)';
+        new Chart(document.getElementById('reportWaterChart'), {
+            type: 'line',
+            data: {
+                labels: wLabels,
+                datasets: [
+                    {
+                        label: '@(isRtl ? "أكواب" : "Glasses")',
+                        data: wData,
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6,182,212,0.12)',
+                        pointBackgroundColor: wData.map(v => v >= wGoal ? '#10b981' : '#06b6d4'),
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: '@(isRtl ? "الهدف" : "Goal")',
+                        data: Array(wLabels.length).fill(wGoal),
+                        borderColor: 'rgba(16,185,129,0.5)',
+                        borderDash: [6, 4],
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: isDark ? '#94a3b8' : '#44403c', font: { family: 'Cairo, Nunito' } } },
+                    tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + ' @(isRtl ? "كأس" : "glasses")' } }
+                },
+                scales: {
+                    x: { ticks: { color: isDark ? '#94a3b8' : '#78716c', font: { family: 'Cairo, Nunito' } }, grid: { color: gridColor } },
+                    y: { beginAtZero: true, ticks: { stepSize: 1, color: isDark ? '#94a3b8' : '#78716c', font: { family: 'Cairo, Nunito' } }, grid: { color: gridColor } }
+                }
+            }
+        });
+    });
+</script>
+}
+}

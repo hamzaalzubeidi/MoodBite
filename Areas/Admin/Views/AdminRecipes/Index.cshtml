@@ -1,0 +1,96 @@
+@model List<MoodBite.Models.CommunityRecipe>
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.CurrentLang == "ar" ? "إدارة الوصفات" : "Manage Recipes";
+    var isRtl = T.CurrentLang == "ar";
+    var pending = Model.Where(r => !r.IsApproved).ToList();
+    var approved = Model.Where(r => r.IsApproved).ToList();
+}
+
+@if (pending.Count > 0)
+{
+    <div class="card-glass p-4 mb-4" style="border-top:3px solid #f59e0b">
+        <h5 style="font-weight:700;margin-bottom:16px">
+            <i class="bi bi-clock-history text-warning me-2"></i>
+            @(isRtl?"وصفات بانتظار المراجعة":"Pending Review") (@pending.Count)
+        </h5>
+        <div class="d-flex flex-column gap-3">
+            @foreach (var recipe in pending)
+            {
+                <div class="p-3" style="background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border)">
+                    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                        <div>
+                            <div style="font-weight:700">@(isRtl ? recipe.TitleAr : recipe.TitleEn)</div>
+                            <div class="text-muted small">
+                                <i class="bi bi-person me-1"></i>@(recipe.User?.FullName ?? "User")
+                                &nbsp;•&nbsp; @recipe.DietType
+                                &nbsp;•&nbsp; @recipe.CreatedAt.ToString("yyyy/MM/dd")
+                            </div>
+                            <div class="d-flex gap-2 mt-1 flex-wrap">
+                                <span class="small"><strong>@((int)recipe.Calories)</strong> @(isRtl?"كسع":"cal")</span>
+                                <span class="small">⏱ @recipe.PrepTime @(isRtl?"د":"min")</span>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <form asp-action="Approve" method="post" class="d-inline">
+                                <input type="hidden" name="id" value="@recipe.Id" />
+                                <button type="submit" class="btn-primary-custom btn-sm" style="padding:5px 14px">
+                                    <i class="bi bi-check-lg"></i> @(isRtl?"قبول":"Approve")
+                                </button>
+                            </form>
+                            <form asp-action="Reject" method="post" class="d-inline">
+                                <input type="hidden" name="id" value="@recipe.Id" />
+                                <button type="submit" class="btn-danger-custom btn-sm" style="padding:5px 14px">
+                                    <i class="bi bi-x-lg"></i> @(isRtl?"رفض":"Reject")
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<div class="card-glass p-4">
+    <h5 style="font-weight:700;margin-bottom:16px">
+        <i class="bi bi-journal-check text-success me-2"></i>
+        @(isRtl?"الوصفات المنشورة":"Published Recipes") (@approved.Count)
+    </h5>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>@(isRtl?"الوصفة":"Recipe")</th>
+                    <th>@(isRtl?"النظام":"Diet")</th>
+                    <th>@(isRtl?"المؤلف":"Author")</th>
+                    <th>@(isRtl?"الإعجابات":"Likes")</th>
+                    <th>@(isRtl?"التاريخ":"Date")</th>
+                    <th>@(isRtl?"إجراء":"Action")</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var recipe in approved)
+                {
+                    <tr>
+                        <td style="font-weight:600">@(isRtl ? recipe.TitleAr : recipe.TitleEn)</td>
+                        <td><span class="badge bg-info text-dark">@recipe.DietType</span></td>
+                        <td class="small text-muted">@(recipe.User?.FullName ?? "—")</td>
+                        <td><i data-lucide="heart" class="icon-red"></i> @recipe.Likes</td>
+                        <td class="small">@recipe.CreatedAt.ToString("yyyy/MM/dd")</td>
+                        <td>
+                            <form asp-action="Reject" method="post" class="d-inline">
+                                <input type="hidden" name="id" value="@recipe.Id" />
+                                <button type="submit" class="btn-danger-custom btn-sm" style="padding:3px 10px;font-size:.75rem"
+                                        onclick="return confirm('@(isRtl?"هل تريد حذف هذه الوصفة؟":"Delete this recipe?")')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

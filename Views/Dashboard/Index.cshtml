@@ -1,0 +1,818 @@
+@model MoodBite.ViewModels.DashboardViewModel
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.dashboard");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+
+    var consumed  = (int)(Model.TodayLog?.CaloriesConsumed ?? 0);
+    var burned    = (int)(Model.TodayLog?.CaloriesBurned ?? 0);
+    var net       = consumed - burned;
+    var target    = (int)Model.CalorieTarget;
+    var remaining = Math.Max(0, target - net);
+
+    var progressPct = target > 0 ? Math.Min(100, (int)((double)net / target * 100)) : 0;
+    var proteinTarget = target > 0 ? (target * 0.30) / 4 : 150;
+    var carbsTarget   = target > 0 ? (target * 0.45) / 4 : 225;
+    var fatsTarget    = target > 0 ? (target * 0.25) / 9 : 55;
+    var proteinPct = proteinTarget > 0 ? Math.Min(100, (int)((Model.TodayLog?.Protein ?? 0) / proteinTarget * 100)) : 0;
+    var carbsPct   = carbsTarget   > 0 ? Math.Min(100, (int)((Model.TodayLog?.Carbs   ?? 0) / carbsTarget   * 100)) : 0;
+    var fatsPct    = fatsTarget    > 0 ? Math.Min(100, (int)((Model.TodayLog?.Fats    ?? 0) / fatsTarget    * 100)) : 0;
+
+    var progressColor = progressPct >= 100 ? "#ef4444" : progressPct >= 85 ? "#f59e0b" : "#059669";
+    var greeting = DateTime.Now.Hour < 12
+        ? (isRtl ? "صباح الخير" : "Good morning")
+        : DateTime.Now.Hour < 18
+            ? (isRtl ? "مساء الخير" : "Good afternoon")
+            : (isRtl ? "مساء النور" : "Good evening");
+}
+
+@* ── Flash messages ── *@
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-0" style="border-radius:0;border-left:none;border-right:none">
+        <div class="container-xl"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mb-0" style="border-radius:0;border-left:none;border-right:none">
+        <div class="container-xl"><i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </div>
+}
+
+@* ── Welcome Banner ── *@
+<div style="background:linear-gradient(135deg,#064e3b 0%,#065f46 40%,#0d9488 100%);padding:32px 0 48px;margin-bottom:-24px">
+    <div class="container-xl">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <p style="color:rgba(255,255,255,.7);margin:0;font-size:.9rem">@greeting,</p>
+                <h1 style="color:white;font-weight:900;font-size:clamp(1.4rem,3vw,2rem);margin:4px 0">
+                    @Model.User.FullName 👋
+                </h1>
+                <p style="color:rgba(255,255,255,.65);margin:0;font-size:.85rem">
+                    @DateTime.Today.ToString(isRtl ? "yyyy/MM/dd" : "dddd, MMMM d, yyyy")
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a asp-controller="Scanner" asp-action="Index"
+                   style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:white;border-radius:10px;padding:9px 18px;font-size:.85rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:all .2s"
+                   onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+                    <i class="bi bi-upc-scan"></i> @(isRtl?"ماسح الباركود":"Barcode Scanner")
+                </a>
+                <a asp-controller="Emergency" asp-action="Index"
+                   style="background:#ef4444;border:none;color:white;border-radius:10px;padding:9px 18px;font-size:.85rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;text-decoration:none;box-shadow:0 4px 12px rgba(239,68,68,.4)">
+                    <i class="bi bi-heart-pulse"></i> @(isRtl?"طوارئ":"Emergency")
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-xl py-4">
+
+    @* ── Profile incomplete warning ── *@
+    @if (Model.Profile == null)
+    {
+        <div class="alert-warning mb-4" style="border-radius:12px;padding:14px 18px">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            @(isRtl ? "ملفك الشخصي غير مكتمل — السعرات المستهدفة قد تكون غير دقيقة." : "Your health profile is incomplete — calorie targets may be inaccurate.")
+            <a asp-controller="Profile" asp-action="Index" style="font-weight:700;margin-inline-start:6px">
+                @(isRtl?"أكمل الآن →":"Complete now →")
+            </a>
+        </div>
+    }
+
+    @* ── Top KPI Bento Grid ── *@
+    <div class="bento-grid mb-4">
+        <div class="bento-item">
+            <div class="card-glass p-3 h-100" style="border-radius:16px">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-wrap-lg icon-bg-gradient-green"><i data-lucide="flame" class="icon-white" style="width:22px;height:22px"></i></div>
+                    <div>
+                        <div style="font-size:1.7rem;font-weight:900;line-height:1;color:var(--primary)">@Model.Streak</div>
+                        <div style="font-size:.78rem;color:var(--text-secondary);margin-top:2px">@(isRtl?"يوم متتالي":"Day Streak")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="bento-item">
+            <div class="card-glass p-3 h-100" style="border-radius:16px">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-wrap-lg icon-bg-gradient-blue"><i data-lucide="bar-chart-2" class="icon-white" style="width:22px;height:22px"></i></div>
+                    <div>
+                        <div style="font-size:1.7rem;font-weight:900;line-height:1;color:var(--accent)">@Model.AdherencePercent<span style="font-size:1rem">%</span></div>
+                        <div style="font-size:.78rem;color:var(--text-secondary);margin-top:2px">@(isRtl?"الالتزام":"Adherence")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="bento-item">
+            <div class="card-glass p-3 h-100" style="border-radius:16px">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-wrap-lg icon-bg-gradient-purple"><i data-lucide="calendar" class="icon-white" style="width:22px;height:22px"></i></div>
+                    <div>
+                        <div style="font-size:1.7rem;font-weight:900;line-height:1;color:var(--icon-purple)">@Model.DaysLogged</div>
+                        <div style="font-size:.78rem;color:var(--text-secondary);margin-top:2px">@(isRtl?"أيام مسجلة":"Days Logged")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="bento-item">
+            <div class="card-glass p-3 h-100" style="border-radius:16px">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-wrap-lg icon-bg-gradient-amber"><i data-lucide="zap" class="icon-white" style="width:22px;height:22px"></i></div>
+                    <div>
+                        <div style="font-size:1.7rem;font-weight:900;line-height:1;color:var(--icon-amber)">@((int)Model.AvgCalories)</div>
+                        <div style="font-size:.78rem;color:var(--text-secondary);margin-top:2px">@(isRtl?"متوسط السعرات":"Avg Cal / Day")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        @* ════════════════ LEFT COLUMN ════════════════ *@
+        <div class="col-lg-8">
+
+            @* ── Today's Calorie Overview ── *@
+            <div class="card-glass p-4 mb-4 animate-on-scroll" style="border-radius:20px">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h5 style="font-weight:800;margin:0;font-size:1.05rem">
+                            <i class="bi bi-fire text-danger me-2"></i>@(isRtl?"سعرات اليوم":"Today's Calories")
+                        </h5>
+                        <p style="font-size:.8rem;color:var(--text-secondary);margin:2px 0 0">
+                            @(isRtl?"الهدف اليومي":"Daily target"): <strong>@target @(isRtl?"كسع":"cal")</strong>
+                        </p>
+                    </div>
+                    <span class="badge-custom @(progressPct >= 100 ? "badge-danger" : progressPct >= 85 ? "badge-warning" : "badge-success")" style="font-size:.75rem">
+                        @(progressPct >= 100 ? (isRtl?"تجاوزت الهدف":"Over target") : $"{progressPct}%")
+                    </span>
+                </div>
+
+                <div class="row align-items-center g-4">
+
+                    @* Big calorie ring *@
+                    <div class="col-sm-5 text-center">
+                        <div style="position:relative;display:inline-block">
+                            <div data-progress-ring data-percent="@progressPct" data-color="@progressColor" data-size="140" data-stroke-width="12"
+                                 style="width:140px;height:140px"></div>
+                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+                                <div style="font-size:1.5rem;font-weight:900;color:var(--text-primary);line-height:1">@net</div>
+                                <div style="font-size:.7rem;color:var(--text-secondary)">@(isRtl?"صافي":"net cal")</div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-center gap-3 mt-3">
+                            <div class="text-center">
+                                <div style="font-size:.95rem;font-weight:700;color:var(--primary)">@consumed</div>
+                                <div style="font-size:.7rem;color:var(--text-secondary)">@(isRtl?"متناول":"eaten")</div>
+                            </div>
+                            <div style="width:1px;background:var(--border)"></div>
+                            <div class="text-center">
+                                <div style="font-size:.95rem;font-weight:700;color:#f59e0b">@burned</div>
+                                <div style="font-size:.7rem;color:var(--text-secondary)">@(isRtl?"محروق":"burned")</div>
+                            </div>
+                            <div style="width:1px;background:var(--border)"></div>
+                            <div class="text-center">
+                                <div style="font-size:.95rem;font-weight:700;color:#3b82f6">@remaining</div>
+                                <div style="font-size:.7rem;color:var(--text-secondary)">@(isRtl?"متبقي":"left")</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* Macro rings *@
+                    <div class="col-sm-7">
+                        <p style="font-size:.8rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px">
+                            @(isRtl?"العناصر الغذائية":"Macronutrients")
+                        </p>
+                        <div class="row g-3 text-center">
+                            <div class="col-4">
+                                <div style="position:relative;display:inline-block">
+                                    <div data-progress-ring data-percent="@proteinPct" data-color="#10b981" data-size="76" data-stroke-width="7"
+                                         style="width:76px;height:76px"></div>
+                                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:.7rem;font-weight:800;color:#10b981">@proteinPct%</div>
+                                </div>
+                                <div style="font-weight:700;font-size:.9rem;margin-top:6px;color:var(--text-primary)">@((int)(Model.TodayLog?.Protein ?? 0))g</div>
+                                <div style="font-size:.72rem;color:var(--text-secondary)">@(isRtl?"بروتين":"Protein")</div>
+                                <div style="font-size:.68rem;color:var(--text-muted)">/ @((int)proteinTarget)g</div>
+                            </div>
+                            <div class="col-4">
+                                <div style="position:relative;display:inline-block">
+                                    <div data-progress-ring data-percent="@carbsPct" data-color="#f59e0b" data-size="76" data-stroke-width="7"
+                                         style="width:76px;height:76px"></div>
+                                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:.7rem;font-weight:800;color:#f59e0b">@carbsPct%</div>
+                                </div>
+                                <div style="font-weight:700;font-size:.9rem;margin-top:6px;color:var(--text-primary)">@((int)(Model.TodayLog?.Carbs ?? 0))g</div>
+                                <div style="font-size:.72rem;color:var(--text-secondary)">@(isRtl?"كربوهيدرات":"Carbs")</div>
+                                <div style="font-size:.68rem;color:var(--text-muted)">/ @((int)carbsTarget)g</div>
+                            </div>
+                            <div class="col-4">
+                                <div style="position:relative;display:inline-block">
+                                    <div data-progress-ring data-percent="@fatsPct" data-color="#8b5cf6" data-size="76" data-stroke-width="7"
+                                         style="width:76px;height:76px"></div>
+                                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:.7rem;font-weight:800;color:#8b5cf6">@fatsPct%</div>
+                                </div>
+                                <div style="font-weight:700;font-size:.9rem;margin-top:6px;color:var(--text-primary)">@((int)(Model.TodayLog?.Fats ?? 0))g</div>
+                                <div style="font-size:.72rem;color:var(--text-secondary)">@(isRtl?"دهون":"Fats")</div>
+                                <div style="font-size:.68rem;color:var(--text-muted)">/ @((int)fatsTarget)g</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @* ── Log Calories Form ── *@
+            <div class="card-glass p-4 mb-4 animate-on-scroll" style="border-radius:20px">
+                <h5 style="font-weight:800;margin-bottom:4px;font-size:1.05rem">
+                    <i class="bi bi-plus-circle-fill me-2" style="color:var(--primary)"></i>@T.Get("dashboard.logCalories")
+                </h5>
+                <p style="font-size:.8rem;color:var(--text-secondary);margin-bottom:20px">
+                    @(isRtl?"سجّل وجباتك ونشاطك اليومي":"Log your meals and physical activity for today")
+                </p>
+                <form asp-action="LogCalories" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="row g-3">
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" style="font-size:.8rem;font-weight:700;color:var(--text-secondary)">
+                                <i data-lucide="utensils" class="icon-green"></i>
+                                @T.Get("dashboard.consumed")
+                            </label>
+                            <input type="number" name="caloriesConsumed" class="form-control" placeholder="e.g. 1800"
+                                   min="0" max="9999" step="1"
+                                   value="@(consumed > 0 ? consumed.ToString() : "")" required />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" style="font-size:.8rem;font-weight:700;color:var(--text-secondary)">
+                                <i data-lucide="activity" class="icon-amber"></i>
+                                @T.Get("dashboard.burned")
+                            </label>
+                            <input type="number" name="caloriesBurned" class="form-control" placeholder="e.g. 300"
+                                   min="0" max="9999" step="1"
+                                   value="@(burned > 0 ? burned.ToString() : "")" />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" style="font-size:.8rem;font-weight:700;color:var(--text-secondary)">
+                                <i data-lucide="dumbbell" class="icon-amber"></i>
+                                @T.Get("dashboard.protein") (@(isRtl?"غ":"g"))
+                            </label>
+                            <input type="number" name="protein" class="form-control" placeholder="e.g. 80"
+                                   min="0" step="0.1"
+                                   value="@((int)(Model.TodayLog?.Protein ?? 0) > 0 ? ((int)(Model.TodayLog?.Protein ?? 0)).ToString() : "")" />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" style="font-size:.8rem;font-weight:700;color:var(--text-secondary)">
+                                <i data-lucide="wheat" class="icon-amber"></i>
+                                @T.Get("dashboard.carbs") (@(isRtl?"غ":"g"))
+                            </label>
+                            <input type="number" name="carbs" class="form-control" placeholder="e.g. 220"
+                                   min="0" step="0.1"
+                                   value="@((int)(Model.TodayLog?.Carbs ?? 0) > 0 ? ((int)(Model.TodayLog?.Carbs ?? 0)).ToString() : "")" />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" style="font-size:.8rem;font-weight:700;color:var(--text-secondary)">
+                                <i data-lucide="droplets" class="icon-blue"></i>
+                                @T.Get("dashboard.fats") (@(isRtl?"غ":"g"))
+                            </label>
+                            <input type="number" name="fats" class="form-control" placeholder="e.g. 60"
+                                   min="0" step="0.1"
+                                   value="@((int)(Model.TodayLog?.Fats ?? 0) > 0 ? ((int)(Model.TodayLog?.Fats ?? 0)).ToString() : "")" />
+                        </div>
+                        <div class="col-6 col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn-primary-custom w-100" style="height:38px">
+                                <i class="bi bi-check-lg"></i>
+                                @(isRtl?"حفظ السجل":"Save Log")
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            @* ── 7-Day Chart ── *@
+            <div class="card-glass p-4 mb-4 animate-on-scroll" style="border-radius:20px">
+                <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+                    <div>
+                        <h5 style="font-weight:800;margin:0;font-size:1.05rem">
+                            <i class="bi bi-bar-chart-fill me-2" style="color:var(--primary)"></i>
+                            @(isRtl?"السعرات — آخر 7 أيام":"Calories — Last 7 Days")
+                        </h5>
+                        <p style="font-size:.78rem;color:var(--text-secondary);margin:3px 0 0">
+                            @(isRtl?"أخضر = في الهدف  |  أصفر = أقل من الهدف  |  أحمر = تجاوز الهدف":"Green = on target  |  Amber = under  |  Red = over")
+                        </p>
+                    </div>
+                    <a asp-controller="Report" asp-action="Index"
+                       style="font-size:.8rem;font-weight:600;color:var(--primary);text-decoration:none">
+                        @(isRtl?"التقرير الكامل ←":"Full report →")
+                    </a>
+                </div>
+                <div style="height:180px">
+                    <canvas id="calorieChart"></canvas>
+                </div>
+            </div>
+
+            @* ── Weight Trend Chart ── *@
+            @if (Model.WeightLogs.Count >= 2)
+            {
+                <div class="card-glass p-4 mb-4 animate-on-scroll" style="border-radius:20px">
+                    <h5 style="font-weight:800;margin-bottom:4px;font-size:1.05rem">
+                        <i class="bi bi-graph-up-arrow me-2 text-success"></i>
+                        @(isRtl?"منحنى الوزن":"Weight Trend")
+                    </h5>
+                    <p style="font-size:.78rem;color:var(--text-secondary);margin-bottom:16px">
+                        @(isRtl?"آخر":"Last") @Model.WeightLogs.Count @(isRtl?"قراءة":"entries")
+                    </p>
+                    <div style="height:160px;background:var(--surface-2);border-radius:var(--radius-md)">
+                        <canvas id="weightChart"></canvas>
+                    </div>
+                </div>
+            }
+
+        </div>
+
+        @* ════════════════ RIGHT COLUMN ════════════════ *@
+        <div class="col-lg-4">
+
+            @* ── Water Intake ── *@
+            @{
+                var waterGoal   = Model.WaterGoal;
+                var waterNow    = Model.TodayGlasses;
+                var waterPct    = waterGoal > 0 ? Math.Min(100, (int)(waterNow * 100.0 / waterGoal)) : 0;
+                var waterLiters = (waterNow * 0.25).ToString("F1");
+                var waterGoalL  = (waterGoal * 0.25).ToString("F1");
+                var waterDone   = waterNow >= waterGoal;
+            }
+            <div class="card-glass p-4 mb-4 animate-on-scroll" id="waterCard" style="border-radius:20px;overflow:hidden">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                        <h5 style="font-weight:800;margin:0;font-size:1.05rem">
+                            <i data-lucide="droplets" class="icon-blue"></i> @T.Get("water.title")
+                        </h5>
+                        <p style="font-size:.78rem;color:var(--text-secondary);margin:2px 0 0">
+                            @T.Get("water.dailyGoal"): <strong>@waterGoal @T.Get("water.glasses")</strong>
+                            <span style="color:var(--text-muted)">(@waterGoalL @T.Get("water.liters"))</span>
+                        </p>
+                    </div>
+                    <span id="waterBadge" class="badge-custom @(waterDone ? "badge-success" : "badge-primary")" style="font-size:.72rem">
+                        @waterNow/@waterGoal
+                    </span>
+                </div>
+
+                @* Animated glass + controls *@
+                <div class="d-flex align-items-center justify-content-center gap-4 mb-3">
+
+                    @* Minus button *@
+                    <button type="button" onclick="logWater(-1)" id="btnMinus"
+                            style="width:44px;height:44px;border-radius:50%;border:2px solid var(--border);background:var(--surface);color:var(--text-secondary);font-size:1.3rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;flex-shrink:0"
+                            onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
+                            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                        −
+                    </button>
+
+                    @* Animated SVG Glass *@
+                    <div style="position:relative;display:flex;flex-direction:column;align-items:center">
+                        <svg id="waterGlassSvg" width="64" height="96" viewBox="0 0 64 96" xmlns="http://www.w3.org/2000/svg"
+                             style="filter:drop-shadow(0 4px 12px rgba(6,182,212,.25));cursor:pointer" onclick="logWater(1)">
+                            <defs>
+                                <clipPath id="glassClip">
+                                    <polygon points="8,8 56,8 50,88 14,88"/>
+                                </clipPath>
+                                <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.9"/>
+                                    <stop offset="100%" stop-color="#0284c7" stop-opacity="1"/>
+                                </linearGradient>
+                                <linearGradient id="glassGrad" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stop-color="rgba(186,230,253,0.5)"/>
+                                    <stop offset="50%" stop-color="rgba(255,255,255,0.3)"/>
+                                    <stop offset="100%" stop-color="rgba(186,230,253,0.4)"/>
+                                </linearGradient>
+                            </defs>
+                            @* Glass body fill bg *@
+                            <polygon points="8,8 56,8 50,88 14,88" fill="rgba(186,230,253,0.12)" stroke="none"/>
+                            @* Water level rect clipped to glass shape *@
+                            <rect id="waterRect" x="0" y="88" width="64" height="80"
+                                  fill="url(#waterGrad)" clip-path="url(#glassClip)"
+                                  style="transition:y 0.6s cubic-bezier(.34,1.56,.64,1), height 0.6s cubic-bezier(.34,1.56,.64,1)"/>
+                            @* Wave overlay on water surface *@
+                            <path id="waterWave" fill="rgba(56,189,248,0.45)" clip-path="url(#glassClip)"
+                                  d="M0,88 Q16,82 32,88 Q48,94 64,88 L64,100 L0,100 Z"
+                                  style="transition:transform 0.6s cubic-bezier(.34,1.56,.64,1)"/>
+                            @* Glass outline *@
+                            <polygon points="8,8 56,8 50,88 14,88" fill="url(#glassGrad)"
+                                     stroke="#93c5fd" stroke-width="2.5" stroke-linejoin="round"/>
+                            @* Rim highlight *@
+                            <line x1="8" y1="8" x2="56" y2="8" stroke="rgba(255,255,255,0.7)" stroke-width="3" stroke-linecap="round"/>
+                            @* Shine *@
+                            <line x1="16" y1="18" x2="13" y2="70" stroke="rgba(255,255,255,0.45)" stroke-width="3" stroke-linecap="round"/>
+                        </svg>
+                        <div id="waterCount"
+                             style="font-size:1.6rem;font-weight:900;color:var(--primary);margin-top:6px;line-height:1;transition:transform .3s">
+                            @waterNow
+                        </div>
+                        <div style="font-size:.72rem;color:var(--text-muted)">@T.Get("water.glasses")</div>
+                    </div>
+
+                    @* Plus button *@
+                    <button type="button" onclick="logWater(1)" id="btnPlus"
+                            style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));border:none;color:white;font-size:1.5rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(5,150,105,.3)"
+                            onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 6px 18px rgba(5,150,105,.45)'"
+                            onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 12px rgba(5,150,105,.3)'">
+                        +
+                    </button>
+                </div>
+
+                @* Liters sub-label *@
+                <div class="text-center mb-3" style="font-size:.8rem;color:var(--text-secondary)">
+                    <span id="waterLiters">@waterLiters</span> @T.Get("water.liters")
+                    <span style="color:var(--text-muted)"> @T.Get("water.of") @waterGoalL @T.Get("water.liters")</span>
+                </div>
+
+                @* Progress bar *@
+                <div style="background:var(--surface-3);border-radius:999px;height:8px;overflow:hidden">
+                    <div id="waterBar"
+                         style="height:100%;width:@(waterPct)%;background:linear-gradient(90deg,#38bdf8,#0284c7);border-radius:999px;transition:width .6s cubic-bezier(.34,1.56,.64,1)"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-1" style="font-size:.68rem;color:var(--text-muted)">
+                    <span>0</span>
+                    <span id="waterGoalLabel">@waterGoal @T.Get("water.glasses")</span>
+                </div>
+
+                @* Goal-reached toast (hidden by default) *@
+                <div id="waterGoalToast" style="display:none;background:linear-gradient(135deg,#dcfce7,#d1fae5);border:1px solid #86efac;border-radius:12px;padding:10px 14px;margin-top:12px;text-align:center;font-size:.82rem;font-weight:700;color:#15803d;animation:bounceIn .5s ease forwards">
+                    🎉 @T.Get("water.goalReached")
+                </div>
+                @if (waterDone)
+                {
+                    <div style="background:linear-gradient(135deg,#dcfce7,#d1fae5);border:1px solid #86efac;border-radius:12px;padding:10px 14px;margin-top:12px;text-align:center;font-size:.82rem;font-weight:700;color:#15803d">
+                        🎉 @T.Get("water.goalReached")
+                    </div>
+                }
+            </div>
+
+            @* ── Mood Check-in ── *@
+            <div class="card-glass p-4 mb-4 animate-on-scroll" style="border-radius:20px">
+                <h5 style="font-weight:800;margin-bottom:4px;font-size:1.05rem">
+                    @T.Get("dashboard.moodPrompt")
+                </h5>
+                <p style="font-size:.8rem;color:var(--text-secondary);margin-bottom:14px">
+                    @(isRtl?"اختر حالتك المزاجية":"Select your current mood")
+                </p>
+                @if (Model.TodayLog?.Mood != null)
+                {
+                    <div style="background:var(--primary-50);border:1px solid var(--primary-200);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.85rem;color:var(--primary-800)">
+                        <i class="bi bi-check-circle-fill me-2" style="color:var(--primary)"></i>
+                        @(isRtl?"حالتك اليوم:":"Today's mood:") <strong>@Model.TodayLog.Mood</strong>
+                    </div>
+                }
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                    @{
+                        var moods = new[] {
+                            ("tired",    "<i data-lucide=\"moon\" class=\"icon-muted\"></i>",         T.Get("mood.tired")),
+                            ("stressed", "<i data-lucide=\"alert-circle\" class=\"icon-red\"></i>",   T.Get("mood.stressed")),
+                            ("energetic","<i data-lucide=\"zap\" class=\"icon-amber\"></i>",          isRtl?"نشيط":"Energetic"),
+                            ("hungry",   "<i data-lucide=\"utensils\" class=\"icon-green\"></i>",     isRtl?"جائع":"Hungry"),
+                            ("happy",    "<i data-lucide=\"smile\" class=\"icon-green\"></i>",        isRtl?"سعيد":"Happy"),
+                            ("sick",     "<i data-lucide=\"thermometer\" class=\"icon-red\"></i>",    T.Get("mood.sick"))
+                        };
+                    }
+                    @foreach (var (val, icon, label) in moods)
+                    {
+                        var isActive = Model.TodayLog?.Mood == val;
+                        <form asp-action="LogMood" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="mood" value="@val" />
+                            <button type="submit" class="option-card text-center @(isActive ? "active" : "")">
+                                <div style="font-size:1.4rem;line-height:1;margin-bottom:4px">@Html.Raw(icon)</div>
+                                <div style="font-size:.68rem;font-weight:700">@label</div>
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+
+            @* ── Log Weight ── *@
+            <div class="card-glass p-4 mb-4 animate-on-scroll" style="border-radius:20px">
+                <h5 style="font-weight:800;margin-bottom:4px;font-size:1.05rem">
+                    <i class="bi bi-speedometer2 me-2" style="color:var(--primary)"></i>@(isRtl?"تسجيل الوزن":"Log Weight")
+                </h5>
+                @if (Model.TodayWeight.HasValue)
+                {
+                    <p style="font-size:.85rem;color:var(--primary);margin:4px 0 12px">
+                        <i class="bi bi-check-circle-fill me-1"></i>
+                        @(isRtl?"وزن اليوم:":"Today:") <strong>@Model.TodayWeight.Value kg</strong>
+                    </p>
+                }
+                else
+                {
+                    <p style="font-size:.8rem;color:var(--text-secondary);margin:4px 0 12px">
+                        @(isRtl?"لم يُسجّل وزن اليوم بعد":"No weight logged today yet")
+                    </p>
+                }
+                <form asp-action="LogWeight" method="post" class="d-flex gap-2">
+                    @Html.AntiForgeryToken()
+                    <input type="number" name="weight" class="form-control" step="0.1" min="30" max="300"
+                           placeholder="@(isRtl?"الوزن بالكغ":"kg")"
+                           value="@(Model.TodayWeight.HasValue ? Model.TodayWeight.Value.ToString("F1") : "")" />
+                    <button type="submit" class="btn-primary-custom flex-shrink-0" style="padding:8px 14px">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                </form>
+            </div>
+
+            @* ── Today Summary ── *@
+            <div class="card-glass p-4 mb-4 animate-on-scroll" style="border-radius:20px">
+                <h5 style="font-weight:800;margin-bottom:16px;font-size:1.05rem">
+                    <i class="bi bi-clipboard-data me-2" style="color:var(--accent)"></i>
+                    @(isRtl?"ملخص اليوم":"Today's Summary")
+                </h5>
+                <div class="d-flex flex-column gap-2">
+                    <div class="summary-row">
+                        <span class="summary-label">
+                            <i data-lucide="utensils" class="icon-green"></i>
+                            @T.Get("dashboard.consumed")
+                        </span>
+                        <span class="summary-value" style="color:#059669">@consumed cal</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">
+                            <i data-lucide="activity" class="icon-amber"></i>
+                            @T.Get("dashboard.burned")
+                        </span>
+                        <span class="summary-value" style="color:#f59e0b">@burned cal</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">
+                            <i data-lucide="scale" class="icon-purple"></i>
+                            @T.Get("dashboard.net")
+                        </span>
+                        <span class="summary-value" style="color:@(net > target ? "#ef4444" : "#059669")">@net cal</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">
+                            <i data-lucide="target" class="icon-blue"></i>
+                            @T.Get("dashboard.target")
+                        </span>
+                        <span class="summary-value" style="color:#3b82f6">@target cal</span>
+                    </div>
+                </div>
+            </div>
+
+            @* ── Current Diet ── *@
+            @{
+                var currentDiet = ViewBag.CurrentDiet as MoodBite.Models.Diet;
+            }
+            @if (currentDiet != null)
+            {
+                <div class="card-glass p-4 mb-4 animate-on-scroll" style="border-radius:20px;overflow:hidden">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                        <h5 style="font-weight:800;margin:0;font-size:1rem">
+                            <i class="bi bi-leaf-fill me-2" style="color:#059669"></i>@(isRtl?"نظامك الغذائي":"Your Diet")
+                        </h5>
+                        <a asp-controller="Diets" asp-action="Index"
+                           style="font-size:.75rem;font-weight:600;color:var(--primary);text-decoration:none">
+                            @(isRtl ? "تغيير ←" : "Change →")
+                        </a>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;background:@currentDiet.ColorGradient;border-radius:14px;padding:14px;color:white">
+                        <div style="font-size:2rem;flex-shrink:0">@currentDiet.Emoji</div>
+                        <div>
+                            <div style="font-weight:900;font-size:1rem;line-height:1.2">@(isRtl ? currentDiet.NameAr : currentDiet.NameEn)</div>
+                            <div style="font-size:.75rem;opacity:.85;margin-top:3px">@currentDiet.Category · @currentDiet.CalorieMin–@currentDiet.CalorieMax @(isRtl?"كسع":"cal")</div>
+                        </div>
+                    </div>
+                    <a asp-controller="Diets" asp-action="Detail" asp-route-slug="@currentDiet.Slug"
+                       style="display:block;text-align:center;margin-top:10px;font-size:.8rem;font-weight:600;color:var(--text-secondary);text-decoration:none">
+                        @(isRtl ? "عرض تفاصيل النظام" : "View diet details") →
+                    </a>
+                </div>
+            }
+            else if (Model.Profile != null)
+            {
+                <div class="card-glass p-4 mb-4 animate-on-scroll" style="border-radius:20px;border:2px dashed var(--border)">
+                    <div class="text-center">
+                        <div style="font-size:1.8rem;margin-bottom:6px">🥗</div>
+                        <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">
+                            @(isRtl ? "لم تختر نظاماً غذائياً بعد" : "No diet selected yet")
+                        </p>
+                        <a asp-controller="Diets" asp-action="Index"
+                           style="display:inline-block;background:var(--primary);color:white;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:700;text-decoration:none">
+                            @(isRtl ? "اختر نظاماً" : "Choose a Diet")
+                        </a>
+                    </div>
+                </div>
+            }
+
+            @* ── Body Progress Widget ── *@
+            <div class="card-glass p-4 mb-4 animate-on-scroll" style="border-radius:20px;overflow:hidden">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 style="font-weight:800;margin:0;font-size:1rem">
+                        <i class="bi bi-activity me-2" style="color:#059669"></i>@(isRtl?"التقدم الجسدي":"Body Progress")
+                    </h5>
+                    <a asp-controller="Progress" asp-action="Index"
+                       style="font-size:.75rem;font-weight:600;color:var(--primary);text-decoration:none">
+                        @(isRtl ? "عرض الكل ←" : "View all →")
+                    </a>
+                </div>
+                @if (Model.LatestBodyProgress != null)
+                {
+                    var bp = Model.LatestBodyProgress;
+                    <div style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;border-radius:14px;padding:14px">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span style="font-size:.75rem;color:#15803d;font-weight:600">
+                                <i class="bi bi-calendar-check me-1"></i>@bp.Date.ToString(isRtl ? "yyyy/MM/dd" : "MMM dd, yyyy")
+                            </span>
+                            @if (Model.DaysUntilNextMeasurement == 0)
+                            {
+                                <span class="badge bg-warning text-dark" style="font-size:.65rem">@(isRtl ? "حان وقت القياس! 📏" : "Measure today! 📏")</span>
+                            }
+                            else
+                            {
+                                <span style="font-size:.7rem;color:#6b7280">@(isRtl ? $"القياس التالي بعد {Model.DaysUntilNextMeasurement} يوم" : $"Next in {Model.DaysUntilNextMeasurement}d")</span>
+                            }
+                        </div>
+                        <div class="d-flex gap-3 flex-wrap">
+                            @if (bp.Weight.HasValue)  { <div style="text-align:center"><div style="font-size:1.1rem;font-weight:900;color:#059669">@bp.Weight.Value.ToString("0.#")<span style="font-size:.65rem">kg</span></div><div style="font-size:.65rem;color:#6b7280">@(isRtl?"وزن":"Weight")</div></div> }
+                            @if (bp.Waist.HasValue)   { <div style="text-align:center"><div style="font-size:1.1rem;font-weight:900;color:#0d9488">@bp.Waist.Value.ToString("0.#")<span style="font-size:.65rem">cm</span></div><div style="font-size:.65rem;color:#6b7280">@(isRtl?"خصر":"Waist")</div></div> }
+                            @if (bp.Hips.HasValue)    { <div style="text-align:center"><div style="font-size:1.1rem;font-weight:900;color:#7c3aed">@bp.Hips.Value.ToString("0.#")<span style="font-size:.65rem">cm</span></div><div style="font-size:.65rem;color:#6b7280">@(isRtl?"أرداف":"Hips")</div></div> }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div style="background:var(--surface-2);border:2px dashed var(--border);border-radius:12px;padding:18px;text-align:center">
+                        <div style="font-size:2rem;margin-bottom:6px">📏</div>
+                        <p style="font-size:.8rem;color:var(--text-secondary);margin:0 0 10px">
+                            @(isRtl ? "ابدأ تتبع قياساتك الجسدية" : "Start tracking your body measurements")
+                        </p>
+                        <a asp-controller="Progress" asp-action="Index" class="btn-primary-custom" style="font-size:.78rem;padding:6px 14px">
+                            <i class="bi bi-plus-circle"></i> @(isRtl ? "إضافة قياس" : "Add Measurement")
+                        </a>
+                    </div>
+                }
+            </div>
+
+            @* ── Quick Navigation ── *@
+            <div class="card-glass p-4 animate-on-scroll" style="border-radius:20px">
+                <h5 style="font-weight:800;margin-bottom:14px;font-size:1.05rem">
+                    @(isRtl?"روابط سريعة":"Quick Links")
+                </h5>
+                <div class="d-flex flex-column gap-2">
+                    @{
+                        var links = new[] {
+                            ("MealPlan",  "Index", "bi-calendar-week-fill",  isRtl?"خطة الوجبات":"Meal Plan",      "#059669"),
+                            ("Report",    "Index", "bi-bar-chart-line-fill", isRtl?"التقرير":"Weekly Report",      "#0d9488"),
+                            ("Diets",     "Index", "bi-leaf-fill",           isRtl?"الأنظمة الغذائية":"Diets",    "#7c3aed"),
+                            ("Workout",   "Index", "bi-lightning-fill",      isRtl?"الرياضة":"Workout",            "#f59e0b"),
+                            ("Challenge", "Index", "bi-trophy-fill",         isRtl?"التحديات":"Challenges",        "#ef4444"),
+                        };
+                    }
+                    @foreach (var (ctrl, act, icon, lbl, clr) in links)
+                    {
+                        <a asp-controller="@ctrl" asp-action="@act"
+                           style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface-2);border-radius:10px;text-decoration:none;color:var(--text-primary);font-weight:600;font-size:.875rem;transition:all .2s;border:1px solid transparent"
+                           onmouseover="this.style.background='var(--primary-50)';this.style.borderColor='var(--primary-200)'"
+                           onmouseout="this.style.background='var(--surface-2)';this.style.borderColor='transparent'">
+                            <i class="bi @icon" style="color:@clr;font-size:1rem;flex-shrink:0"></i>
+                            @lbl
+                            <i class="bi bi-chevron-@(isRtl?"left":"right") ms-auto" style="font-size:.75rem;color:var(--text-muted)"></i>
+                        </a>
+                    }
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    // ── Calorie chart ──
+    const labels  = [@Html.Raw(string.Join(",", Model.Last7Logs.Select(l => $"'{l.Date:ddd}'")))];
+    const calData = [@Html.Raw(string.Join(",", Model.Last7Logs.Select(l => (int)l.CaloriesConsumed)))];
+    const calTarget = @target;
+    renderCalorieChart('calorieChart', labels, calData, calTarget);
+
+    @if (Model.WeightLogs.Count >= 2)
+    {
+        <text>
+    // ── Weight chart ──
+    const wLabels = [@Html.Raw(string.Join(",", Model.WeightLogs.Select(w => $"'{w.Date:MM/dd}'")))];
+    const wData   = [@Html.Raw(string.Join(",", Model.WeightLogs.Select(w => w.Weight)))];
+    renderWeightChart('weightChart', wLabels, wData);
+        </text>
+    }
+
+    // ── Water glass initialise ──
+    updateWaterGlass(@waterNow, @waterGoal);
+
+});
+
+// ── Water Intake ──────────────────────────────────────────
+const WATER_GOAL = @waterGoal;
+const WATER_ANTIFORGERY = '@Html.AntiForgeryToken()'.match(/value="([^"]+)"/)?.[1] ?? '';
+let waterAnimLock = false;
+
+async function logWater(delta) {
+    if (waterAnimLock) return;
+    waterAnimLock = true;
+
+    // Button bounce animation
+    const btn = delta > 0 ? document.getElementById('btnPlus') : document.getElementById('btnMinus');
+    btn.style.transform = 'scale(.88)';
+    setTimeout(() => btn.style.transform = '', 150);
+
+    try {
+        const res = await fetch('@Url.Action("LogWater", "Dashboard")', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': WATER_ANTIFORGERY },
+            body: `delta=${delta}&__RequestVerificationToken=${encodeURIComponent(WATER_ANTIFORGERY)}`
+        });
+        const data = await res.json();
+        if (data.success) {
+            updateWaterGlass(data.glasses, data.goal);
+        }
+    } catch(e) { console.error(e); }
+
+    waterAnimLock = false;
+}
+
+function updateWaterGlass(glasses, goal) {
+    const pct       = goal > 0 ? Math.min(1, glasses / goal) : 0;
+    const glassH    = 80;          // pixel height of glass interior (y=8 to y=88)
+    const fillH     = Math.round(pct * glassH);
+    const rectY     = 88 - fillH;
+    const waveY     = 88 - fillH;
+    const liters    = (glasses * 0.25).toFixed(1);
+    const goalLiters= (goal * 0.25).toFixed(1);
+
+    // SVG water rect
+    const rect = document.getElementById('waterRect');
+    if (rect) {
+        rect.setAttribute('y', rectY);
+        rect.setAttribute('height', fillH + 20);
+    }
+
+    // Wave
+    const wave = document.getElementById('waterWave');
+    if (wave) {
+        wave.setAttribute('d',
+            `M0,${waveY} Q16,${waveY-5} 32,${waveY} Q48,${waveY+5} 64,${waveY} L64,${waveY+20} L0,${waveY+20} Z`
+        );
+    }
+
+    // Counter — pop animation
+    const countEl = document.getElementById('waterCount');
+    if (countEl) {
+        countEl.style.transform = 'scale(1.35)';
+        countEl.textContent = glasses;
+        setTimeout(() => countEl.style.transform = 'scale(1)', 250);
+    }
+
+    // Progress bar
+    const bar = document.getElementById('waterBar');
+    if (bar) bar.style.width = Math.round(pct * 100) + '%';
+
+    // Badge
+    const badge = document.getElementById('waterBadge');
+    if (badge) badge.textContent = `${glasses}/${goal}`;
+
+    // Liters text
+    const litersEl = document.getElementById('waterLiters');
+    if (litersEl) litersEl.textContent = liters;
+
+    // Goal toast
+    const toast = document.getElementById('waterGoalToast');
+    if (toast) {
+        if (glasses >= goal) {
+            toast.style.display = 'block';
+            toast.style.animation = 'none';
+            void toast.offsetWidth;
+            toast.style.animation = 'bounceIn .5s ease forwards';
+        } else {
+            toast.style.display = 'none';
+        }
+    }
+
+    // SVG glass colour changes at 100%
+    const svg = document.getElementById('waterGlassSvg');
+    if (svg) {
+        svg.style.filter = glasses >= goal
+            ? 'drop-shadow(0 4px 16px rgba(5,150,105,.4))'
+            : 'drop-shadow(0 4px 12px rgba(6,182,212,.25))';
+    }
+
+    // Ripple on card
+    const card = document.getElementById('waterCard');
+    if (card) {
+        card.style.transition = 'box-shadow .3s';
+        card.style.boxShadow = '0 0 0 3px rgba(6,182,212,.3), var(--shadow-md)';
+        setTimeout(() => card.style.boxShadow = '', 400);
+    }
+}
+</script>
+}

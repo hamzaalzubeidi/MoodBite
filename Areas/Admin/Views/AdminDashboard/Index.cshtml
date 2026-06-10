@@ -1,0 +1,89 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.CurrentLang == "ar" ? "لوحة تحكم الإدارة" : "Admin Dashboard";
+    var isRtl = T.CurrentLang == "ar";
+    var recentUsers = ViewBag.RecentUsers as List<MoodBite.Models.ApplicationUser> ?? new();
+}
+
+<div class="row g-4 mb-4">
+    @{
+        var stats = new[] {
+            ("bi-people-fill","#059669",(int)(ViewBag.TotalUsers ?? 0),isRtl?"إجمالي المستخدمين":"Total Users"),
+            ("bi-person-check-fill","#0d9488",(int)(ViewBag.ActiveUsers ?? 0),isRtl?"مستخدمون نشطون":"Active Users"),
+            ("bi-journal-text","#f59e0b",(int)(ViewBag.TotalRecipes ?? 0),isRtl?"الوصفات":"Recipes"),
+            ("bi-exclamation-circle","#ef4444",(int)(ViewBag.PendingRecipes ?? 0),isRtl?"وصفات بانتظار المراجعة":"Pending Review"),
+            ("bi-list-check","#8b5cf6",(int)(ViewBag.TotalDiets ?? 0),isRtl?"الأنظمة الغذائية":"Diets"),
+            ("bi-trophy","#06b6d4",(int)(ViewBag.TotalChallenges ?? 0),isRtl?"التحديات":"Challenges"),
+            ("bi-journal-plus","#10b981",(int)(ViewBag.TotalLogs ?? 0),isRtl?"سجلات اليوم":"Day Logs")
+        };
+    }
+    @foreach (var (icon, color, value, label) in stats)
+    {
+        <div class="col-6 col-md-4 col-lg-3">
+            <div class="stat-card p-4 text-center">
+                <i class="bi @icon" style="font-size:1.8rem;color:@color"></i>
+                <div style="font-size:1.8rem;font-weight:900;margin-top:8px">@value</div>
+                <div style="font-size:.8rem;color:var(--text-secondary)">@label</div>
+            </div>
+        </div>
+    }
+</div>
+
+@if ((int)(ViewBag.PendingRecipes ?? 0) > 0)
+{
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>
+            @((int)ViewBag.PendingRecipes) @(isRtl?"وصفات تنتظر المراجعة":"recipes awaiting review")
+            <a href="/Admin/AdminRecipes" class="fw-bold ms-2">@(isRtl?"مراجعتها الآن":"Review now")</a>
+        </span>
+    </div>
+}
+
+<div class="card-glass p-4">
+    <h5 style="font-weight:700;margin-bottom:16px">
+        <i class="bi bi-person-plus text-primary me-2"></i>
+        @(isRtl?"أحدث المستخدمين":"Recent Users")
+    </h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>@(isRtl?"الاسم":"Name")</th>
+                    <th>@(isRtl?"البريد الإلكتروني":"Email")</th>
+                    <th>@(isRtl?"تاريخ الانضمام":"Joined")</th>
+                    <th>@(isRtl?"الحالة":"Status")</th>
+                    <th>@(isRtl?"إجراء":"Action")</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in recentUsers)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.8rem">
+                                    @(u.FullName.Length > 0 ? u.FullName[0].ToString().ToUpper() : "?")
+                                </div>
+                                @u.FullName
+                            </div>
+                        </td>
+                        <td class="text-muted small">@u.Email</td>
+                        <td class="small">@u.CreatedAt.ToString("yyyy/MM/dd")</td>
+                        <td>
+                            <span class="badge bg-@(u.IsActive ? "success" : "secondary")">
+                                @(u.IsActive ? (isRtl?"نشط":"Active") : (isRtl?"معطل":"Inactive"))
+                            </span>
+                        </td>
+                        <td>
+                            <a href="/Admin/AdminUsers" class="btn-ghost-custom btn-sm">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

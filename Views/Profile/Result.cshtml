@@ -1,0 +1,116 @@
+@model MoodBite.Models.HealthProfile
+@using MoodBite.Services
+@using System.Text.Json
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("profile.result");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+    var diet = ViewBag.Diet as MoodBite.Models.Diet;
+
+    List<string> benefits = new();
+    if (diet != null)
+    {
+        try
+        {
+            var bObj = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(diet.BenefitsJson);
+            benefits = bObj?.GetValueOrDefault(T.CurrentLang) ?? bObj?.GetValueOrDefault("en") ?? [];
+        }
+        catch { }
+    }
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="text-center mb-5 fade-in">
+                <div style="font-size:3rem;margin-bottom:12px">🎯</div>
+                <h1 style="font-weight:800;font-size:clamp(1.5rem,3vw,2rem)">
+                    @(isRtl ? "نظامك الغذائي المقترح" : "Your Recommended Diet")
+                </h1>
+                <p style="color:var(--text-secondary)">
+                    @(isRtl ? "بناءً على ملفك الصحي، هذا هو النظام الأنسب لك" : "Based on your health profile, this is the best diet for you")
+                </p>
+            </div>
+
+            @if (diet != null)
+            {
+                <div class="card-elevated p-4 mb-4 fade-in" style="border-top:4px solid var(--primary)">
+                    <div class="d-flex align-items-center gap-3 mb-4">
+                        <div style="font-size:3rem">@diet.Emoji</div>
+                        <div>
+                            <h2 style="font-weight:800;margin:0">@(isRtl ? diet.NameAr : diet.NameEn)</h2>
+                            <div class="d-flex gap-2 mt-1 flex-wrap">
+                                <span class="badge bg-success">@diet.Category</span>
+                                <span class="badge bg-warning text-dark">@diet.Difficulty</span>
+                                <span class="badge bg-info text-dark">@diet.CalorieMin–@diet.CalorieMax @(isRtl?"كسع":"cal")</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="color:var(--text-secondary);line-height:1.8">
+                        @(isRtl ? diet.DescriptionAr : diet.DescriptionEn)
+                    </p>
+                    @if (benefits.Count > 0)
+                    {
+                        <h5 style="font-weight:700;margin-bottom:12px">@(isRtl?"الفوائد:":"Benefits:")</h5>
+                        <ul class="list-unstyled">
+                            @foreach (var b in benefits)
+                            {
+                                <li class="d-flex align-items-start gap-2 mb-2">
+                                    <i class="bi bi-check-circle-fill text-success mt-1 flex-shrink-0"></i>
+                                    <span>@b</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+
+                @if (Model != null)
+                {
+                    <div class="stat-card p-4 mb-4 text-center fade-in stagger-1">
+                        <div style="font-size:2.5rem;font-weight:900;color:var(--primary)">@((int)Model.CalorieTarget)</div>
+                        <div style="color:var(--text-secondary)">@(isRtl?"هدف السعرات الحرارية اليومية":"Daily Calorie Target")</div>
+                        <div class="d-flex justify-content-center gap-4 mt-3 flex-wrap">
+                            <div class="text-center">
+                                <div style="font-weight:700">@Model.Age</div>
+                                <div style="font-size:.75rem;color:var(--text-secondary)">@(isRtl?"عمر":"Age")</div>
+                            </div>
+                            <div style="width:1px;background:var(--border)"></div>
+                            <div class="text-center">
+                                <div style="font-weight:700">@Model.Height cm</div>
+                                <div style="font-size:.75rem;color:var(--text-secondary)">@(isRtl?"طول":"Height")</div>
+                            </div>
+                            <div style="width:1px;background:var(--border)"></div>
+                            <div class="text-center">
+                                <div style="font-weight:700">@Model.Weight kg</div>
+                                <div style="font-size:.75rem;color:var(--text-secondary)">@(isRtl?"وزن":"Weight")</div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <div class="d-flex gap-3 flex-wrap justify-content-center fade-in stagger-2">
+                    <a asp-controller="Dashboard" asp-action="Index" class="btn-primary-custom btn-lg-custom">
+                        <i class="bi bi-speedometer2"></i>
+                        @(isRtl ? "ابدأ التتبع" : "Start Tracking")
+                    </a>
+                    <a asp-controller="MealPlan" asp-action="Index" class="btn-secondary-custom btn-lg-custom">
+                        <i class="bi bi-calendar-week"></i>
+                        @(isRtl ? "خطة الوجبات" : "Meal Plan")
+                    </a>
+                    <a asp-action="Index" class="btn-ghost-custom btn-lg-custom">
+                        <i class="bi bi-pencil"></i>
+                        @(isRtl ? "تعديل الملف" : "Edit Profile")
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <p class="text-muted">@(isRtl ? "يرجى إكمال الملف الشخصي." : "Please complete your profile.")</p>
+                    <a asp-action="Index" class="btn-primary-custom mt-3">@(isRtl ? "إكمال الملف" : "Complete Profile")</a>
+                </div>
+            }
+        </div>
+    </div>
+</div>

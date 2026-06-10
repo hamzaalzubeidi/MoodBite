@@ -1,0 +1,373 @@
+@model List<MoodBite.Models.BodyProgress>
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.CurrentLang == "ar" ? "تتبع التقدم الجسدي" : "Body Progress";
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+
+    var latest = Model.FirstOrDefault();
+    var previous = Model.Count > 1 ? Model[1] : null;
+
+    double? weightDelta = (latest?.Weight.HasValue == true && previous?.Weight.HasValue == true)
+        ? Math.Round(latest.Weight.Value - previous.Weight.Value, 1)
+        : (double?)null;
+    double? waistDelta = (latest?.Waist.HasValue == true && previous?.Waist.HasValue == true)
+        ? Math.Round(latest.Waist.Value - previous.Waist.Value, 1)
+        : (double?)null;
+
+    var chartLabels   = System.Text.Json.JsonSerializer.Serialize(
+        Model.OrderBy(e => e.Date).Select(e => e.Date.ToString("MMM dd")).ToList());
+    var chartWeight   = System.Text.Json.JsonSerializer.Serialize(
+        Model.OrderBy(e => e.Date).Select(e => e.Weight).ToList());
+    var chartWaist    = System.Text.Json.JsonSerializer.Serialize(
+        Model.OrderBy(e => e.Date).Select(e => e.Waist).ToList());
+    var chartHips     = System.Text.Json.JsonSerializer.Serialize(
+        Model.OrderBy(e => e.Date).Select(e => e.Hips).ToList());
+
+    var photos = Model.Where(e => !string.IsNullOrEmpty(e.PhotoPath)).ToList();
+}
+
+@section Styles {
+<style>
+.progress-hero { background: linear-gradient(135deg, #064e3b 0%, #065f46 40%, #0d9488 100%); padding: 32px 0 48px; margin-bottom: -24px; }
+.metric-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; padding: 20px; transition: transform .2s; }
+.metric-card:hover { transform: translateY(-2px); }
+.delta-up { color: #ef4444; font-size: .78rem; font-weight: 700; }
+.delta-down { color: #10b981; font-size: .78rem; font-weight: 700; }
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.photo-item { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 3/4; background: var(--surface-2); cursor: pointer; }
+.photo-item img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
+.photo-item:hover img { transform: scale(1.05); }
+.photo-item .photo-overlay { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.6) 0%, transparent 50%); opacity: 0; transition: opacity .3s; display: flex; align-items: flex-end; padding: 8px; }
+.photo-item:hover .photo-overlay { opacity: 1; }
+.photo-date { color: white; font-size: .72rem; font-weight: 700; }
+.entry-row { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; transition: background .2s; }
+.entry-row:hover { background: var(--surface-2); }
+.empty-state-body { background: linear-gradient(135deg, #ecfdf5, #f0fdfa); border: 2px dashed #6ee7b7; border-radius: 20px; padding: 60px 40px; text-align: center; }
+.add-btn { background: linear-gradient(135deg, #059669, #0d9488); color: white; border: none; border-radius: 12px; padding: 10px 22px; font-weight: 700; font-size: .88rem; cursor: pointer; transition: opacity .2s; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.add-btn:hover { opacity: .9; color: white; }
+.export-btn { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 9px 18px; font-weight: 600; font-size: .82rem; color: var(--text-primary); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: background .2s; }
+.export-btn:hover { background: var(--surface-3); color: var(--text-primary); }
+@@keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.animate-in { animation: fadeInUp .4s ease both; }
+</style>
+}
+
+<!-- Hero -->
+<div class="progress-hero">
+    <div class="container-xl">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <p style="color:rgba(255,255,255,.7);margin:0;font-size:.85rem">
+                    <i class="bi bi-activity me-1"></i>@(isRtl ? "رحلتك نحو جسم أفضل" : "Your transformation journey")
+                </p>
+                <h1 style="color:white;font-weight:900;font-size:clamp(1.4rem,3vw,2rem);margin:4px 0">
+                    @(isRtl ? "تتبع التقدم الجسدي" : "Body Progress") <i data-lucide="trending-up" class="icon-green"></i>
+                </h1>
+                <p style="color:rgba(255,255,255,.6);margin:2px 0 0;font-size:.82rem">
+                    @Model.Count @(isRtl ? "قياس مسجل" : "measurements logged")
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a asp-action="ExportPdf" class="export-btn" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:white">
+                    <i class="bi bi-download"></i> @(isRtl ? "تصدير HTML" : "Export HTML")
+                </a>
+                <button class="add-btn" data-bs-toggle="modal" data-bs-target="#addModal">
+                    <i class="bi bi-plus-circle"></i> @(isRtl ? "إضافة قياس" : "Add Measurement")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-xl py-4">
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4" style="border-radius:12px">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!Model.Any())
+    {
+        <div class="empty-state-card animate-in">
+            <div class="empty-icon"><i data-lucide="sprout" class="icon-green"></i></div>
+            <h4>@T.Get("progress.emptyTitle")</h4>
+            <p>@T.Get("progress.emptySubtitle")</p>
+            <button class="btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addModal">
+                <i data-lucide="plus"></i> @T.Get("progress.addFirst")
+            </button>
+        </div>
+    }
+    else
+    {
+        <!-- Latest snapshot cards -->
+        @if (latest != null)
+        {
+            <div class="row g-3 mb-4">
+                @foreach (var (emoji, labelAr, labelEn, val, unit, delta) in new[]
+                {
+                    ("<i data-lucide=\"scale\" class=\"icon-purple\"></i>", "الوزن", "Weight",  latest.Weight, "kg", weightDelta),
+                    ("📏", "الخصر", "Waist",   latest.Waist,  "cm", waistDelta),
+                    ("🍑", "الأرداف", "Hips",   latest.Hips,   "cm", (double?)null),
+                    ("🫁", "الصدر",  "Chest",   latest.Chest,  "cm", (double?)null),
+                    ("<i data-lucide=\"dumbbell\" class=\"icon-amber\"></i>", "الذراع", "Arms",    latest.Arms,   "cm", (double?)null),
+                })
+                {
+                    <div class="col-6 col-lg animate-in" style="animation-delay:@(Array.IndexOf(new[]{"scale","📏","🍑","🫁","dumbbell"}, emoji.Contains("scale") ? "scale" : emoji.Contains("dumbbell") ? "dumbbell" : emoji) * 60)ms">
+                        <div class="metric-card text-center">
+                            <div style="font-size:1.8rem;margin-bottom:6px">@Html.Raw(emoji)</div>
+                            <div style="font-size:1.4rem;font-weight:900;color:var(--primary);line-height:1">
+                                @(val.HasValue ? val.Value.ToString("0.#") : "—")
+                                @if (val.HasValue) { <span style="font-size:.65rem;font-weight:400">@unit</span> }
+                            </div>
+                            <div style="font-size:.72rem;color:var(--text-secondary);margin-top:2px">@(isRtl ? labelAr : labelEn)</div>
+                            @if (delta.HasValue)
+                            {
+                                var cls = delta > 0 ? "delta-up" : "delta-down";
+                                var sign = delta > 0 ? "▲" : "▼";
+                                <div class="@cls mt-1">@sign @Math.Abs(delta.Value)@unit vs prev</div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Charts -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-6">
+                <div class="card-glass p-4 animate-in" style="border-radius:20px;animation-delay:100ms">
+                    <h6 style="font-weight:800;margin-bottom:16px">
+                        <i class="bi bi-graph-up-arrow text-success me-2"></i>
+                        @(isRtl ? "منحنى الوزن" : "Weight Trend")
+                    </h6>
+                    <div style="position:relative;height:220px">
+                        <canvas id="weightChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card-glass p-4 animate-in" style="border-radius:20px;animation-delay:160ms">
+                    <h6 style="font-weight:800;margin-bottom:16px">
+                        <i class="bi bi-rulers text-primary me-2"></i>
+                        @(isRtl ? "منحنى القياسات" : "Measurements Trend")
+                    </h6>
+                    <div style="position:relative;height:220px">
+                        <canvas id="measureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Photo grid -->
+        @if (photos.Any())
+        {
+            <div class="card-glass p-4 mb-4 animate-in" style="border-radius:20px;animation-delay:200ms">
+                <h6 style="font-weight:800;margin-bottom:16px">
+                    <i class="bi bi-images text-primary me-2"></i>
+                    @(isRtl ? "صور التقدم" : "Progress Photos")
+                    <span class="badge bg-success ms-2" style="font-size:.7rem">@photos.Count</span>
+                </h6>
+                <div class="photo-grid">
+                    @foreach (var p in photos)
+                    {
+                        <div class="photo-item" onclick="openPhoto('@p.PhotoPath', '@p.Date.ToString("MMM dd, yyyy")')">
+                            <img src="@p.PhotoPath" alt="progress" loading="lazy" />
+                            <div class="photo-overlay">
+                                <span class="photo-date">@p.Date.ToString(isRtl ? "yyyy/MM/dd" : "MMM dd, yyyy")</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- History table -->
+        <div class="card-glass p-4 animate-in" style="border-radius:20px;animation-delay:240ms">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 style="font-weight:800;margin:0">
+                    <i class="bi bi-clock-history text-muted me-2"></i>
+                    @(isRtl ? "سجل القياسات" : "Measurement History")
+                </h6>
+                <span class="text-muted" style="font-size:.78rem">@Model.Count @(isRtl ? "إدخال" : "entries")</span>
+            </div>
+            <div class="d-flex flex-column gap-2">
+                @foreach (var entry in Model)
+                {
+                    <div class="entry-row d-flex align-items-center gap-3 flex-wrap">
+                        <div style="min-width:80px">
+                            <div style="font-weight:700;font-size:.88rem">@entry.Date.ToString(isRtl ? "yyyy/MM/dd" : "MMM dd, yyyy")</div>
+                            @if (!string.IsNullOrEmpty(entry.PhotoPath))
+                            {
+                                <span style="font-size:.68rem;color:var(--text-secondary)"><i class="bi bi-camera"></i></span>
+                            }
+                        </div>
+                        <div class="d-flex gap-3 flex-wrap" style="flex:1">
+                            @if (entry.Weight.HasValue)   { <span style="font-size:.82rem"><strong>@entry.Weight.Value.ToString("0.#")kg</strong> @(isRtl?"وزن":"wt")</span> }
+                            @if (entry.Waist.HasValue)    { <span style="font-size:.82rem"><strong>@entry.Waist.Value.ToString("0.#")</strong> @(isRtl?"خصر":"waist")</span> }
+                            @if (entry.Hips.HasValue)     { <span style="font-size:.82rem"><strong>@entry.Hips.Value.ToString("0.#")</strong> @(isRtl?"أرداف":"hips")</span> }
+                            @if (entry.Chest.HasValue)    { <span style="font-size:.82rem"><strong>@entry.Chest.Value.ToString("0.#")</strong> @(isRtl?"صدر":"chest")</span> }
+                            @if (entry.Arms.HasValue)     { <span style="font-size:.82rem"><strong>@entry.Arms.Value.ToString("0.#")</strong> @(isRtl?"ذراع":"arms")</span> }
+                            @if (!string.IsNullOrEmpty(entry.Notes)) { <span class="text-muted" style="font-size:.78rem">📝 @entry.Notes</span> }
+                        </div>
+                        <form asp-action="Delete" method="post" onsubmit="return confirm('@(isRtl ? "هل أنت متأكد؟" : "Delete this entry?")')">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@entry.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:8px;font-size:.75rem;padding:4px 10px">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+</div>
+
+<!-- Add Measurement Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:20px;border:1px solid var(--border);background:var(--surface-1)">
+            <div class="modal-header" style="border-bottom:1px solid var(--border)">
+                <h5 class="modal-title" style="font-weight:800">
+                    📏 @(isRtl ? "إضافة قياس جديد" : "Add New Measurement")
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="Add" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <div class="modal-body" style="padding:24px">
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight:600;font-size:.85rem">
+                            @(isRtl ? "التاريخ" : "Date")
+                        </label>
+                        <input type="date" name="date" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")"
+                               style="border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary)" />
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:600;font-size:.85rem">@(isRtl ? "الوزن (كغ)" : "Weight (kg)")</label>
+                            <input type="number" name="weight" step="0.1" min="30" max="300" class="form-control"
+                                   placeholder="@(isRtl ? "مثال: 75.5" : "e.g. 75.5")"
+                                   style="border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary)" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:600;font-size:.85rem">@(isRtl ? "الخصر (سم)" : "Waist (cm)")</label>
+                            <input type="number" name="waist" step="0.5" min="40" max="200" class="form-control"
+                                   placeholder="@(isRtl ? "مثال: 85" : "e.g. 85")"
+                                   style="border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary)" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:600;font-size:.85rem">@(isRtl ? "الأرداف (سم)" : "Hips (cm)")</label>
+                            <input type="number" name="hips" step="0.5" min="40" max="200" class="form-control"
+                                   placeholder="@(isRtl ? "مثال: 95" : "e.g. 95")"
+                                   style="border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary)" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:600;font-size:.85rem">@(isRtl ? "الصدر (سم)" : "Chest (cm)")</label>
+                            <input type="number" name="chest" step="0.5" min="40" max="200" class="form-control"
+                                   placeholder="@(isRtl ? "مثال: 90" : "e.g. 90")"
+                                   style="border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary)" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:600;font-size:.85rem">@(isRtl ? "محيط الذراع (سم)" : "Arms (cm)")</label>
+                            <input type="number" name="arms" step="0.5" min="10" max="100" class="form-control"
+                                   placeholder="@(isRtl ? "مثال: 30" : "e.g. 30")"
+                                   style="border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary)" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:600;font-size:.85rem">
+                                <i class="bi bi-camera me-1"></i>@(isRtl ? "صورة (اختياري)" : "Photo (optional)")
+                            </label>
+                            <input type="file" name="photo" accept="image/*" capture="environment" class="form-control"
+                                   style="border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);font-size:.82rem" />
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label" style="font-weight:600;font-size:.85rem">@(isRtl ? "ملاحظات" : "Notes")</label>
+                        <textarea name="notes" class="form-control" rows="2" maxlength="500"
+                                  placeholder="@(isRtl ? "أي ملاحظات عن هذا القياس..." : "Any notes about this measurement...")"
+                                  style="border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);resize:none"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top:1px solid var(--border)">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" style="border-radius:10px">
+                        @(isRtl ? "إلغاء" : "Cancel")
+                    </button>
+                    <button type="submit" class="add-btn">
+                        <i class="bi bi-check2"></i> @(isRtl ? "حفظ القياس" : "Save Measurement")
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Photo lightbox -->
+<div id="photoLightbox" onclick="closeLightbox()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column;cursor:pointer">
+    <img id="lightboxImg" src="" style="max-width:90vw;max-height:80vh;border-radius:12px;object-fit:contain" />
+    <p id="lightboxDate" style="color:white;margin-top:12px;font-size:.9rem;font-weight:600"></p>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+function openPhoto(src, date) {
+    const lb = document.getElementById('photoLightbox');
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightboxDate').textContent = date;
+    lb.style.display = 'flex';
+}
+function closeLightbox() {
+    document.getElementById('photoLightbox').style.display = 'none';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+const labels = @Html.Raw(chartLabels);
+const wData  = @Html.Raw(chartWeight);
+const waistD = @Html.Raw(chartWaist);
+const hipsD  = @Html.Raw(chartHips);
+const labelWeight = '@Html.Raw(isRtl ? "الوزن (كغ)" : "Weight (kg)")';
+const labelWaist  = '@Html.Raw(isRtl ? "الخصر (سم)" : "Waist (cm)")';
+const labelHips   = '@Html.Raw(isRtl ? "الأرداف (سم)" : "Hips (cm)")';
+
+window.addEventListener('load', function () {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const textColor = isDark ? '#e7e5e4' : '#44403c';
+    const gridColor = isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
+    const commonOpts = {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: textColor } }, tooltip: { mode: 'index', intersect: false } },
+        scales: {
+            x: { ticks: { color: textColor }, grid: { color: gridColor } },
+            y: { ticks: { color: textColor }, grid: { color: gridColor } }
+        }
+    };
+    if (labels.length > 0 && wData.some(v => v !== null)) {
+        new Chart(document.getElementById('weightChart'), {
+            type: 'line',
+            data: { labels, datasets: [{ label: labelWeight, data: wData, borderColor: '#059669', backgroundColor: 'rgba(5,150,105,.12)', pointBackgroundColor: '#059669', pointRadius: 5, tension: 0.4, fill: true }] },
+            options: commonOpts
+        });
+    }
+    if (labels.length > 0 && (waistD.some(v => v !== null) || hipsD.some(v => v !== null))) {
+        new Chart(document.getElementById('measureChart'), {
+            type: 'line',
+            data: { labels, datasets: [
+                { label: labelWaist, data: waistD, borderColor: '#0d9488', pointBackgroundColor: '#0d9488', pointRadius: 4, tension: 0.4, fill: false },
+                { label: labelHips,  data: hipsD,  borderColor: '#a855f7', pointBackgroundColor: '#a855f7', pointRadius: 4, tension: 0.4, fill: false }
+            ]},
+            options: commonOpts
+        });
+    }
+});
+</script>
+}

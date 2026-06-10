@@ -1,0 +1,247 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.CurrentLang == "ar" ? "تخصيص خطة التمارين" : "Customise Workout Plan";
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+}
+
+@* ─── Header ─── *@
+<div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4c1d95 100%);padding:32px 0 48px;margin-bottom:-24px">
+    <div class="container-xl">
+        <a asp-action="Index" style="color:rgba(255,255,255,.75);font-size:.875rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:16px">
+            <i class="bi bi-arrow-@(isRtl?"right":"left")-short" style="font-size:1.1rem"></i>
+            @(isRtl ? "العودة إلى خطة التمارين" : "Back to Workout Plan")
+        </a>
+        <h1 style="color:white;font-weight:900;font-size:clamp(1.4rem,3vw,2rem);margin:0">
+            <i data-lucide="target" class="icon-purple"></i> @(isRtl ? "خصّص خطة التمارين" : "Customise Your Workout Plan")
+        </h1>
+        <p style="color:rgba(255,255,255,.7);margin:6px 0 0;font-size:.9rem">
+            @(isRtl ? "أجب على أسئلة بسيطة وسيبني الذكاء الاصطناعي خطة مثالية لك"
+                    : "Answer a few questions and the AI will build your perfect plan")
+        </p>
+    </div>
+</div>
+
+<div class="container-xl py-5">
+    <form asp-action="Generate" method="post" id="questionnaireForm">
+        @Html.AntiForgeryToken()
+
+        <div class="row g-4 justify-content-center">
+            <div class="col-lg-8">
+
+                @* ── Q1 Fitness Level ── *@
+                <div class="card-glass p-4 mb-4 fade-in" style="border-radius:20px">
+                    <h5 style="font-weight:800;margin-bottom:4px">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:linear-gradient(135deg,#4c1d95,#7c3aed);color:white;border-radius:8px;font-size:.8rem;font-weight:900;margin-inline-end:10px">1</span>
+                        @(isRtl ? "ما مستواك في اللياقة البدنية؟" : "What is your fitness level?")
+                    </h5>
+                    <p class="text-muted mb-3" style="font-size:.85rem;padding-inline-start:38px">
+                        @(isRtl ? "سيحدد هذا شدة التمارين وعدد تكراراتها" : "This determines exercise intensity and rep ranges")
+                    </p>
+                    <div class="row g-3" style="padding-inline-start:0">
+                        @foreach (var opt in new[] {
+                            ("beginner",   isRtl?"مبتدئ":"Beginner",       "<i data-lucide=\"sprout\" class=\"icon-green\"></i>", isRtl?"أقل من 6 أشهر من التمرين":"Less than 6 months experience"),
+                            ("intermediate",isRtl?"متوسط":"Intermediate",  "<i data-lucide=\"flame\" class=\"icon-green\"></i>", isRtl?"6 أشهر – سنتان":"6 months – 2 years"),
+                            ("advanced",   isRtl?"متقدم":"Advanced",        "<i data-lucide=\"zap\" class=\"icon-amber\"></i>", isRtl?"أكثر من سنتين":"More than 2 years")
+                        })
+                        {
+                            <div class="col-sm-4">
+                                <label class="questionnaire-option w-100">
+                                    <input type="radio" name="fitnessLevel" value="@opt.Item1" class="d-none" @(opt.Item1 == "intermediate" ? "checked" : "")>
+                                    <div class="questionnaire-option-inner text-center p-3" style="border-radius:14px;border:2px solid var(--border);cursor:pointer;transition:all .2s">
+                                        <div style="font-size:1.8rem;margin-bottom:6px">@Html.Raw(opt.Item3)</div>
+                                        <div style="font-weight:800;font-size:.95rem">@opt.Item2</div>
+                                        <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">@opt.Item4</div>
+                                    </div>
+                                </label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @* ── Q2 Equipment ── *@
+                <div class="card-glass p-4 mb-4 fade-in" style="border-radius:20px;animation-delay:.1s">
+                    <h5 style="font-weight:800;margin-bottom:4px">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:linear-gradient(135deg,#4c1d95,#7c3aed);color:white;border-radius:8px;font-size:.8rem;font-weight:900;margin-inline-end:10px">2</span>
+                        @(isRtl ? "ما المعدات المتاحة لديك؟" : "What equipment do you have?")
+                    </h5>
+                    <p class="text-muted mb-3" style="font-size:.85rem;padding-inline-start:38px">
+                        @(isRtl ? "سيتم اختيار تمارين مناسبة لإمكانياتك" : "Exercises will be tailored to your available equipment")
+                    </p>
+                    <div class="row g-3">
+                        @foreach (var opt in new[] {
+                            ("no equipment", isRtl?"بدون معدات":"No Equipment",  "<i data-lucide=\"home\"></i>", isRtl?"تمارين وزن الجسم فقط":"Bodyweight exercises only"),
+                            ("home gym",     isRtl?"جيم منزلي":"Home Gym",       "<i data-lucide=\"dumbbell\" class=\"icon-purple\"></i>", isRtl?"أثقال وحبل ومقاعد":"Dumbbells, resistance bands, bench"),
+                            ("full gym",     isRtl?"جيم كامل":"Full Gym",        "<i data-lucide=\"building-2\" class=\"icon-amber\"></i>", isRtl?"وصول كامل لجميع الأجهزة":"Full access to all machines")
+                        })
+                        {
+                            <div class="col-sm-4">
+                                <label class="questionnaire-option w-100">
+                                    <input type="radio" name="equipment" value="@opt.Item1" class="d-none" @(opt.Item1 == "full gym" ? "checked" : "")>
+                                    <div class="questionnaire-option-inner text-center p-3" style="border-radius:14px;border:2px solid var(--border);cursor:pointer;transition:all .2s">
+                                        <div style="font-size:1.8rem;margin-bottom:6px">@Html.Raw(opt.Item3)</div>
+                                        <div style="font-weight:800;font-size:.95rem">@opt.Item2</div>
+                                        <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">@opt.Item4</div>
+                                    </div>
+                                </label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @* ── Q3 Session Duration ── *@
+                <div class="card-glass p-4 mb-4 fade-in" style="border-radius:20px;animation-delay:.2s">
+                    <h5 style="font-weight:800;margin-bottom:4px">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:linear-gradient(135deg,#4c1d95,#7c3aed);color:white;border-radius:8px;font-size:.8rem;font-weight:900;margin-inline-end:10px">3</span>
+                        @(isRtl ? "كم تفضل مدة الجلسة؟" : "How long do you want each session?")
+                    </h5>
+                    <p class="text-muted mb-3" style="font-size:.85rem;padding-inline-start:38px">
+                        @(isRtl ? "سيتم ضبط عدد التمارين ووقت الراحة وفقاً لذلك" : "Exercise count and rest periods are adjusted accordingly")
+                    </p>
+                    <div class="row g-3">
+                        @foreach (var opt in new[] {
+                            ("20 min", isRtl?"٢٠ دقيقة":"20 Minutes", "<i data-lucide=\"zap\" class=\"icon-amber\"></i>", isRtl?"سريع ومكثف":"Quick & intense"),
+                            ("45 min", isRtl?"٤٥ دقيقة":"45 Minutes", "<i data-lucide=\"timer\" class=\"icon-green\"></i>", isRtl?"الأمثل للأغلبية":"Optimal for most"),
+                            ("60 min", isRtl?"٦٠ دقيقة":"60 Minutes", "🕐", isRtl?"تمرين شامل ومفصل":"Full comprehensive session")
+                        })
+                        {
+                            <div class="col-sm-4">
+                                <label class="questionnaire-option w-100">
+                                    <input type="radio" name="workoutDuration" value="@opt.Item1" class="d-none" @(opt.Item1 == "45 min" ? "checked" : "")>
+                                    <div class="questionnaire-option-inner text-center p-3" style="border-radius:14px;border:2px solid var(--border);cursor:pointer;transition:all .2s">
+                                        <div style="font-size:1.8rem;margin-bottom:6px">@Html.Raw(opt.Item3)</div>
+                                        <div style="font-weight:800;font-size:.95rem">@opt.Item2</div>
+                                        <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">@opt.Item4</div>
+                                    </div>
+                                </label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @* ── Q4 Focus Area ── *@
+                <div class="card-glass p-4 mb-4 fade-in" style="border-radius:20px;animation-delay:.3s">
+                    <h5 style="font-weight:800;margin-bottom:4px">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:linear-gradient(135deg,#4c1d95,#7c3aed);color:white;border-radius:8px;font-size:.8rem;font-weight:900;margin-inline-end:10px">4</span>
+                        @(isRtl ? "ما منطقة التركيز الرئيسية؟" : "What is your primary focus area?")
+                    </h5>
+                    <p class="text-muted mb-3" style="font-size:.85rem;padding-inline-start:38px">
+                        @(isRtl ? "سيتم تخصيص أيام التمرين حول هذه المنطقة" : "Training days will be structured around this area")
+                    </p>
+                    <div class="row g-3">
+                        @foreach (var opt in new[] {
+                            ("full body",  isRtl?"الجسم كاملاً":"Full Body",   "<i data-lucide=\"flame\" class=\"icon-green\"></i>", isRtl?"تمرين متوازن لكل العضلات":"Balanced whole-body training"),
+                            ("upper body", isRtl?"الجزء العلوي":"Upper Body",  "<i data-lucide=\"dumbbell\" class=\"icon-amber\"></i>", isRtl?"الصدر والظهر والذراعين":"Chest, back, arms & shoulders"),
+                            ("lower body", isRtl?"الجزء السفلي":"Lower Body",  "🦵", isRtl?"الأرجل والمؤخرة":"Legs, glutes & calves"),
+                            ("cardio",     isRtl?"كارديو":"Cardio",             "<i data-lucide=\"activity\" class=\"icon-green\"></i>", isRtl?"حرق الدهون وتحسين القلب":"Fat burn & cardiovascular health")
+                        })
+                        {
+                            <div class="col-sm-6 col-md-3">
+                                <label class="questionnaire-option w-100">
+                                    <input type="radio" name="focusArea" value="@opt.Item1" class="d-none" @(opt.Item1 == "full body" ? "checked" : "")>
+                                    <div class="questionnaire-option-inner text-center p-3" style="border-radius:14px;border:2px solid var(--border);cursor:pointer;transition:all .2s">
+                                        <div style="font-size:1.8rem;margin-bottom:6px">@Html.Raw(opt.Item3)</div>
+                                        <div style="font-weight:800;font-size:.9rem">@opt.Item2</div>
+                                        <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px;line-height:1.4">@opt.Item4</div>
+                                    </div>
+                                </label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @* ── Q5 Days Per Week ── *@
+                <div class="card-glass p-4 mb-4 fade-in" style="border-radius:20px;animation-delay:.4s">
+                    <h5 style="font-weight:800;margin-bottom:4px">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:linear-gradient(135deg,#4c1d95,#7c3aed);color:white;border-radius:8px;font-size:.8rem;font-weight:900;margin-inline-end:10px">5</span>
+                        @(isRtl ? "كم يوماً في الأسبوع تريد التمرين؟" : "How many days per week do you want to train?")
+                    </h5>
+                    <p class="text-muted mb-3" style="font-size:.85rem;padding-inline-start:38px">
+                        @(isRtl ? "سيتم توزيع التمارين وأيام الراحة تلقائياً" : "Training and rest days will be distributed automatically")
+                    </p>
+                    <div class="row g-3">
+                        @foreach (var opt in new[] {
+                            (3, isRtl?"٣ أيام":"3 Days", isRtl?"مناسب للمبتدئين":"Good for beginners"),
+                            (4, isRtl?"٤ أيام":"4 Days", isRtl?"التوازن المثالي":"Perfect balance"),
+                            (5, isRtl?"٥ أيام":"5 Days", isRtl?"للمتقدمين المتحمسين":"For dedicated athletes")
+                        })
+                        {
+                            <div class="col-sm-4">
+                                <label class="questionnaire-option w-100">
+                                    <input type="radio" name="daysPerWeek" value="@opt.Item1" class="d-none" @(opt.Item1 == 4 ? "checked" : "")>
+                                    <div class="questionnaire-option-inner text-center p-3" style="border-radius:14px;border:2px solid var(--border);cursor:pointer;transition:all .2s">
+                                        <div style="font-size:1.8rem;margin-bottom:6px"><i data-lucide="calendar" class="icon-white"></i></div>
+                                        <div style="font-weight:800;font-size:1.1rem">@opt.Item2</div>
+                                        <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">@opt.Item3</div>
+                                    </div>
+                                </label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @* ── Submit ── *@
+                <div class="text-center mt-2 fade-in" style="animation-delay:.5s">
+                    <button type="submit" class="btn-primary-custom btn-lg-custom" id="submitBtn"
+                            style="background:linear-gradient(135deg,#4c1d95,#7c3aed);font-size:1rem;padding:14px 48px;border-radius:14px;box-shadow:0 6px 24px rgba(124,58,237,.35)">
+                        <i class="bi bi-stars me-2"></i>@(isRtl ? "توليد خطة التمارين" : "Generate My Workout Plan")
+                    </button>
+                    <p class="text-muted mt-3" style="font-size:.8rem">
+                        @(isRtl ? "سيستغرق التوليد من 10 إلى 30 ثانية" : "Generation takes 10–30 seconds")
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+// Highlight selected radio option
+// NOTE: radio inputs are siblings of .questionnaire-option-inner (not children),
+// so nextElementSibling is used instead of closest().
+function isDarkMode() { return document.documentElement.getAttribute('data-theme') === 'dark'; }
+function getSelectedStyle() {
+    return isDarkMode()
+        ? { bg: 'linear-gradient(135deg,#3b0764,#4c1d95)', border: '#7c3aed', shadow: '0 0 0 2px rgba(124,58,237,.4)' }
+        : { bg: 'linear-gradient(135deg,#f5f3ff,#ede9fe)', border: '#7c3aed', shadow: '0 0 0 2px rgba(124,58,237,.25)' };
+}
+
+document.querySelectorAll('.questionnaire-option input[type="radio"]').forEach(radio => {
+    const inner = radio.nextElementSibling;
+
+    // Apply initial state for pre-checked radios
+    if (radio.checked && inner) {
+        const s = getSelectedStyle();
+        inner.style.borderColor = s.border;
+        inner.style.background  = s.bg;
+        inner.style.boxShadow   = s.shadow;
+    }
+
+    radio.addEventListener('change', function() {
+        const s = getSelectedStyle();
+        // Reset all sibling option inners in the same question row
+        this.closest('.row').querySelectorAll('.questionnaire-option-inner').forEach(el => {
+            el.style.removeProperty('border-color');
+            el.style.removeProperty('background');
+            el.style.removeProperty('box-shadow');
+        });
+        // Highlight the newly selected one
+        if (this.checked && this.nextElementSibling) {
+            this.nextElementSibling.style.borderColor = s.border;
+            this.nextElementSibling.style.background  = s.bg;
+            this.nextElementSibling.style.boxShadow   = s.shadow;
+        }
+    });
+});
+
+// Loading state on submit
+document.getElementById('questionnaireForm').addEventListener('submit', function() {
+    const btn = document.getElementById('submitBtn');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>@(isRtl ? "جاري التوليد..." : "Generating...")';
+    btn.disabled = true;
+});
+</script>
+}

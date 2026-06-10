@@ -1,0 +1,194 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("nav.emergency");
+    Layout = "_Layout";
+    var isRtl = T.CurrentLang == "ar";
+}
+
+<div class="container-xl py-4">
+
+    <div class="text-center mb-5 fade-in">
+        <div class="section-tag" style="background:rgba(239,68,68,.15);color:#dc2626;border-color:rgba(239,68,68,.3)">
+            @(isRtl?"طوارئ صحية":"Health Emergency")
+        </div>
+        <h1 class="section-title mt-2" style="color:#dc2626">@T.Get("nav.emergency")</h1>
+        <p style="color:var(--text-secondary);max-width:600px;margin:0 auto">
+            @(isRtl?"إرشادات فورية للحالات الصحية الطارئة. هذه المعلومات لأغراض إرشادية فقط وليست بديلاً عن الرعاية الطبية.":"Immediate guidance for health emergencies. This is for informational purposes only and not a substitute for medical care.")
+        </p>
+        <div class="alert alert-danger d-inline-flex align-items-center gap-2 mt-3" style="font-size:.85rem">
+            <i class="bi bi-telephone-fill"></i>
+            @(isRtl?"في حالة الطوارئ الشديدة، اتصل بالإسعاف فوراً":"In severe emergencies, call an ambulance immediately")
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- HIGH BLOOD SUGAR -->
+        <div class="col-md-6 col-lg-4 animate-on-scroll">
+            <div class="emergency-card" style="border-top:4px solid #ef4444">
+                <div class="emergency-header" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+                    <div style="font-size:2.5rem;margin-bottom:8px">🩸</div>
+                    <h4 style="color:white;font-weight:800;margin:0">@(isRtl?"ارتفاع سكر الدم":"High Blood Sugar")</h4>
+                </div>
+                <div class="emergency-body">
+                    <h6 class="text-success">@(isRtl?"ماذا تأكل:":"Eat:")</h6>
+                    <ul class="small mb-3">
+                        <li>@(isRtl?"خضروات ورقية خضراء":"Green leafy vegetables")</li>
+                        <li>@(isRtl?"أطعمة كاملة وغير مصنعة":"Whole unprocessed foods")</li>
+                        <li>@(isRtl?"ماء بكثرة (8+ أكواب)":"Plenty of water (8+ cups)")</li>
+                    </ul>
+                    <h6 class="text-danger">@(isRtl?"تجنب:":"Avoid:")</h6>
+                    <ul class="small mb-3">
+                        <li>@(isRtl?"السكريات والحلويات":"Sugars and sweets")</li>
+                        <li>@(isRtl?"العصائر والمشروبات الغازية":"Juices and sodas")</li>
+                        <li>@(isRtl?"الخبز الأبيض والأرز الأبيض":"White bread and white rice")</li>
+                    </ul>
+                    <h6>@(isRtl?"تمارين خفيفة:":"Light Exercise:")</h6>
+                    <p class="small">@(isRtl?"مشي 15-20 دقيقة بعد الأكل يساعد على تنظيم السكر":"Walking 15-20 min after eating helps regulate sugar")</p>
+                    <a href="tel:911" class="btn-danger-custom w-100 text-center d-block mt-3">
+                        <i class="bi bi-telephone-fill"></i> @(isRtl?"اتصل بالطبيب":"Call Doctor")
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOW BLOOD SUGAR -->
+        <div class="col-md-6 col-lg-4 animate-on-scroll stagger-1">
+            <div class="emergency-card" style="border-top:4px solid #f59e0b">
+                <div class="emergency-header" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+                    <div style="font-size:2.5rem;margin-bottom:8px"><i data-lucide="zap" class="icon-amber"></i></div>
+                    <h4 style="color:white;font-weight:800;margin:0">@(isRtl?"انخفاض سكر الدم":"Low Blood Sugar")</h4>
+                </div>
+                <div class="emergency-body">
+                    <div class="alert alert-warning py-2 mb-3" style="font-size:.85rem">
+                        @(isRtl?"الأعراض: رجفة، دوخة، تعرق، خفقان قلب":"Symptoms: trembling, dizziness, sweating, heart palpitations")
+                    </div>
+                    <h6>@(isRtl?"مصادر سكر سريعة (15-20 غ):":"Fast Sugar Sources (15-20g):")</h6>
+                    <ul class="small mb-3">
+                        <li>@(isRtl?"4 أقراص غلوكوز":"4 glucose tablets")</li>
+                        <li>@(isRtl?"نصف كوب عصير برتقال":"Half cup orange juice")</li>
+                        <li>@(isRtl?"ملعقة كبيرة عسل":"1 tablespoon honey")</li>
+                        <li>@(isRtl?"3-4 حبات كاندي":"3-4 pieces of candy")</li>
+                    </ul>
+                    <p class="small text-muted">@(isRtl?"انتظر 15 دقيقة وأعد قياس السكر. إذا استمر الانخفاض، كرر العلاج.":"Wait 15 minutes and recheck. If still low, repeat treatment.")</p>
+                    <a href="tel:911" class="btn-danger-custom w-100 text-center d-block mt-3">
+                        <i class="bi bi-telephone-fill"></i> @(isRtl?"اتصل بالطبيب":"Call Doctor")
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- HIGH BLOOD PRESSURE -->
+        <div class="col-md-6 col-lg-4 animate-on-scroll stagger-2">
+            <div class="emergency-card" style="border-top:4px solid #8b5cf6">
+                <div class="emergency-header" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">
+                    <div style="font-size:2.5rem;margin-bottom:8px">💜</div>
+                    <h4 style="color:white;font-weight:800;margin:0">@(isRtl?"ارتفاع ضغط الدم":"High Blood Pressure")</h4>
+                </div>
+                <div class="emergency-body">
+                    <h6>@(isRtl?"تقنية التنفس 4-7-8:":"4-7-8 Breathing Technique:")</h6>
+                    <div class="breathing-steps mb-3">
+                        <div class="d-flex gap-2 align-items-center mb-2">
+                            <span class="badge-primary badge-custom">1</span>
+                            <span class="small">@(isRtl?"شهيق عميق لمدة 4 ثوانٍ":"Inhale deeply for 4 seconds")</span>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center mb-2">
+                            <span class="badge-primary badge-custom">2</span>
+                            <span class="small">@(isRtl?"احبس النفس 7 ثوانٍ":"Hold breath for 7 seconds")</span>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center mb-2">
+                            <span class="badge-primary badge-custom">3</span>
+                            <span class="small">@(isRtl?"زفير بطيء 8 ثوانٍ":"Exhale slowly for 8 seconds")</span>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="badge-primary badge-custom">4</span>
+                            <span class="small">@(isRtl?"كرر 4 مرات":"Repeat 4 times")</span>
+                        </div>
+                    </div>
+                    <h6>@(isRtl?"أطعمة مفيدة:":"Beneficial Foods:")</h6>
+                    <ul class="small mb-3">
+                        <li>@(isRtl?"الموز (بوتاسيوم عالٍ)":"Banana (high potassium)")</li>
+                        <li>@(isRtl?"الثوم والبقدونس":"Garlic and parsley")</li>
+                        <li>@(isRtl?"زيت الزيتون والسمك":"Olive oil and fish")</li>
+                    </ul>
+                    <a href="tel:911" class="btn-danger-custom w-100 text-center d-block mt-3">
+                        <i class="bi bi-telephone-fill"></i> @(isRtl?"اتصل بالطبيب":"Call Doctor")
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ANXIETY ATTACK -->
+        <div class="col-md-6 col-lg-4 animate-on-scroll stagger-3">
+            <div class="emergency-card" style="border-top:4px solid #06b6d4">
+                <div class="emergency-header" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">
+                    <div style="font-size:2.5rem;margin-bottom:8px">🧘</div>
+                    <h4 style="color:white;font-weight:800;margin:0">@(isRtl?"نوبة قلق":"Anxiety Attack")</h4>
+                </div>
+                <div class="emergency-body">
+                    <h6>@(isRtl?"تقنية 5-4-3-2-1 (التأريض):":"5-4-3-2-1 Grounding Technique:")</h6>
+                    <div class="mb-3">
+                        <div class="d-flex gap-2 mb-2"><span style="font-weight:700;color:var(--primary)">5</span><span class="small">@(isRtl?"أشياء تراها":"things you can see")</span></div>
+                        <div class="d-flex gap-2 mb-2"><span style="font-weight:700;color:var(--primary)">4</span><span class="small">@(isRtl?"أشياء تلمسها":"things you can touch")</span></div>
+                        <div class="d-flex gap-2 mb-2"><span style="font-weight:700;color:var(--primary)">3</span><span class="small">@(isRtl?"أشياء تسمعها":"things you can hear")</span></div>
+                        <div class="d-flex gap-2 mb-2"><span style="font-weight:700;color:var(--primary)">2</span><span class="small">@(isRtl?"أشياء تشمّها":"things you can smell")</span></div>
+                        <div class="d-flex gap-2"><span style="font-weight:700;color:var(--primary)">1</span><span class="small">@(isRtl?"شيء تتذوقه":"thing you can taste")</span></div>
+                    </div>
+                    <p class="small text-muted">@(isRtl?"تذكر: نوبة القلق مؤقتة وستمر. تنفس ببطء وتركز على لحظة الحاضر.":"Remember: anxiety attacks are temporary. Breathe slowly and focus on the present moment.")</p>
+                    <a href="tel:911" class="btn-danger-custom w-100 text-center d-block mt-3">
+                        <i class="bi bi-telephone-fill"></i> @(isRtl?"اتصل بالطبيب":"Call Doctor")
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- MIGRAINE -->
+        <div class="col-md-6 col-lg-4 animate-on-scroll stagger-4">
+            <div class="emergency-card" style="border-top:4px solid #10b981">
+                <div class="emergency-header" style="background:linear-gradient(135deg,#10b981,#059669)">
+                    <div style="font-size:2.5rem;margin-bottom:8px">🤕</div>
+                    <h4 style="color:white;font-weight:800;margin:0">@(isRtl?"الصداع النصفي":"Migraine")</h4>
+                </div>
+                <div class="emergency-body">
+                    <h6>@(isRtl?"علاجات فورية:":"Immediate Remedies:")</h6>
+                    <ul class="small mb-3">
+                        <li>@(isRtl?"استلقِ في غرفة مظلمة هادئة":"Lie in a dark quiet room")</li>
+                        <li>@(isRtl?"ضع كمادة باردة على الجبهة":"Apply cold compress to forehead")</li>
+                        <li>@(isRtl?"اشرب الكافيين بكميات صغيرة":"Drink small amounts of caffeine")</li>
+                        <li>@(isRtl?"اشرب الماء (الجفاف محفز شائع)":"Drink water (dehydration is a common trigger)")</li>
+                    </ul>
+                    <h6>@(isRtl?"محفزات شائعة (تجنبها):":"Common Triggers (avoid):")</h6>
+                    <ul class="small mb-3">
+                        <li>@(isRtl?"الجبن المخمر والنبيذ":"Aged cheese and wine")</li>
+                        <li>@(isRtl?"التوتر وقلة النوم":"Stress and lack of sleep")</li>
+                        <li>@(isRtl?"الضوء الساطع والأصوات العالية":"Bright light and loud sounds")</li>
+                    </ul>
+                    <a href="tel:911" class="btn-danger-custom w-100 text-center d-block mt-3">
+                        <i class="bi bi-telephone-fill"></i> @(isRtl?"اتصل بالطبيب":"Call Doctor")
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- DISCLAIMER -->
+        <div class="col-12 animate-on-scroll">
+            <div class="alert alert-secondary d-flex gap-3">
+                <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+                <div style="font-size:.85rem">
+                    <strong>@(isRtl?"تنبيه طبي:":"Medical Disclaimer:")</strong>
+                    @(isRtl
+                        ? "المعلومات الواردة في هذا القسم لأغراض إرشادية وتعليمية فقط. لا تُعدّ هذه المعلومات بديلاً عن الاستشارة الطبية المتخصصة. في حالات الطوارئ، اتصل بخدمات الإسعاف أو اذهب لأقرب مستشفى فوراً."
+                        : "Information provided here is for educational purposes only. It is not a substitute for professional medical advice. In emergencies, call emergency services or go to the nearest hospital immediately.")
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+.emergency-card { background:var(--surface); border-radius:var(--radius-xl); overflow:hidden; box-shadow:var(--shadow-md); height:100%; display:flex; flex-direction:column; }
+.emergency-header { padding:24px; text-align:center; }
+.emergency-body { padding:20px; flex:1; display:flex; flex-direction:column; }
+</style>
