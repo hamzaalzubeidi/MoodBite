@@ -10,6 +10,7 @@ namespace MoodBite.Constants
         public const string ClinicOwner = "ClinicOwner";
         public const string Dietitian = "Dietitian";
         public const string ClinicStaff = "ClinicStaff";
+        public const string ClinicAreaAccess = Admin + "," + ClinicOwner + "," + Dietitian + "," + ClinicStaff;
 
         public static readonly string[] SeededRoles =
         [

@@ -1,0 +1,227 @@
+@using MoodBite.Services
+@inject TranslationService T
+@{
+    var isRtl = T.CurrentLang == "ar";
+    var lang = T.CurrentLang;
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var navItems = new[]
+    {
+        (Controller: "ClinicDashboard", Icon: "layout-dashboard", Label: T.Get("clinic.nav.dashboard"), Url: "/Clinic", Enabled: true),
+        (Controller: "Patients", Icon: "users", Label: T.Get("clinic.nav.patients"), Url: "#", Enabled: false),
+        (Controller: "Appointments", Icon: "calendar-clock", Label: T.Get("clinic.nav.appointments"), Url: "#", Enabled: false),
+        (Controller: "Notes", Icon: "clipboard-list", Label: T.Get("clinic.nav.notes"), Url: "#", Enabled: false),
+        (Controller: "Reports", Icon: "bar-chart-3", Label: T.Get("clinic.nav.reports"), Url: "#", Enabled: false),
+        (Controller: "MealPlans", Icon: "calendar-days", Label: T.Get("clinic.nav.mealPlans"), Url: "#", Enabled: false),
+        (Controller: "Settings", Icon: "settings", Label: T.Get("clinic.nav.settings"), Url: "#", Enabled: false)
+    };
+}
+<!DOCTYPE html>
+<html lang="@lang" dir="@(isRtl ? "rtl" : "ltr")">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] ?? T.Get("clinic.title")) - MoodBite Clinic</title>
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('moodbite-theme');
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = saved || (prefersDark ? 'dark' : 'light');
+                if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            } catch (e) { }
+        })();
+    </script>
+    <style>body { opacity: 0; transition: opacity 0.28s ease; }</style>
+    @if (isRtl)
+    {
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" />
+    }
+    else
+    {
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    }
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        .clinic-shell { min-height: 100vh; background: var(--bg); }
+        .clinic-sidebar {
+            width: 252px;
+            min-height: 100vh;
+            background: var(--surface);
+            border-inline-end: 1px solid var(--border);
+            position: fixed;
+            inset-block-start: 0;
+            inset-inline-start: 0;
+            z-index: 100;
+            padding: 22px 0;
+        }
+        .clinic-brand {
+            padding: 0 22px 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 14px;
+        }
+        .clinic-brand-mark {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg,#059669,#0d9488);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: var(--shadow-glow);
+        }
+        .clinic-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 2px 12px;
+            padding: 11px 14px;
+            color: var(--text-muted);
+            border-radius: var(--radius-sm);
+            border: 1px solid transparent;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: .9rem;
+            transition: var(--transition);
+        }
+        .clinic-nav-item:hover,
+        .clinic-nav-item.active {
+            color: var(--primary);
+            background: var(--primary-50);
+            border-color: var(--primary-100);
+        }
+        .clinic-nav-item.disabled {
+            opacity: .54;
+            cursor: default;
+        }
+        .clinic-nav-item.disabled:hover {
+            color: var(--text-muted);
+            background: transparent;
+            border-color: transparent;
+        }
+        .clinic-nav-item i,
+        .clinic-nav-item svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+        .clinic-content {
+            margin-inline-start: 252px;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .clinic-topbar {
+            background: var(--navbar-bg);
+            border: 1px solid var(--navbar-border);
+            border-radius: var(--radius-lg);
+            padding: 16px 18px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .clinic-mobile-nav { display: none; }
+        @@media (max-width: 900px) {
+            .clinic-sidebar { display: none; }
+            .clinic-content { margin-inline-start: 0; padding: 14px; }
+            .clinic-mobile-nav { display: block; margin-bottom: 14px; }
+            .clinic-topbar { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="clinic-shell">
+        <aside class="clinic-sidebar">
+            <div class="clinic-brand">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="clinic-brand-mark"><i data-lucide="stethoscope"></i></div>
+                    <div>
+                        <div style="font-weight:900;color:var(--text-primary);line-height:1.1">@T.Get("clinic.title")</div>
+                        <div style="font-size:.74rem;color:var(--text-muted);margin-top:3px">@T.Get("clinic.workspace")</div>
+                    </div>
+                </div>
+            </div>
+            <nav>
+                @foreach (var item in navItems)
+                {
+                    var active = currentController == item.Controller;
+                    if (item.Enabled)
+                    {
+                        <a href="@item.Url" class="clinic-nav-item @(active ? "active" : "")">
+                            <i data-lucide="@item.Icon"></i>
+                            <span>@item.Label</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="clinic-nav-item disabled" title="@T.Get("clinic.comingSoon")">
+                            <i data-lucide="@item.Icon"></i>
+                            <span>@item.Label</span>
+                        </span>
+                    }
+                }
+            </nav>
+            <hr style="border-color:var(--border);margin:16px 20px" />
+            <a asp-area="" asp-controller="Dashboard" asp-action="Index" class="clinic-nav-item">
+                <i data-lucide="home"></i>
+                <span>@T.Get("clinic.backToPortal")</span>
+            </a>
+            <form asp-area="" asp-controller="Account" asp-action="Logout" method="post" class="px-2">
+                <button type="submit" class="clinic-nav-item w-100 border-0 bg-transparent">
+                    <i data-lucide="log-out"></i>
+                    <span>@T.Get("nav.logout")</span>
+                </button>
+            </form>
+        </aside>
+
+        <main class="clinic-content">
+            <div class="clinic-mobile-nav">
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var item in navItems)
+                    {
+                        if (item.Enabled)
+                        {
+                            <a href="@item.Url" class="badge-custom @(currentController == item.Controller ? "badge-primary" : "badge-neutral")">@item.Label</a>
+                        }
+                        else
+                        {
+                            <span class="badge-custom badge-neutral" style="opacity:.55">@item.Label</span>
+                        }
+                    }
+                </div>
+            </div>
+            <div class="clinic-topbar">
+                <div>
+                    <div style="font-size:.78rem;color:var(--text-muted);font-weight:700;text-transform:uppercase">@T.Get("clinic.workspace")</div>
+                    <h1 style="font-size:1.15rem;font-weight:900;margin:2px 0 0;color:var(--text-primary)">@ViewData["Title"]</h1>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <button id="themeToggle"
+                            class="theme-toggle-btn"
+                            type="button"
+                            aria-label="Toggle theme"
+                            title="Toggle Theme">
+                        <i data-lucide="sun" class="theme-icon-light" id="iconSun"></i>
+                        <i data-lucide="moon" class="theme-icon-dark" id="iconMoon"></i>
+                    </button>
+                    <span class="badge-custom badge-primary">@User.Identity?.Name</span>
+                </div>
+            </div>
+
+            @RenderBody()
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>if (typeof lucide !== 'undefined') lucide.createIcons();</script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

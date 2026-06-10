@@ -16,6 +16,11 @@
     }
     var displayName = user?.FullName ?? (isRtl ? "مستخدم" : "User");
     var avatarInitial = displayName.Length > 0 ? displayName[0].ToString() : "M";
+    var canAccessClinicArea =
+        User.IsInRole(ApplicationRoles.Admin) ||
+        User.IsInRole(ApplicationRoles.ClinicOwner) ||
+        User.IsInRole(ApplicationRoles.Dietitian) ||
+        User.IsInRole(ApplicationRoles.ClinicStaff);
 }
 <!DOCTYPE html>
 <html lang="@lang" dir="@dir">
@@ -164,6 +169,10 @@
                         </li>
                         <li><a asp-controller="Profile" asp-action="Index" class="dropdown-item"><i class="bi bi-person me-2"></i>@T.Get("nav.myProfile")</a></li>
                         <li><a asp-controller="Account" asp-action="MyAccount" class="dropdown-item"><i class="bi bi-gear me-2"></i>@T.Get("nav.myAccount")</a></li>
+                        @if (canAccessClinicArea)
+                        {
+                        <li><a href="/Clinic" class="dropdown-item"><i class="bi bi-hospital me-2"></i>@T.Get("clinic.title")</a></li>
+                        }
                         @if (User.IsInRole(ApplicationRoles.Admin))
                         {
                         <li><a asp-area="Admin" asp-controller="AdminDashboard" asp-action="Index" class="dropdown-item"><i class="bi bi-shield-check me-2"></i>@T.Get("nav.admin")</a></li>
@@ -207,6 +216,10 @@
                     <div class="col-6"><a asp-controller="Buddy" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.buddy")</a></div>
                     <div class="col-6"><a asp-controller="Restaurants" asp-action="Index" class="d-block nav-link-custom text-center py-2">@T.Get("nav.restaurants")</a></div>
                     <div class="col-6"><a asp-controller="Emergency" asp-action="Index" class="d-block nav-link-custom text-center py-2 text-danger">@T.Get("nav.emergency")</a></div>
+                    @if (canAccessClinicArea)
+                    {
+                    <div class="col-6"><a href="/Clinic" class="d-block nav-link-custom text-center py-2">@T.Get("clinic.title")</a></div>
+                    }
                 </div>
             </div>
         </div>
