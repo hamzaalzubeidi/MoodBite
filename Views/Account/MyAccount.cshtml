@@ -81,7 +81,7 @@
         <!-- Personal Info -->
         <div class="card-glass account-card">
             <h3 class="account-card-title">@T.Get("account.personalInfo")</h3>
-            <form method="post" asp-action="UpdateName">
+            <form method="post" asp-area="" asp-controller="Account" asp-action="UpdateName">
                 @Html.AntiForgeryToken()
                 <div class="mb-3">
                     <label class="form-label fw-semibold">@T.Get("account.fullName")</label>
@@ -101,7 +101,7 @@
         <!-- Change Password -->
         <div class="card-glass account-card">
             <h3 class="account-card-title">@T.Get("account.changePassword")</h3>
-            <form method="post" asp-action="ChangePassword">
+            <form method="post" asp-area="" asp-controller="Account" asp-action="ChangePassword">
                 @Html.AntiForgeryToken()
                 <div class="mb-3">
                     <label class="form-label fw-semibold">@T.Get("account.currentPassword")</label>

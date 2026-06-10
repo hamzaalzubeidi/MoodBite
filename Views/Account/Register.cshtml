@@ -27,7 +27,7 @@
                         </div>
                     }
 
-                    <form asp-action="Register" method="post">
+                    <form asp-area="" asp-controller="Account" asp-action="Register" method="post">
                         <div class="mb-3">
                             <label asp-for="FullName" class="form-label">@T.Get("auth.fullName")</label>
                             <div class="input-group">
@@ -74,7 +74,7 @@
 
                     <p class="text-center mt-4 mb-0" style="color:var(--text-secondary);font-size:.9rem">
                         @(isRtl ? "لديك حساب بالفعل؟" : "Already have an account?")
-                        <a asp-action="Login" class="text-primary fw-600 text-decoration-none">@T.Get("auth.login")</a>
+                        <a asp-area="" asp-controller="Account" asp-action="Login" class="text-primary fw-600 text-decoration-none">@T.Get("auth.login")</a>
                     </p>
                 </div>
             </div>

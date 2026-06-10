@@ -27,7 +27,7 @@
                         </div>
                     }
 
-                    <form asp-action="Login" method="post">
+                    <form asp-area="" asp-controller="Account" asp-action="Login" method="post">
                         <input asp-for="ReturnUrl" type="hidden" />
                         <div class="mb-3">
                             <label asp-for="Email" class="form-label">@T.Get("auth.email")</label>
@@ -53,7 +53,7 @@
                                 <input asp-for="RememberMe" class="form-check-input" type="checkbox" />
                                 <label asp-for="RememberMe" class="form-check-label small">@T.Get("auth.rememberMe")</label>
                             </div>
-                            <a asp-action="ForgotPassword" class="text-primary small text-decoration-none">@T.Get("auth.forgotPassword")</a>
+                            <a asp-area="" asp-controller="Account" asp-action="ForgotPassword" class="text-primary small text-decoration-none">@T.Get("auth.forgotPassword")</a>
                         </div>
                         <button type="submit" class="btn-primary-custom w-100 btn-lg-custom">
                             <i class="bi bi-box-arrow-in-right"></i>
@@ -63,7 +63,7 @@
 
                     <p class="text-center mt-4 mb-0" style="color:var(--text-secondary);font-size:.9rem">
                         @(isRtl ? "ليس لديك حساب؟" : "Don't have an account?")
-                        <a asp-action="Register" class="text-primary fw-600 text-decoration-none">@T.Get("auth.register")</a>
+                        <a asp-area="" asp-controller="Account" asp-action="Register" class="text-primary fw-600 text-decoration-none">@T.Get("auth.register")</a>
                     </p>
                 </div>
             </div>

@@ -117,7 +117,7 @@
             <!-- Right Actions -->
             <div class="d-flex align-items-center gap-2">
                 <!-- Language Toggle -->
-                <form asp-controller="Account" asp-action="SetLanguage" method="post" class="d-inline">
+                <form asp-area="" asp-controller="Account" asp-action="SetLanguage" method="post" class="d-inline">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="lang" value="@(isRtl ? "en" : "ar")" />
                     <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
@@ -168,7 +168,7 @@
                             <div style="font-size:.75rem;color:var(--text-muted)">@user?.Email</div>
                         </li>
                         <li><a asp-controller="Profile" asp-action="Index" class="dropdown-item"><i class="bi bi-person me-2"></i>@T.Get("nav.myProfile")</a></li>
-                        <li><a asp-controller="Account" asp-action="MyAccount" class="dropdown-item"><i class="bi bi-gear me-2"></i>@T.Get("nav.myAccount")</a></li>
+                        <li><a asp-area="" asp-controller="Account" asp-action="MyAccount" class="dropdown-item"><i class="bi bi-gear me-2"></i>@T.Get("nav.myAccount")</a></li>
                         @if (canAccessClinicArea)
                         {
                         <li><a href="/Clinic" class="dropdown-item"><i class="bi bi-hospital me-2"></i>@T.Get("clinic.title")</a></li>
@@ -179,7 +179,7 @@
                         }
                         <li><hr class="dropdown-divider" /></li>
                         <li>
-                            <form asp-controller="Account" asp-action="Logout" method="post">
+                            <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="dropdown-item text-danger"><i class="bi bi-box-arrow-right me-2"></i>@T.Get("nav.logout")</button>
                             </form>
@@ -194,8 +194,8 @@
                 }
                 else
                 {
-                <a asp-controller="Account" asp-action="Login" class="btn-secondary-custom btn-sm-custom">@T.Get("nav.login")</a>
-                <a asp-controller="Account" asp-action="Register" class="btn-primary-custom btn-sm-custom d-none d-sm-inline-flex">@T.Get("nav.register")</a>
+                <a asp-area="" asp-controller="Account" asp-action="Login" class="btn-secondary-custom btn-sm-custom">@T.Get("nav.login")</a>
+                <a asp-area="" asp-controller="Account" asp-action="Register" class="btn-primary-custom btn-sm-custom d-none d-sm-inline-flex">@T.Get("nav.register")</a>
                 }
             </div>
         </div>
@@ -269,7 +269,7 @@
                     </p>
                     @if (User.Identity?.IsAuthenticated != true)
                     {
-                    <a asp-controller="Account" asp-action="Register" class="btn-primary-custom btn-sm-custom">
+                    <a asp-area="" asp-controller="Account" asp-action="Register" class="btn-primary-custom btn-sm-custom">
                         @T.Get("nav.register")
                     </a>
                     }
