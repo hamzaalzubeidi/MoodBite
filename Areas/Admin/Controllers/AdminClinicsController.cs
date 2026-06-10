@@ -76,7 +76,7 @@ namespace MoodBite.Areas.Admin.Controllers
             if (string.IsNullOrWhiteSpace(model.Name))
             {
                 TempData["Error"] = _t.Get("clinic.validation.nameRequired");
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndex();
             }
 
             try
@@ -106,7 +106,7 @@ namespace MoodBite.Areas.Admin.Controllers
                 TempData["Error"] = _t.Get("clinic.dataUnavailable");
             }
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToIndex();
         }
 
         [HttpPost]
@@ -116,7 +116,7 @@ namespace MoodBite.Areas.Admin.Controllers
             if (model.ClinicId <= 0 || string.IsNullOrWhiteSpace(model.Email))
             {
                 TempData["Error"] = _t.Get("common.error");
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndex();
             }
 
             try
@@ -126,14 +126,14 @@ namespace MoodBite.Areas.Admin.Controllers
                 if (!clinicExists)
                 {
                     TempData["Error"] = _t.Get("clinic.notFound");
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToIndex();
                 }
 
                 var user = await _userManager.FindByEmailAsync(model.Email.Trim());
                 if (user == null)
                 {
                     TempData["Error"] = _t.Get("clinic.userNotFound");
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToIndex();
                 }
 
                 var currentUserId = _userManager.GetUserId(User);
@@ -168,8 +168,11 @@ namespace MoodBite.Areas.Admin.Controllers
                 TempData["Error"] = _t.Get("clinic.dataUnavailable");
             }
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToIndex();
         }
+
+        private RedirectToActionResult RedirectToIndex() =>
+            RedirectToAction(nameof(Index), "AdminClinics", new { area = "Admin" });
 
         private async Task<string> GenerateUniqueSlugAsync(string name, CancellationToken cancellationToken)
         {

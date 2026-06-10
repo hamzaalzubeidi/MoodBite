@@ -79,6 +79,9 @@ else
                 <p style="color:var(--text-secondary);margin:0">
                     @T.Get("clinic.shellReadyBody")
                 </p>
+                <a href="/Clinic/Patients?clinicId=@Model.ClinicId" class="btn-primary-custom btn-sm-custom mt-3">
+                    <i data-lucide="users"></i>@T.Get("clinic.patients.openRoster")
+                </a>
             </div>
         </div>
     </div>

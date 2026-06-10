@@ -7,7 +7,7 @@
     var navItems = new[]
     {
         (Controller: "ClinicDashboard", Icon: "layout-dashboard", Label: T.Get("clinic.nav.dashboard"), Url: "/Clinic", Enabled: true),
-        (Controller: "Patients", Icon: "users", Label: T.Get("clinic.nav.patients"), Url: "#", Enabled: false),
+        (Controller: "Patients", Icon: "users", Label: T.Get("clinic.nav.patients"), Url: "/Clinic/Patients", Enabled: true),
         (Controller: "Appointments", Icon: "calendar-clock", Label: T.Get("clinic.nav.appointments"), Url: "#", Enabled: false),
         (Controller: "Notes", Icon: "clipboard-list", Label: T.Get("clinic.nav.notes"), Url: "#", Enabled: false),
         (Controller: "Reports", Icon: "bar-chart-3", Label: T.Get("clinic.nav.reports"), Url: "#", Enabled: false),

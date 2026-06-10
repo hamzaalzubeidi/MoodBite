@@ -23,7 +23,7 @@ else
                 <h5 style="font-weight:900;margin-bottom:16px">
                     <i class="bi bi-hospital text-primary me-2"></i>@T.Get("clinic.admin.createClinic")
                 </h5>
-                <form asp-action="Create" method="post">
+                <form asp-area="Admin" asp-controller="AdminClinics" asp-action="Create" method="post">
                     @Html.AntiForgeryToken()
                     <div class="mb-3">
                         <label class="form-label">@T.Get("clinic.field.name")</label>
@@ -120,7 +120,7 @@ else
                                 </tr>
                                 <tr>
                                     <td colspan="5" style="background:var(--surface-2)">
-                                        <form asp-action="AssignOwner" method="post" class="d-flex flex-wrap align-items-end gap-2">
+                                        <form asp-area="Admin" asp-controller="AdminClinics" asp-action="AssignOwner" method="post" class="d-flex flex-wrap align-items-end gap-2">
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="ClinicId" value="@clinic.Id" />
                                             <div style="min-width:260px">
