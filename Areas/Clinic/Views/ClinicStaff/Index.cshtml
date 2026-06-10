@@ -1,0 +1,112 @@
+@model ClinicStaffIndexViewModel
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("clinic.nav.staff");
+}
+
+@if (Model.ClinicDataUnavailable || !Model.HasClinicContext)
+{
+    <div class="card-glass p-5 text-center" style="border-radius:var(--radius-lg);max-width:760px;margin:0 auto">
+        <div style="width:70px;height:70px;border-radius:var(--radius-lg);background:var(--primary-50);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;color:var(--primary)">
+            <i data-lucide="users" style="width:34px;height:34px"></i>
+        </div>
+        <h3 style="font-weight:900;color:var(--text-primary);font-size:1.25rem">@T.Get("clinic.emptyTitle")</h3>
+        <p style="color:var(--text-secondary);max-width:560px;margin:8px auto 0">
+            @(Model.ClinicDataUnavailable ? T.Get("clinic.dataUnavailable") : T.Get("clinic.staff.emptyBody"))
+        </p>
+    </div>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card-glass p-4" style="border-radius:var(--radius-lg)">
+                <h5 style="font-weight:900;margin-bottom:14px">@T.Get("clinic.staff.addExisting")</h5>
+                <p style="color:var(--text-secondary);font-size:.86rem">@T.Get("clinic.staff.addExistingBody")</p>
+                <form asp-action="AddMember" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="ClinicId" value="@Model.ClinicId" />
+                    <div class="mb-3">
+                        <label class="form-label">@T.Get("auth.email")</label>
+                        <input name="Email" type="email" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">@T.Get("admin.role")</label>
+                        <select name="Role" class="form-select" required>
+                            <option value="@ApplicationRoles.Dietitian">@T.Get("clinic.dietitian")</option>
+                            <option value="@ApplicationRoles.ClinicStaff">@T.Get("clinic.staff")</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary-custom w-100">
+                        <i data-lucide="user-plus"></i>@T.Get("clinic.staff.add")
+                    </button>
+                </form>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card-glass p-4" style="border-radius:var(--radius-lg)">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h4 style="font-weight:900;margin:0">@T.Get("clinic.nav.staff")</h4>
+                        <p style="color:var(--text-secondary);margin:4px 0 0">@Model.ClinicName</p>
+                    </div>
+                    <span class="badge-custom badge-primary">@Model.Members.Count</span>
+                </div>
+
+                @if (Model.Members.Count == 0)
+                {
+                    <div class="text-center py-5">
+                        <div style="font-size:2.4rem;color:var(--primary);margin-bottom:10px"><i data-lucide="users"></i></div>
+                        <h6 style="font-weight:800">@T.Get("clinic.staff.noMembers")</h6>
+                        <p style="color:var(--text-secondary);margin:0">@T.Get("clinic.staff.noMembersBody")</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>@T.Get("auth.fullName")</th>
+                                    <th>@T.Get("auth.email")</th>
+                                    <th>@T.Get("admin.role")</th>
+                                    <th>@T.Get("clinic.field.status")</th>
+                                    <th>@T.Get("common.edit")</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var member in Model.Members)
+                            {
+                                <tr>
+                                    <td style="font-weight:800">@member.FullName</td>
+                                    <td style="color:var(--text-secondary);font-size:.88rem">@member.Email</td>
+                                    <td>
+                                        <span class="badge-custom badge-neutral">
+                                            @(member.Role == ApplicationRoles.ClinicOwner ? T.Get("clinic.owner") : member.Role == ApplicationRoles.Dietitian ? T.Get("clinic.dietitian") : T.Get("clinic.staff"))
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@(member.IsActive ? "success" : "secondary")">
+                                            @(member.IsActive ? T.Get("common.active") : T.Get("common.inactive"))
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <form asp-action="ToggleMember" method="post">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@member.Id" />
+                                            <input type="hidden" name="clinicId" value="@Model.ClinicId" />
+                                            <button type="submit" class="btn-@(member.IsActive ? "danger" : "primary")-custom btn-sm" style="padding:5px 10px;font-size:.76rem">
+                                                @(member.IsActive ? T.Get("admin.deactivate") : T.Get("admin.activate"))
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}

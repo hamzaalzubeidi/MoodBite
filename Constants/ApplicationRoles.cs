@@ -15,7 +15,10 @@ namespace MoodBite.Constants
         public static readonly string[] SeededRoles =
         [
             Admin,
-            User
+            User,
+            ClinicOwner,
+            Dietitian,
+            ClinicStaff
         ];
 
         public static readonly string[] FutureClinicRoles =

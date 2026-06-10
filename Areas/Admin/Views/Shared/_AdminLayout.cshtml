@@ -101,6 +101,9 @@
         <a href="/Admin/AdminUsers" class="admin-nav-item @(currentAction == "AdminUsers" ? "active" : "")">
             <i class="bi bi-people-fill"></i> @(isRtl?"المستخدمون":"Users")
         </a>
+        <a href="/Admin/AdminClinics" class="admin-nav-item @(currentAction == "AdminClinics" ? "active" : "")">
+            <i class="bi bi-hospital"></i> @T.Get("clinic.clinics")
+        </a>
         <a href="/Admin/AdminDiets" class="admin-nav-item @(currentAction == "AdminDiets" ? "active" : "")">
             <i class="bi bi-list-check"></i> @(isRtl?"الأنظمة الغذائية":"Diets")
         </a>
