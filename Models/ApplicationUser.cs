@@ -24,5 +24,15 @@ namespace MoodBite.Models
         public ICollection<UserAchievement> UserAchievements { get; set; } = new List<UserAchievement>();
         public ICollection<FoodScan> FoodScans { get; set; } = new List<FoodScan>();
         public ICollection<BodyProgress> BodyProgressEntries { get; set; } = new List<BodyProgress>();
+        public ICollection<ClinicMember> ClinicMemberships { get; set; } = new List<ClinicMember>();
+        public ICollection<ClinicMember> InvitedClinicMembers { get; set; } = new List<ClinicMember>();
+        public ICollection<ClinicPatient> ClinicPatientLinks { get; set; } = new List<ClinicPatient>();
+        public ICollection<ClinicPatient> AssignedClinicPatients { get; set; } = new List<ClinicPatient>();
+        public ICollection<ClinicInvitation> SentClinicInvitations { get; set; } = new List<ClinicInvitation>();
+        public ICollection<ClinicInvitation> AcceptedClinicInvitations { get; set; } = new List<ClinicInvitation>();
+        public ICollection<ClinicalNote> PatientClinicalNotes { get; set; } = new List<ClinicalNote>();
+        public ICollection<ClinicalNote> AuthoredClinicalNotes { get; set; } = new List<ClinicalNote>();
+        public ICollection<Appointment> PatientAppointments { get; set; } = new List<Appointment>();
+        public ICollection<Appointment> DietitianAppointments { get; set; } = new List<Appointment>();
     }
 }
