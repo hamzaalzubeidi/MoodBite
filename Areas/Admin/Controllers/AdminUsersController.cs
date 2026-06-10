@@ -2,13 +2,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MoodBite.Constants;
 using MoodBite.Data;
 using MoodBite.Models;
 
 namespace MoodBite.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = ApplicationRoles.Admin)]
     public class AdminUsersController : Controller
     {
         private readonly ApplicationDbContext _db;
@@ -49,6 +50,12 @@ namespace MoodBite.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ChangeRole(string userId, string newRole)
         {
+            if (!ApplicationRoles.IsAdminAssignable(newRole))
+            {
+                TempData["Error"] = "الدور غير معروف / Unknown role";
+                return RedirectToAction("Index");
+            }
+
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) return NotFound();
 

@@ -25,13 +25,15 @@ dotnet ef migrations remove
 
 The app uses SQL Server LocalDB by default (`MoodBiteDb`). The database is seeded on first run via `Data/DbSeeder.cs`.
 
+The real application is the root `MoodBite.csproj`. The nested `MoodBite\` folder is an excluded copy and must not be edited for application changes.
+
 ---
 
 ## Configuration
 
 `appsettings.json` holds the Gemini API key under `Gemini:ApiKey` and the SQL Server connection string under `ConnectionStrings:DefaultConnection`. Never read the AI key as an env var — `GeminiService` pulls it via `config["Gemini:ApiKey"]`.
 
-Default admin credentials (seeded): `admin@moodbite.com` / `Admin@123456`
+Demo admin credentials, seeded only when `MoodBite:SeedDemoData` / `MOODBITE_SEED_DEMO_DATA` is explicitly enabled: `admin@moodbite.com` / `Admin@123456`
 
 ---
 
@@ -77,7 +79,7 @@ Diet and recipe content is stored bilingually in model properties (`NameAr`/`Nam
 
 ### Database seeding
 
-`Data/DbSeeder.cs` runs at startup. It seeds: roles (`Admin`, `User`), the admin user, 8 diets, 6 challenges, 6 community recipes, and 40+ real restaurants across Jordan/Saudi Arabia/UAE/Egypt/Kuwait. Restaurants are re-seeded if the table has fewer than 40 rows.
+`Data/DbSeeder.cs` runs at startup. It always seeds: roles (`Admin`, `User`), 8 diets, 6 challenges, 6 community recipes, and 40+ real restaurants across Jordan/Saudi Arabia/UAE/Egypt/Kuwait. Restaurants are re-seeded if the table has fewer than 40 rows. Demo/default users, including the default admin account, are seeded only when `MOODBITE_SEED_DEMO_DATA=true`.
 
 ---
 

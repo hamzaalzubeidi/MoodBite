@@ -1,13 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MoodBite.Constants;
 using MoodBite.Data;
 using MoodBite.Services;
 
 namespace MoodBite.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = ApplicationRoles.Admin)]
     public class AdminRecipesController : Controller
     {
         private readonly ApplicationDbContext _db;

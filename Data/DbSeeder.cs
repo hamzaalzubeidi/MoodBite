@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using MoodBite.Constants;
 using MoodBite.Models;
 using System.Text.Json;
 
@@ -6,7 +7,7 @@ namespace MoodBite.Data
 {
     public static class DbSeeder
     {
-        public static async Task SeedAsync(IServiceProvider services)
+        public static async Task SeedAsync(IServiceProvider services, bool seedDemoData = false)
         {
             var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
             var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
@@ -16,14 +17,14 @@ namespace MoodBite.Data
             db.Database.EnsureCreated();
 
             // Seed roles
-            foreach (var role in new[] { "Admin", "User" })
+            foreach (var role in ApplicationRoles.SeededRoles)
             {
                 if (!await roleManager.RoleExistsAsync(role))
                     await roleManager.CreateAsync(new IdentityRole(role));
             }
 
-            // Seed admin user
-            if (await userManager.FindByEmailAsync("admin@moodbite.com") == null)
+            // Seed demo/default admin only when explicitly enabled for local prototype data.
+            if (seedDemoData && await userManager.FindByEmailAsync("admin@moodbite.com") == null)
             {
                 var admin = new ApplicationUser
                 {
@@ -36,7 +37,7 @@ namespace MoodBite.Data
                 };
                 var result = await userManager.CreateAsync(admin, "Admin@123456");
                 if (result.Succeeded)
-                    await userManager.AddToRoleAsync(admin, "Admin");
+                    await userManager.AddToRoleAsync(admin, ApplicationRoles.Admin);
             }
 
             // Seed diets
@@ -461,7 +462,10 @@ namespace MoodBite.Data
                 await db.SaveChangesAsync();
             }
 
-            await SeedHamzaDataAsync(services);
+            if (seedDemoData)
+            {
+                await SeedHamzaDataAsync(services);
+            }
         }
 
         private static async Task SeedHamzaDataAsync(IServiceProvider services)

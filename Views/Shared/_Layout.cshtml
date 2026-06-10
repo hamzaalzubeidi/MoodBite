@@ -164,7 +164,7 @@
                         </li>
                         <li><a asp-controller="Profile" asp-action="Index" class="dropdown-item"><i class="bi bi-person me-2"></i>@T.Get("nav.myProfile")</a></li>
                         <li><a asp-controller="Account" asp-action="MyAccount" class="dropdown-item"><i class="bi bi-gear me-2"></i>@T.Get("nav.myAccount")</a></li>
-                        @if (User.IsInRole("Admin"))
+                        @if (User.IsInRole(ApplicationRoles.Admin))
                         {
                         <li><a asp-area="Admin" asp-controller="AdminDashboard" asp-action="Index" class="dropdown-item"><i class="bi bi-shield-check me-2"></i>@T.Get("nav.admin")</a></li>
                         }

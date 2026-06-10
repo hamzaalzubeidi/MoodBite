@@ -1,5 +1,9 @@
 # MoodBite Setup Guide
 
+## Project root
+
+The real application is the root project at `MoodBite.csproj`. The nested `MoodBite\` folder is an excluded copy and must not be edited for application changes.
+
 ## Create a local .env file
 
 Copy the template and edit the new `.env` file:
@@ -27,10 +31,13 @@ Set these values in `.env` for local development, or in your hosting platform fo
 | `OPENFOODFACTS_BASE_URL` | Base URL for barcode lookup requests. |
 | `OPENFOODFACTS_USER_AGENT` | OpenFoodFacts `User-Agent` header. Use a monitored contact email. |
 | `OPENFOODFACTS_TIMEOUT_SECONDS` | Timeout for the named OpenFoodFacts `HttpClient`. |
+| `MOODBITE_SEED_DEMO_DATA` | Opt-in prototype/demo seeding. Keep `false` outside disposable local demos. |
 | `LOG_LEVEL_DEFAULT` | Default ASP.NET Core logging level. |
 | `LOG_LEVEL_ASPNETCORE` | Logging level for `Microsoft.AspNetCore` categories. |
 
 The local `.env` loader does not overwrite variables already set by the operating system or hosting platform.
+
+`Data/DbSeeder.cs` always seeds required roles and reference content. It only seeds unsafe demo/default accounts when `MOODBITE_SEED_DEMO_DATA=true`.
 
 ## Run locally
 

@@ -134,7 +134,7 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     try
     {
-        await DbSeeder.SeedAsync(services);
+        await DbSeeder.SeedAsync(services, app.Configuration.GetValue<bool>("MoodBite:SeedDemoData"));
     }
     catch (Exception ex)
     {
@@ -161,11 +161,12 @@ static Dictionary<string, string?> BuildEnvironmentVariableAliases()
     AddAlias(aliases, "MOODBITE_DB_CONNECTION_STRING", "ConnectionStrings:DefaultConnection");
     AddAlias(aliases, "ALLOWED_HOSTS", "AllowedHosts");
     AddAlias(aliases, "GEMINI_HTTP_TIMEOUT_SECONDS", "Gemini:HttpTimeoutSeconds");
-    AddAlias(aliases, "OPENFOODFACTS_BASE_URL", "OpenFoodFacts:BaseUrl");
-    AddAlias(aliases, "OPENFOODFACTS_USER_AGENT", "OpenFoodFacts:UserAgent");
-    AddAlias(aliases, "OPENFOODFACTS_TIMEOUT_SECONDS", "OpenFoodFacts:TimeoutSeconds");
-    AddAlias(aliases, "LOG_LEVEL_DEFAULT", "Logging:LogLevel:Default");
-    AddAlias(aliases, "LOG_LEVEL_ASPNETCORE", "Logging:LogLevel:Microsoft.AspNetCore");
+AddAlias(aliases, "OPENFOODFACTS_BASE_URL", "OpenFoodFacts:BaseUrl");
+AddAlias(aliases, "OPENFOODFACTS_USER_AGENT", "OpenFoodFacts:UserAgent");
+AddAlias(aliases, "OPENFOODFACTS_TIMEOUT_SECONDS", "OpenFoodFacts:TimeoutSeconds");
+AddAlias(aliases, "MOODBITE_SEED_DEMO_DATA", "MoodBite:SeedDemoData");
+AddAlias(aliases, "LOG_LEVEL_DEFAULT", "Logging:LogLevel:Default");
+AddAlias(aliases, "LOG_LEVEL_ASPNETCORE", "Logging:LogLevel:Microsoft.AspNetCore");
 
     return aliases;
 }

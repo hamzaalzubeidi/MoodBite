@@ -321,7 +321,10 @@ namespace MoodBite.Controllers
             "cantSleep",
             "postWorkout",
             "sick",
-            "great"
+            "great",
+            "energetic",
+            "hungry",
+            "happy"
         };
     }
 }

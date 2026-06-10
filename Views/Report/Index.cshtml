@@ -155,7 +155,10 @@
                         @{
                             var moodEmojis = new Dictionary<string, string> {
                                 {"tired","😴"}, {"stressed","😰"}, {"energetic","<i data-lucide=\"zap\" class=\"icon-amber\"></i>"},
-                                {"hungry","<i data-lucide=\"utensils\" class=\"icon-green\"></i>"}, {"happy","😊"}, {"sick","🤒"}
+                                {"hungry","<i data-lucide=\"utensils\" class=\"icon-green\"></i>"}, {"happy","😊"}, {"sick","🤒"},
+                                {"needEnergy","<i data-lucide=\"battery\" class=\"icon-amber\"></i>"}, {"veryHungry","<i data-lucide=\"utensils\" class=\"icon-green\"></i>"},
+                                {"cantSleep","<i data-lucide=\"moon\" class=\"icon-muted\"></i>"}, {"postWorkout","<i data-lucide=\"dumbbell\" class=\"icon-purple\"></i>"},
+                                {"great","<i data-lucide=\"sparkles\" class=\"icon-green\"></i>"}
                             };
                             var maxMoodCount = Model.MoodFrequency.Values.DefaultIfEmpty(1).Max();
                         }
@@ -165,7 +168,7 @@
                             var emoji = moodEmojis.GetValueOrDefault(mood, "😶");
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span style="font-size:.85rem">@emoji @mood</span>
+                                    <span style="font-size:.85rem">@Html.Raw(emoji) @T.Get("mood." + mood)</span>
                                     <span class="badge-primary badge-custom" style="font-size:.7rem">@count @(isRtl?"مرة":"times")</span>
                                 </div>
                                 <div style="background:var(--border);border-radius:4px;height:6px">

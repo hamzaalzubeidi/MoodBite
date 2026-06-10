@@ -464,7 +464,7 @@
                 {
                     <div style="background:var(--primary-50);border:1px solid var(--primary-200);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.85rem;color:var(--primary-800)">
                         <i class="bi bi-check-circle-fill me-2" style="color:var(--primary)"></i>
-                        @(isRtl?"حالتك اليوم:":"Today's mood:") <strong>@Model.TodayLog.Mood</strong>
+                        @(isRtl?"حالتك اليوم:":"Today's mood:") <strong>@T.Get("mood." + Model.TodayLog.Mood)</strong>
                     </div>
                 }
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
@@ -472,9 +472,9 @@
                         var moods = new[] {
                             ("tired",    "<i data-lucide=\"moon\" class=\"icon-muted\"></i>",         T.Get("mood.tired")),
                             ("stressed", "<i data-lucide=\"alert-circle\" class=\"icon-red\"></i>",   T.Get("mood.stressed")),
-                            ("energetic","<i data-lucide=\"zap\" class=\"icon-amber\"></i>",          isRtl?"نشيط":"Energetic"),
-                            ("hungry",   "<i data-lucide=\"utensils\" class=\"icon-green\"></i>",     isRtl?"جائع":"Hungry"),
-                            ("happy",    "<i data-lucide=\"smile\" class=\"icon-green\"></i>",        isRtl?"سعيد":"Happy"),
+                            ("energetic","<i data-lucide=\"zap\" class=\"icon-amber\"></i>",          T.Get("mood.energetic")),
+                            ("hungry",   "<i data-lucide=\"utensils\" class=\"icon-green\"></i>",     T.Get("mood.hungry")),
+                            ("happy",    "<i data-lucide=\"smile\" class=\"icon-green\"></i>",        T.Get("mood.happy")),
                             ("sick",     "<i data-lucide=\"thermometer\" class=\"icon-red\"></i>",    T.Get("mood.sick"))
                         };
                     }

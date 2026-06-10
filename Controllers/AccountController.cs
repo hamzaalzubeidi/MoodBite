@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MoodBite.Constants;
 using MoodBite.Data;
 using MoodBite.Models;
 using MoodBite.Services;
@@ -102,7 +103,7 @@ namespace MoodBite.Controllers
             var result = await _userManager.CreateAsync(user, model.Password);
             if (result.Succeeded)
             {
-                await _userManager.AddToRoleAsync(user, "User");
+                await _userManager.AddToRoleAsync(user, ApplicationRoles.User);
                 await _signInManager.SignInAsync(user, isPersistent: false);
 
                 // Set language

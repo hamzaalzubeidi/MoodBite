@@ -31,7 +31,7 @@
                 @foreach (var user in Model)
                 {
                     var roles = userRoles.GetValueOrDefault(user.Id) ?? new List<string>();
-                    var role = roles.FirstOrDefault() ?? "User";
+                    var role = roles.FirstOrDefault() ?? ApplicationRoles.User;
                     <tr>
                         <td>
                             <div class="d-flex align-items-center gap-2">
@@ -45,7 +45,7 @@
                         </td>
                         <td class="small text-muted">@user.Email</td>
                         <td>
-                            <span class="badge bg-@(role == "Admin" ? "danger" : "secondary")">@role</span>
+                            <span class="badge bg-@(role == ApplicationRoles.Admin ? "danger" : "secondary")">@role</span>
                         </td>
                         <td>
                             <span class="badge bg-@(user.IsActive ? "success" : "secondary")">
@@ -67,8 +67,8 @@
                                 <form asp-action="ChangeRole" method="post" class="d-inline">
                                     <input type="hidden" name="userId" value="@user.Id" />
                                     <select name="newRole" class="form-select form-select-sm d-inline-block" style="width:auto;font-size:.75rem" onchange="this.form.submit()">
-                                        <option value="User" selected="@(role == "User")">User</option>
-                                        <option value="Admin" selected="@(role == "Admin")">Admin</option>
+                                        <option value="@ApplicationRoles.User" selected="@(role == ApplicationRoles.User)">@ApplicationRoles.User</option>
+                                        <option value="@ApplicationRoles.Admin" selected="@(role == ApplicationRoles.Admin)">@ApplicationRoles.Admin</option>
                                     </select>
                                 </form>
                             </div>

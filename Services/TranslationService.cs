@@ -148,6 +148,9 @@ namespace MoodBite.Services
             ["mood.postWorkout"] = new() { ["ar"] = "بعد التمرين", ["en"] = "Post-Workout" },
             ["mood.sick"] = new() { ["ar"] = "مريض", ["en"] = "Sick" },
             ["mood.great"] = new() { ["ar"] = "ممتاز", ["en"] = "Great" },
+            ["mood.energetic"] = new() { ["ar"] = "نشيط", ["en"] = "Energetic" },
+            ["mood.hungry"] = new() { ["ar"] = "جائع", ["en"] = "Hungry" },
+            ["mood.happy"] = new() { ["ar"] = "سعيد", ["en"] = "Happy" },
 
             // Profile
             ["profile.title"] = new() { ["ar"] = "بصمتك الغذائية", ["en"] = "Your Food Fingerprint" },
@@ -187,6 +190,7 @@ namespace MoodBite.Services
 
             // Diets
             ["diets.title"] = new() { ["ar"] = "الأنظمة الغذائية", ["en"] = "Diet Plans" },
+            ["diets.subtitle"] = new() { ["ar"] = "اختر نظاماً غذائياً يناسب أهدافك الصحية وتفضيلاتك", ["en"] = "Choose a diet plan that fits your health goals and preferences" },
             ["diets.all"] = new() { ["ar"] = "الكل", ["en"] = "All" },
             ["diets.lowCarb"] = new() { ["ar"] = "قليل الكربوهيدرات", ["en"] = "Low Carb" },
             ["diets.plantBased"] = new() { ["ar"] = "نباتي", ["en"] = "Plant-Based" },
@@ -376,6 +380,28 @@ namespace MoodBite.Services
             ["admin.deactivate"] = new() { ["ar"] = "تعطيل", ["en"] = "Deactivate" },
             ["admin.role"] = new() { ["ar"] = "الدور", ["en"] = "Role" },
             ["admin.changeRole"] = new() { ["ar"] = "تغيير الدور", ["en"] = "Change Role" },
+
+            // Clinic / B2B terminology
+            ["clinic.title"] = new() { ["ar"] = "موودبايت كلينك", ["en"] = "MoodBite Clinic" },
+            ["clinic.dashboard"] = new() { ["ar"] = "لوحة العيادة", ["en"] = "Clinic Dashboard" },
+            ["clinic.clinic"] = new() { ["ar"] = "العيادة", ["en"] = "Clinic" },
+            ["clinic.clinics"] = new() { ["ar"] = "العيادات", ["en"] = "Clinics" },
+            ["clinic.patient"] = new() { ["ar"] = "المريض", ["en"] = "Patient" },
+            ["clinic.patients"] = new() { ["ar"] = "المرضى", ["en"] = "Patients" },
+            ["clinic.patientRoster"] = new() { ["ar"] = "قائمة المرضى", ["en"] = "Patient Roster" },
+            ["clinic.dietitian"] = new() { ["ar"] = "اختصاصي التغذية", ["en"] = "Dietitian" },
+            ["clinic.staff"] = new() { ["ar"] = "فريق العيادة", ["en"] = "Clinic Staff" },
+            ["clinic.owner"] = new() { ["ar"] = "مالك العيادة", ["en"] = "Clinic Owner" },
+            ["clinic.invitation"] = new() { ["ar"] = "دعوة", ["en"] = "Invitation" },
+            ["clinic.invitations"] = new() { ["ar"] = "الدعوات", ["en"] = "Invitations" },
+            ["clinic.appointments"] = new() { ["ar"] = "المواعيد", ["en"] = "Appointments" },
+            ["clinic.clinicalNotes"] = new() { ["ar"] = "الملاحظات السريرية", ["en"] = "Clinical Notes" },
+            ["clinic.mealPlanReviews"] = new() { ["ar"] = "مراجعات خطط الوجبات", ["en"] = "Meal Plan Reviews" },
+            ["clinic.analytics"] = new() { ["ar"] = "تحليلات العيادة", ["en"] = "Clinic Analytics" },
+            ["clinic.careTeam"] = new() { ["ar"] = "فريق الرعاية", ["en"] = "Care Team" },
+            ["clinic.assignedDietitian"] = new() { ["ar"] = "اختصاصي التغذية المسؤول", ["en"] = "Assigned Dietitian" },
+            ["clinic.patientStatus"] = new() { ["ar"] = "حالة المريض", ["en"] = "Patient Status" },
+            ["clinic.adherenceRisk"] = new() { ["ar"] = "مخاطر ضعف الالتزام", ["en"] = "Adherence Risk" },
 
             // Common
             ["common.save"] = new() { ["ar"] = "حفظ", ["en"] = "Save" },
