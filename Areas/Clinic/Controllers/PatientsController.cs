@@ -166,6 +166,75 @@ namespace MoodBite.Areas.Clinic.Controllers
             return View(model);
         }
 
+        [HttpGet("/Clinic/Patients/Details/{patientId}")]
+        [Authorize(Roles = ApplicationRoles.ClinicAreaAccess)]
+        public async Task<IActionResult> Details(
+            string patientId,
+            int? clinicId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(patientId))
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var resolvedClinicId = await ResolveAccessibleClinicIdAsync(clinicId, cancellationToken);
+                if (!resolvedClinicId.HasValue)
+                {
+                    return Forbid();
+                }
+
+                var currentUserId = _currentUser.GetCurrentUserId();
+                if (string.IsNullOrWhiteSpace(currentUserId))
+                {
+                    return Unauthorized();
+                }
+
+                var isPlatformAdmin = await _clinicAccess.IsPlatformAdminAsync(currentUserId, cancellationToken);
+                var canAccessPatient = isPlatformAdmin
+                    ? await _clinicAccess.PatientBelongsToClinicAsync(
+                        patientId,
+                        resolvedClinicId.Value,
+                        activeOnly: false,
+                        cancellationToken: cancellationToken)
+                    : await _clinicAccess.CanAccessPatientAsync(
+                        currentUserId,
+                        resolvedClinicId.Value,
+                        patientId,
+                        requireConsent: false,
+                        cancellationToken: cancellationToken);
+
+                if (!canAccessPatient)
+                {
+                    return Forbid();
+                }
+
+                var model = await _db.ClinicPatients.AsNoTracking()
+                    .Where(p => p.ClinicId == resolvedClinicId.Value && p.PatientId == patientId)
+                    .Select(p => new ClinicPatientDetailsViewModel
+                    {
+                        ClinicId = p.ClinicId,
+                        ClinicName = p.Clinic.Name,
+                        PatientId = p.PatientId,
+                        FullName = p.Patient.FullName,
+                        Email = p.Patient.Email,
+                        Status = p.Status,
+                        ConsentGranted = p.ConsentGranted,
+                        LinkedAt = p.LinkedAt
+                    })
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                return model == null ? NotFound() : View(model);
+            }
+            catch (DbException ex)
+            {
+                _logger.LogWarning(ex, "Unable to load clinic patient details. The clinic migration may be pending.");
+                return NotFound();
+            }
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = ApplicationRoles.ClinicAreaAccess)]

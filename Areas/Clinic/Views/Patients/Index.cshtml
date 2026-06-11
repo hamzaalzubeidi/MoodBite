@@ -201,7 +201,14 @@ else
                     {
                         <tr>
                             <td>
-                                <div style="font-weight:900">@patient.FullName</div>
+                                <a asp-area="Clinic"
+                                   asp-controller="Patients"
+                                   asp-action="Details"
+                                   asp-route-patientId="@patient.UserId"
+                                   asp-route-clinicId="@Model.ClinicId"
+                                   style="font-weight:900;color:var(--text-primary);text-decoration:none">
+                                    @patient.FullName
+                                </a>
                                 <div style="font-size:.82rem;color:var(--text-secondary)">@patient.Email</div>
                             </td>
                             <td>

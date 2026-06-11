@@ -1,0 +1,60 @@
+@model ClinicPatientDetailsViewModel
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("clinic.patients.details");
+
+    string StatusLabel(string status) => status switch
+    {
+        "active" => T.Get("common.active"),
+        "pending" => T.Get("common.pending"),
+        "archived" => T.Get("clinic.status.archived"),
+        "discharged" => T.Get("clinic.status.discharged"),
+        _ => status
+    };
+}
+
+<section style="background:linear-gradient(135deg,#064e3b 0%,#047857 55%,#0d9488 100%);border-radius:var(--radius-lg);padding:22px;margin-bottom:22px;box-shadow:var(--shadow-md)">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <div style="color:rgba(255,255,255,.72);font-weight:800;font-size:.78rem;text-transform:uppercase">@Model.ClinicName</div>
+            <h2 style="color:white;font-weight:900;margin:4px 0;font-size:clamp(1.4rem,3vw,2rem)">@Model.FullName</h2>
+            <p style="color:rgba(255,255,255,.72);margin:0">@T.Get("clinic.patients.detailsSubtitle")</p>
+        </div>
+        <div style="width:56px;height:56px;border-radius:var(--radius-lg);background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;color:white">
+            <i data-lucide="user-round" style="width:30px;height:30px"></i>
+        </div>
+    </div>
+</section>
+
+<div class="card-glass p-4" style="border-radius:var(--radius-lg);max-width:820px">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div style="font-size:.76rem;color:var(--text-muted);font-weight:800;text-transform:uppercase">@T.Get("auth.fullName")</div>
+            <div style="font-weight:900;color:var(--text-primary);font-size:1.05rem">@Model.FullName</div>
+        </div>
+        <div class="col-md-6">
+            <div style="font-size:.76rem;color:var(--text-muted);font-weight:800;text-transform:uppercase">@T.Get("auth.email")</div>
+            <div style="font-weight:900;color:var(--text-primary);font-size:1.05rem">@Model.Email</div>
+        </div>
+        <div class="col-md-4">
+            <div style="font-size:.76rem;color:var(--text-muted);font-weight:800;text-transform:uppercase">@T.Get("clinic.patientStatus")</div>
+            <span class="badge-custom badge-primary">@StatusLabel(Model.Status)</span>
+        </div>
+        <div class="col-md-4">
+            <div style="font-size:.76rem;color:var(--text-muted);font-weight:800;text-transform:uppercase">@T.Get("clinic.patients.consent")</div>
+            <span class="badge-custom @(Model.ConsentGranted ? "badge-primary" : "badge-neutral")">
+                @(Model.ConsentGranted ? T.Get("clinic.patients.consentGranted") : T.Get("clinic.patients.consentMissing"))
+            </span>
+        </div>
+        <div class="col-md-4">
+            <div style="font-size:.76rem;color:var(--text-muted);font-weight:800;text-transform:uppercase">@T.Get("clinic.patients.linkedAt")</div>
+            <div style="font-weight:900;color:var(--text-primary)">@Model.LinkedAt.ToString("yyyy-MM-dd")</div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a asp-area="Clinic" asp-controller="Patients" asp-action="Index" asp-route-clinicId="@Model.ClinicId" class="btn-secondary-custom">
+            <i data-lucide="arrow-left"></i>@T.Get("clinic.patients.backToRoster")
+        </a>
+    </div>
+</div>

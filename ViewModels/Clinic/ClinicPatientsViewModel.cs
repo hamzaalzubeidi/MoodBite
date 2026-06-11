@@ -69,4 +69,16 @@ namespace MoodBite.ViewModels.Clinic
         public DateTime? ExpiresAt { get; set; }
         public string? Message { get; set; }
     }
+
+    public class ClinicPatientDetailsViewModel
+    {
+        public int ClinicId { get; set; }
+        public string? ClinicName { get; set; }
+        public string PatientId { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public bool ConsentGranted { get; set; }
+        public DateTime LinkedAt { get; set; }
+    }
 }
