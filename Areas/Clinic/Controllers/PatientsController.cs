@@ -23,6 +23,7 @@ namespace MoodBite.Areas.Clinic.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly CurrentUserService _currentUser;
         private readonly ClinicAccessService _clinicAccess;
+        private readonly ReportService _reportService;
         private readonly TranslationService _t;
         private readonly ILogger<PatientsController> _logger;
 
@@ -31,6 +32,7 @@ namespace MoodBite.Areas.Clinic.Controllers
             UserManager<ApplicationUser> userManager,
             CurrentUserService currentUser,
             ClinicAccessService clinicAccess,
+            ReportService reportService,
             TranslationService t,
             ILogger<PatientsController> logger)
         {
@@ -38,6 +40,7 @@ namespace MoodBite.Areas.Clinic.Controllers
             _userManager = userManager;
             _currentUser = currentUser;
             _clinicAccess = clinicAccess;
+            _reportService = reportService;
             _t = t;
             _logger = logger;
         }
@@ -193,40 +196,94 @@ namespace MoodBite.Areas.Clinic.Controllers
                 }
 
                 var isPlatformAdmin = await _clinicAccess.IsPlatformAdminAsync(currentUserId, cancellationToken);
-                var canAccessPatient = isPlatformAdmin
-                    ? await _clinicAccess.PatientBelongsToClinicAsync(
-                        patientId,
-                        resolvedClinicId.Value,
-                        activeOnly: false,
-                        cancellationToken: cancellationToken)
-                    : await _clinicAccess.CanAccessPatientAsync(
-                        currentUserId,
-                        resolvedClinicId.Value,
-                        patientId,
-                        requireConsent: false,
-                        cancellationToken: cancellationToken);
+                var patientBelongsToClinic = await _clinicAccess.PatientBelongsToClinicAsync(
+                    patientId,
+                    resolvedClinicId.Value,
+                    activeOnly: false,
+                    requireConsent: false,
+                    cancellationToken: cancellationToken);
+
+                var canAccessPatient = patientBelongsToClinic &&
+                    (isPlatformAdmin ||
+                     await _clinicAccess.IsClinicMemberAsync(
+                         currentUserId,
+                         resolvedClinicId.Value,
+                         cancellationToken: cancellationToken));
 
                 if (!canAccessPatient)
                 {
                     return Forbid();
                 }
 
-                var model = await _db.ClinicPatients.AsNoTracking()
+                var patientLink = await _db.ClinicPatients.AsNoTracking()
+                    .Include(p => p.Clinic)
+                    .Include(p => p.Patient)
+                        .ThenInclude(p => p.HealthProfile)
+                    .Include(p => p.PrimaryDietitian)
                     .Where(p => p.ClinicId == resolvedClinicId.Value && p.PatientId == patientId)
-                    .Select(p => new ClinicPatientDetailsViewModel
-                    {
-                        ClinicId = p.ClinicId,
-                        ClinicName = p.Clinic.Name,
-                        PatientId = p.PatientId,
-                        FullName = p.Patient.FullName,
-                        Email = p.Patient.Email,
-                        Status = p.Status,
-                        ConsentGranted = p.ConsentGranted,
-                        LinkedAt = p.LinkedAt
-                    })
                     .FirstOrDefaultAsync(cancellationToken);
 
-                return model == null ? NotFound() : View(model);
+                if (patientLink == null)
+                {
+                    return NotFound();
+                }
+
+                var model = BuildPatientDetailsModel(patientLink);
+
+                var weightLogs = await _db.WeightLogs.AsNoTracking()
+                    .Where(w => w.UserId == patientId)
+                    .OrderByDescending(w => w.Date)
+                    .Take(30)
+                    .ToListAsync(cancellationToken);
+
+                var mealLogs = await _db.DayLogs.AsNoTracking()
+                    .Where(d => d.UserId == patientId)
+                    .OrderByDescending(d => d.Date)
+                    .Take(14)
+                    .ToListAsync(cancellationToken);
+
+                var foodScans = await _db.FoodScans.AsNoTracking()
+                    .Where(f => f.UserId == patientId)
+                    .OrderByDescending(f => f.ScannedAt)
+                    .Take(8)
+                    .ToListAsync(cancellationToken);
+
+                var waterLogs = await _db.WaterLogs.AsNoTracking()
+                    .Where(w => w.UserId == patientId)
+                    .OrderByDescending(w => w.Date)
+                    .Take(14)
+                    .ToListAsync(cancellationToken);
+
+                var progressEntries = await _db.BodyProgressEntries.AsNoTracking()
+                    .Where(p => p.UserId == patientId)
+                    .OrderByDescending(p => p.Date)
+                    .ThenByDescending(p => p.CreatedAt)
+                    .Take(8)
+                    .ToListAsync(cancellationToken);
+
+                var mealPlan = await _db.MealPlans.AsNoTracking()
+                    .Where(m => m.UserId == patientId)
+                    .OrderByDescending(m => m.CreatedAt)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                model.WeightHistory = BuildWeightHistory(weightLogs);
+                model.MealLogs = BuildMealLogs(mealLogs);
+                model.FoodScans = BuildFoodScans(foodScans, _t.IsRtl);
+                model.WaterLogs = BuildWaterLogs(waterLogs, model.WaterTarget);
+                model.ProgressEntries = BuildProgressEntries(progressEntries);
+                model.MealPlan = BuildMealPlanSummary(mealPlan);
+
+                ApplyWeightSummary(model, weightLogs, progressEntries);
+                ApplyNutritionSummary(model, mealLogs, foodScans);
+                ApplyHydrationSummary(model, waterLogs);
+                ApplyRecentActivity(model, weightLogs, mealLogs, foodScans, waterLogs, progressEntries, mealPlan);
+
+                model.WeeklyReport = await _reportService.GetWeeklyReportAsync(
+                    patientId,
+                    model.CalorieTarget ?? 2000,
+                    model.WaterTarget);
+
+                return View(model);
             }
             catch (DbException ex)
             {
@@ -605,6 +662,270 @@ namespace MoodBite.Areas.Clinic.Controllers
 
         private RedirectToActionResult RedirectToPatients(int clinicId) =>
             RedirectToAction(nameof(Index), "Patients", new { area = "Clinic", clinicId });
+
+        private static ClinicPatientDetailsViewModel BuildPatientDetailsModel(ClinicPatient patientLink)
+        {
+            var profile = patientLink.Patient.HealthProfile;
+            var height = profile?.Height > 0 ? profile.Height : (double?)null;
+            var profileWeight = profile?.Weight > 0 ? profile.Weight : (double?)null;
+
+            return new ClinicPatientDetailsViewModel
+            {
+                ClinicId = patientLink.ClinicId,
+                ClinicName = patientLink.Clinic.Name,
+                PatientId = patientLink.PatientId,
+                FullName = patientLink.Patient.FullName,
+                Email = patientLink.Patient.Email,
+                Status = patientLink.Status,
+                ConsentGranted = patientLink.ConsentGranted,
+                ConsentGrantedAt = patientLink.ConsentGrantedAt,
+                LinkedAt = patientLink.LinkedAt,
+                PrimaryDietitianName = patientLink.PrimaryDietitian?.FullName,
+                Age = profile?.Age > 0 ? profile.Age : null,
+                Gender = string.IsNullOrWhiteSpace(profile?.Gender) ? null : profile.Gender,
+                Height = height,
+                ProfileWeight = profileWeight,
+                CurrentWeight = profileWeight,
+                Goal = string.IsNullOrWhiteSpace(profile?.Goal) ? null : profile.Goal,
+                DietSlug = string.IsNullOrWhiteSpace(profile?.DietSlug) ? null : profile.DietSlug,
+                CalorieTarget = profile?.CalorieTarget > 0 ? profile.CalorieTarget : null,
+                WaterTarget = profile?.WaterGoal > 0 ? profile.WaterGoal : 8,
+                ProfileUpdatedAt = profile?.UpdatedAt
+            };
+        }
+
+        private static List<ClinicPatientWeightLogItemViewModel> BuildWeightHistory(IReadOnlyList<WeightLog> weightLogs)
+        {
+            var items = new List<ClinicPatientWeightLogItemViewModel>();
+
+            for (var i = 0; i < weightLogs.Count; i++)
+            {
+                var log = weightLogs[i];
+                var previous = i + 1 < weightLogs.Count ? weightLogs[i + 1] : null;
+
+                items.Add(new ClinicPatientWeightLogItemViewModel
+                {
+                    Date = log.Date,
+                    Weight = log.Weight,
+                    ChangeFromPrevious = previous == null
+                        ? null
+                        : Math.Round(log.Weight - previous.Weight, 1),
+                    Note = log.Note
+                });
+            }
+
+            return items;
+        }
+
+        private static List<ClinicPatientDayLogItemViewModel> BuildMealLogs(IEnumerable<DayLog> mealLogs) =>
+            mealLogs.Select(log => new ClinicPatientDayLogItemViewModel
+            {
+                Date = log.Date,
+                CaloriesConsumed = log.CaloriesConsumed,
+                CaloriesBurned = log.CaloriesBurned,
+                Protein = log.Protein,
+                Carbs = log.Carbs,
+                Fats = log.Fats,
+                Mood = log.Mood,
+                Adherent = log.Adherent
+            }).ToList();
+
+        private static List<ClinicPatientFoodScanItemViewModel> BuildFoodScans(
+            IEnumerable<FoodScan> foodScans,
+            bool isRtl)
+        {
+            return foodScans.Select(scan =>
+            {
+                var name = isRtl
+                    ? FirstNonEmpty(scan.FoodNameAr, scan.FoodNameEn)
+                    : FirstNonEmpty(scan.FoodNameEn, scan.FoodNameAr);
+
+                var servingSize = isRtl
+                    ? FirstNonEmpty(scan.ServingSizeAr, scan.ServingSize)
+                    : FirstNonEmpty(scan.ServingSize, scan.ServingSizeAr);
+
+                return new ClinicPatientFoodScanItemViewModel
+                {
+                    FoodName = name,
+                    Confidence = scan.Confidence,
+                    Calories = scan.Calories,
+                    Protein = scan.Protein,
+                    Carbs = scan.Carbs,
+                    Fats = scan.Fats,
+                    ServingSize = servingSize,
+                    LoggedToDashboard = scan.LoggedToDashboard,
+                    ScannedAt = scan.ScannedAt
+                };
+            }).ToList();
+        }
+
+        private static List<ClinicPatientWaterLogItemViewModel> BuildWaterLogs(
+            IEnumerable<WaterLog> waterLogs,
+            int waterTarget) =>
+            waterLogs.Select(log => new ClinicPatientWaterLogItemViewModel
+            {
+                Date = log.Date,
+                GlassesCount = log.GlassesCount,
+                Goal = waterTarget,
+                ProgressPercent = CalculateProgressPercent(log.GlassesCount, waterTarget)
+            }).ToList();
+
+        private static List<ClinicPatientProgressItemViewModel> BuildProgressEntries(
+            IEnumerable<BodyProgress> progressEntries) =>
+            progressEntries.Select(entry => new ClinicPatientProgressItemViewModel
+            {
+                Date = entry.Date,
+                Weight = entry.Weight,
+                Waist = entry.Waist,
+                Hips = entry.Hips,
+                Chest = entry.Chest,
+                Arms = entry.Arms,
+                Notes = entry.Notes,
+                PhotoPath = entry.PhotoPath,
+                CreatedAt = entry.CreatedAt
+            }).ToList();
+
+        private static ClinicPatientMealPlanSummaryViewModel BuildMealPlanSummary(MealPlan? mealPlan) =>
+            mealPlan == null
+                ? new ClinicPatientMealPlanSummaryViewModel()
+                : new ClinicPatientMealPlanSummaryViewModel
+                {
+                    HasPlan = true,
+                    Title = mealPlan.Title,
+                    PlanType = mealPlan.PlanType,
+                    DietType = mealPlan.DietType,
+                    CalorieTarget = mealPlan.CalorieTarget > 0 ? mealPlan.CalorieTarget : null,
+                    CreatedAt = mealPlan.CreatedAt
+                };
+
+        private static void ApplyWeightSummary(
+            ClinicPatientDetailsViewModel model,
+            IReadOnlyList<WeightLog> weightLogs,
+            IReadOnlyList<BodyProgress> progressEntries)
+        {
+            var latestWeight = weightLogs.FirstOrDefault()?.Weight;
+            var latestProgressWeight = progressEntries
+                .Where(p => p.Weight.HasValue)
+                .OrderByDescending(p => p.Date)
+                .ThenByDescending(p => p.CreatedAt)
+                .FirstOrDefault()
+                ?.Weight;
+
+            model.CurrentWeight = latestWeight ?? latestProgressWeight ?? model.ProfileWeight;
+
+            if (model.Height > 0 && model.CurrentWeight.HasValue)
+            {
+                var meters = model.Height.Value / 100.0;
+                model.Bmi = Math.Round(model.CurrentWeight.Value / (meters * meters), 1);
+            }
+
+            if (weightLogs.Count >= 2)
+            {
+                var oldest = weightLogs[^1];
+                var latest = weightLogs[0];
+                model.WeightChange = Math.Round(latest.Weight - oldest.Weight, 1);
+            }
+
+            model.WeightTrendKey = model.WeightChange switch
+            {
+                < 0 => "clinic.patientDashboard.trend.decreasing",
+                > 0 => "clinic.patientDashboard.trend.increasing",
+                0 => "clinic.patientDashboard.trend.stable",
+                _ => "clinic.patientDashboard.trend.insufficient"
+            };
+        }
+
+        private static void ApplyNutritionSummary(
+            ClinicPatientDetailsViewModel model,
+            IReadOnlyList<DayLog> mealLogs,
+            IReadOnlyList<FoodScan> foodScans)
+        {
+            model.RecentMealLogCount = mealLogs.Count;
+            model.RecentFoodScanCount = foodScans.Count;
+
+            if (mealLogs.Count == 0)
+            {
+                return;
+            }
+
+            model.RecentAvgCalories = Math.Round(mealLogs.Average(l => l.CaloriesConsumed), 0);
+            model.RecentAvgProtein = Math.Round(mealLogs.Average(l => l.Protein), 1);
+            model.RecentAvgCarbs = Math.Round(mealLogs.Average(l => l.Carbs), 1);
+            model.RecentAvgFats = Math.Round(mealLogs.Average(l => l.Fats), 1);
+        }
+
+        private static void ApplyHydrationSummary(
+            ClinicPatientDetailsViewModel model,
+            IReadOnlyList<WaterLog> waterLogs)
+        {
+            var todayWater = waterLogs.FirstOrDefault(w => w.Date.Date == DateTime.Today)?.GlassesCount ?? 0;
+            model.TodayWaterGlasses = todayWater;
+            model.TodayWaterProgressPercent = CalculateProgressPercent(todayWater, model.WaterTarget);
+        }
+
+        private static void ApplyRecentActivity(
+            ClinicPatientDetailsViewModel model,
+            IReadOnlyList<WeightLog> weightLogs,
+            IReadOnlyList<DayLog> mealLogs,
+            IReadOnlyList<FoodScan> foodScans,
+            IReadOnlyList<WaterLog> waterLogs,
+            IReadOnlyList<BodyProgress> progressEntries,
+            MealPlan? mealPlan)
+        {
+            var activities = new List<(DateTime At, string Key)>();
+
+            if (weightLogs.Count > 0)
+            {
+                activities.Add((weightLogs[0].Date, "clinic.patientDashboard.activity.weight"));
+            }
+
+            if (mealLogs.Count > 0)
+            {
+                activities.Add((mealLogs[0].Date, "clinic.patientDashboard.activity.nutrition"));
+            }
+
+            if (foodScans.Count > 0)
+            {
+                activities.Add((foodScans[0].ScannedAt, "clinic.patientDashboard.activity.scan"));
+            }
+
+            if (waterLogs.Count > 0)
+            {
+                activities.Add((waterLogs[0].Date, "clinic.patientDashboard.activity.hydration"));
+            }
+
+            if (progressEntries.Count > 0)
+            {
+                activities.Add((progressEntries[0].CreatedAt, "clinic.patientDashboard.activity.progress"));
+            }
+
+            if (mealPlan != null)
+            {
+                activities.Add((mealPlan.CreatedAt, "clinic.patientDashboard.activity.mealPlan"));
+            }
+
+            if (activities.Count == 0)
+            {
+                return;
+            }
+
+            var latest = activities.OrderByDescending(a => a.At).First();
+            model.RecentActivityAt = latest.At;
+            model.RecentActivityKey = latest.Key;
+        }
+
+        private static int CalculateProgressPercent(int value, int target)
+        {
+            if (target <= 0)
+            {
+                return 0;
+            }
+
+            return Math.Clamp((int)Math.Round(value * 100.0 / target), 0, 100);
+        }
+
+        private static string FirstNonEmpty(params string?[] values) =>
+            values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
 
         private static string NormalizeStatusFilter(string? status) =>
             !string.IsNullOrWhiteSpace(status) &&

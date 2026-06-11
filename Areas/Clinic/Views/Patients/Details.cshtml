@@ -1,7 +1,16 @@
 @model ClinicPatientDetailsViewModel
+@using System.Text.Json
 @inject TranslationService T
 @{
     ViewData["Title"] = T.Get("clinic.patients.details");
+    var isRtl = T.IsRtl;
+    var empty = T.Get("clinic.patientDashboard.notAvailable");
+    var weightChartLabels = JsonSerializer.Serialize(Model.WeightHistory.OrderBy(w => w.Date).Select(w => w.Date.ToString("MM/dd")).ToList());
+    var weightChartData = JsonSerializer.Serialize(Model.WeightHistory.OrderBy(w => w.Date).Select(w => Math.Round(w.Weight, 1)).ToList());
+    var waterChartLabels = JsonSerializer.Serialize(Model.WaterLogs.OrderBy(w => w.Date).Select(w => w.Date.ToString("MM/dd")).ToList());
+    var waterChartData = JsonSerializer.Serialize(Model.WaterLogs.OrderBy(w => w.Date).Select(w => w.GlassesCount).ToList());
+    var reportLabels = JsonSerializer.Serialize(Model.WeeklyReport.DailyCalories.Select(d => d.Date).ToList());
+    var reportCalories = JsonSerializer.Serialize(Model.WeeklyReport.DailyCalories.Select(d => d.Calories).ToList());
 
     string StatusLabel(string status) => status switch
     {
@@ -11,50 +20,953 @@
         "discharged" => T.Get("clinic.status.discharged"),
         _ => status
     };
+
+    string StatusBadge(string status) => status switch
+    {
+        "active" => "badge-primary",
+        "pending" => "badge-neutral",
+        "archived" or "discharged" => "badge-neutral",
+        _ => "badge-neutral"
+    };
+
+    string ValueOrEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? empty : value;
+    string FormatDate(DateTime? date) => date.HasValue ? date.Value.ToString("yyyy-MM-dd") : empty;
+    string FormatNumber(double? value, string format = "0.#") => value.HasValue ? value.Value.ToString(format) : empty;
+    string FormatKg(double? value) => value.HasValue ? $"{value.Value:0.#} {T.Get("common.kg")}" : empty;
+    string FormatCm(double? value) => value.HasValue ? $"{value.Value:0.#} {T.Get("common.cm")}" : empty;
+    string FormatCalories(double? value) => value.HasValue ? $"{value.Value:0} {T.Get("common.calories")}" : empty;
+
+    string TranslateValue(string prefix, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return empty;
+        var key = prefix + value;
+        var translated = T.Get(key);
+        return translated == key ? value : translated;
+    }
+
+    string ChangeColor(double? change) => change switch
+    {
+        < 0 => "#10b981",
+        > 0 => "#ef4444",
+        0 => "var(--text-muted)",
+        _ => "var(--text-muted)"
+    };
+
+    string SignedKg(double? value)
+    {
+        if (!value.HasValue) return empty;
+        var sign = value.Value > 0 ? "+" : "";
+        return $"{sign}{value.Value:0.#} {T.Get("common.kg")}";
+    }
 }
 
-<section style="background:linear-gradient(135deg,#064e3b 0%,#047857 55%,#0d9488 100%);border-radius:var(--radius-lg);padding:22px;margin-bottom:22px;box-shadow:var(--shadow-md)">
+<style>
+    .patient-dashboard-hero {
+        background: linear-gradient(135deg,#064e3b 0%,#047857 55%,#0d9488 100%);
+        border-radius: var(--radius-lg);
+        padding: 22px;
+        margin-bottom: 22px;
+        box-shadow: var(--shadow-md);
+    }
+    .patient-dashboard-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 22px;
+    }
+    .patient-dashboard-tabs .nav-link {
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-secondary);
+        border-radius: var(--radius-sm);
+        font-weight: 800;
+        padding: 10px 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .patient-dashboard-tabs .nav-link.active {
+        background: var(--primary-50);
+        border-color: var(--primary-100);
+        color: var(--primary);
+    }
+    .patient-dashboard-tabs [data-lucide] {
+        width: 17px;
+        height: 17px;
+    }
+    .patient-section-title {
+        font-weight: 900;
+        color: var(--text-primary);
+        margin: 0;
+        font-size: 1.03rem;
+    }
+    .patient-section-subtitle {
+        color: var(--text-secondary);
+        margin: 4px 0 0;
+        font-size: .84rem;
+    }
+    .patient-metric {
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        min-height: 118px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .patient-metric-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-sm);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-50);
+        color: var(--primary);
+        margin-bottom: 10px;
+    }
+    .patient-metric-icon [data-lucide] {
+        width: 19px;
+        height: 19px;
+    }
+    .patient-metric-value {
+        font-size: 1.28rem;
+        font-weight: 900;
+        line-height: 1.1;
+        color: var(--text-primary);
+        overflow-wrap: anywhere;
+    }
+    .patient-metric-label {
+        color: var(--text-secondary);
+        font-weight: 800;
+        font-size: .78rem;
+        margin-top: 6px;
+    }
+    .patient-info-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .patient-info-item {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 14px;
+        background: var(--surface);
+        min-height: 84px;
+    }
+    .patient-info-label {
+        color: var(--text-muted);
+        font-size: .72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+    .patient-info-value {
+        color: var(--text-primary);
+        font-weight: 900;
+        overflow-wrap: anywhere;
+    }
+    .patient-chart-frame {
+        height: 260px;
+        position: relative;
+    }
+    .patient-empty {
+        border: 1px dashed var(--border);
+        border-radius: var(--radius-lg);
+        padding: 28px;
+        text-align: center;
+        color: var(--text-secondary);
+        background: var(--surface);
+    }
+    .patient-empty [data-lucide] {
+        width: 34px;
+        height: 34px;
+        color: var(--primary);
+        margin-bottom: 8px;
+    }
+    .patient-progress-bar {
+        height: 10px;
+        background: var(--border);
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .patient-progress-bar > span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg,#059669,#0d9488);
+        border-radius: 999px;
+    }
+    .patient-photo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+        gap: 12px;
+    }
+    .patient-photo {
+        aspect-ratio: 3 / 4;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        background: var(--surface);
+        border: 1px solid var(--border);
+    }
+    .patient-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .patient-compact-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .patient-list-row {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--surface);
+        padding: 12px 14px;
+    }
+    @@media (max-width: 1100px) {
+        .patient-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @@media (max-width: 640px) {
+        .patient-info-grid { grid-template-columns: 1fr; }
+        .patient-dashboard-tabs .nav-link { flex: 1 1 calc(50% - 8px); justify-content: center; }
+    }
+</style>
+
+<section class="patient-dashboard-hero">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
         <div>
             <div style="color:rgba(255,255,255,.72);font-weight:800;font-size:.78rem;text-transform:uppercase">@Model.ClinicName</div>
             <h2 style="color:white;font-weight:900;margin:4px 0;font-size:clamp(1.4rem,3vw,2rem)">@Model.FullName</h2>
             <p style="color:rgba(255,255,255,.72);margin:0">@T.Get("clinic.patients.detailsSubtitle")</p>
         </div>
-        <div style="width:56px;height:56px;border-radius:var(--radius-lg);background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;color:white">
-            <i data-lucide="user-round" style="width:30px;height:30px"></i>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="badge-custom @StatusBadge(Model.Status)">@StatusLabel(Model.Status)</span>
+            <span class="badge-custom @(Model.ConsentGranted ? "badge-primary" : "badge-neutral")">
+                @(Model.ConsentGranted ? T.Get("clinic.patients.consentGranted") : T.Get("clinic.patients.consentMissing"))
+            </span>
+            <a asp-area="Clinic" asp-controller="Patients" asp-action="Index" asp-route-clinicId="@Model.ClinicId" class="btn-secondary-custom" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28);color:white">
+                <i data-lucide="arrow-left"></i>@T.Get("clinic.patients.backToRoster")
+            </a>
         </div>
     </div>
 </section>
 
-<div class="card-glass p-4" style="border-radius:var(--radius-lg);max-width:820px">
-    <div class="row g-4">
-        <div class="col-md-6">
-            <div style="font-size:.76rem;color:var(--text-muted);font-weight:800;text-transform:uppercase">@T.Get("auth.fullName")</div>
-            <div style="font-weight:900;color:var(--text-primary);font-size:1.05rem">@Model.FullName</div>
+<ul class="nav patient-dashboard-tabs" id="patientDashboardTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview-pane" type="button" role="tab">
+            <i data-lucide="layout-dashboard"></i>@T.Get("clinic.patientDashboard.tab.overview")
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="progress-tab" data-bs-toggle="pill" data-bs-target="#progress-pane" type="button" role="tab">
+            <i data-lucide="trending-up"></i>@T.Get("clinic.patientDashboard.tab.progress")
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="nutrition-tab" data-bs-toggle="pill" data-bs-target="#nutrition-pane" type="button" role="tab">
+            <i data-lucide="utensils"></i>@T.Get("clinic.patientDashboard.tab.nutrition")
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="hydration-tab" data-bs-toggle="pill" data-bs-target="#hydration-pane" type="button" role="tab">
+            <i data-lucide="droplets"></i>@T.Get("clinic.patientDashboard.tab.hydration")
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="reports-tab" data-bs-toggle="pill" data-bs-target="#reports-pane" type="button" role="tab">
+            <i data-lucide="bar-chart-3"></i>@T.Get("clinic.patientDashboard.tab.reports")
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="patientDashboardTabContent">
+    <div class="tab-pane fade show active" id="overview-pane" role="tabpanel" aria-labelledby="overview-tab" tabindex="0">
+        <div class="row g-3 mb-4">
+            <div class="col-md-4 col-xl-2">
+                <div class="patient-metric">
+                    <div>
+                        <span class="patient-metric-icon"><i data-lucide="scale"></i></span>
+                        <div class="patient-metric-value">@FormatKg(Model.CurrentWeight)</div>
+                    </div>
+                    <div class="patient-metric-label">@T.Get("clinic.patientDashboard.currentWeight")</div>
+                </div>
+            </div>
+            <div class="col-md-4 col-xl-2">
+                <div class="patient-metric">
+                    <div>
+                        <span class="patient-metric-icon"><i data-lucide="activity"></i></span>
+                        <div class="patient-metric-value" style="color:@ChangeColor(Model.WeightChange)">@SignedKg(Model.WeightChange)</div>
+                    </div>
+                    <div class="patient-metric-label">@T.Get("clinic.patientDashboard.weightChange")</div>
+                </div>
+            </div>
+            <div class="col-md-4 col-xl-2">
+                <div class="patient-metric">
+                    <div>
+                        <span class="patient-metric-icon"><i data-lucide="flame"></i></span>
+                        <div class="patient-metric-value">@FormatCalories(Model.CalorieTarget)</div>
+                    </div>
+                    <div class="patient-metric-label">@T.Get("clinic.patientDashboard.dailyCalorieTarget")</div>
+                </div>
+            </div>
+            <div class="col-md-4 col-xl-2">
+                <div class="patient-metric">
+                    <div>
+                        <span class="patient-metric-icon"><i data-lucide="droplet"></i></span>
+                        <div class="patient-metric-value">@Model.WaterTarget @T.Get("water.glasses")</div>
+                    </div>
+                    <div class="patient-metric-label">@T.Get("clinic.patientDashboard.waterTarget")</div>
+                </div>
+            </div>
+            <div class="col-md-4 col-xl-2">
+                <div class="patient-metric">
+                    <div>
+                        <span class="patient-metric-icon"><i data-lucide="calendar-days"></i></span>
+                        <div class="patient-metric-value" style="font-size:1.02rem">
+                            @(Model.MealPlan.HasPlan ? T.Get("clinic.patientDashboard.activeMealPlan") : T.Get("clinic.patientDashboard.noMealPlan"))
+                        </div>
+                    </div>
+                    <div class="patient-metric-label">@T.Get("clinic.patientDashboard.mealPlanStatus")</div>
+                </div>
+            </div>
+            <div class="col-md-4 col-xl-2">
+                <div class="patient-metric">
+                    <div>
+                        <span class="patient-metric-icon"><i data-lucide="pulse"></i></span>
+                        <div class="patient-metric-value" style="font-size:1.02rem">
+                            @(string.IsNullOrWhiteSpace(Model.RecentActivityKey) ? T.Get("clinic.patientDashboard.noRecentActivity") : T.Get(Model.RecentActivityKey))
+                        </div>
+                    </div>
+                    <div class="patient-metric-label">@FormatDate(Model.RecentActivityAt)</div>
+                </div>
+            </div>
         </div>
-        <div class="col-md-6">
-            <div style="font-size:.76rem;color:var(--text-muted);font-weight:800;text-transform:uppercase">@T.Get("auth.email")</div>
-            <div style="font-weight:900;color:var(--text-primary);font-size:1.05rem">@Model.Email</div>
+
+        <div class="card-glass p-4 mb-4" style="border-radius:var(--radius-lg)">
+            <div class="mb-3">
+                <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.patientOverview")</h3>
+                <p class="patient-section-subtitle">@T.Get("clinic.patientDashboard.patientOverviewSubtitle")</p>
+            </div>
+            <div class="patient-info-grid">
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("auth.fullName")</div>
+                    <div class="patient-info-value">@Model.FullName</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("auth.email")</div>
+                    <div class="patient-info-value">@ValueOrEmpty(Model.Email)</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("profile.age")</div>
+                    <div class="patient-info-value">@(Model.Age.HasValue ? Model.Age.Value : empty)</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("profile.gender")</div>
+                    <div class="patient-info-value">@TranslateValue("profile.", Model.Gender)</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("profile.height")</div>
+                    <div class="patient-info-value">@FormatCm(Model.Height)</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("profile.weight")</div>
+                    <div class="patient-info-value">@FormatKg(Model.ProfileWeight)</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("clinic.patientDashboard.bmi")</div>
+                    <div class="patient-info-value">@FormatNumber(Model.Bmi)</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("clinic.patientDashboard.goal")</div>
+                    <div class="patient-info-value">@TranslateValue("profile.goal.", Model.Goal)</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("clinic.patientStatus")</div>
+                    <div class="patient-info-value"><span class="badge-custom @StatusBadge(Model.Status)">@StatusLabel(Model.Status)</span></div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("clinic.patients.consent")</div>
+                    <div class="patient-info-value">
+                        @(Model.ConsentGranted ? T.Get("clinic.patients.consentGranted") : T.Get("clinic.patients.consentMissing"))
+                    </div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("clinic.patients.assignedTo")</div>
+                    <div class="patient-info-value">@ValueOrEmpty(Model.PrimaryDietitianName)</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">@T.Get("clinic.patients.linkedAt")</div>
+                    <div class="patient-info-value">@FormatDate(Model.LinkedAt)</div>
+                </div>
+            </div>
         </div>
-        <div class="col-md-4">
-            <div style="font-size:.76rem;color:var(--text-muted);font-weight:800;text-transform:uppercase">@T.Get("clinic.patientStatus")</div>
-            <span class="badge-custom badge-primary">@StatusLabel(Model.Status)</span>
-        </div>
-        <div class="col-md-4">
-            <div style="font-size:.76rem;color:var(--text-muted);font-weight:800;text-transform:uppercase">@T.Get("clinic.patients.consent")</div>
-            <span class="badge-custom @(Model.ConsentGranted ? "badge-primary" : "badge-neutral")">
-                @(Model.ConsentGranted ? T.Get("clinic.patients.consentGranted") : T.Get("clinic.patients.consentMissing"))
-            </span>
-        </div>
-        <div class="col-md-4">
-            <div style="font-size:.76rem;color:var(--text-muted);font-weight:800;text-transform:uppercase">@T.Get("clinic.patients.linkedAt")</div>
-            <div style="font-weight:900;color:var(--text-primary)">@Model.LinkedAt.ToString("yyyy-MM-dd")</div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                    <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.latestMealPlan")</h3>
+                    @if (!Model.MealPlan.HasPlan)
+                    {
+                        <div class="patient-empty mt-3">
+                            <i data-lucide="calendar-x"></i>
+                            <div>@T.Get("clinic.patientDashboard.noMealPlanBody")</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="patient-info-grid mt-3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">@T.Get("mealPlan.title")</div>
+                                <div class="patient-info-value">@ValueOrEmpty(Model.MealPlan.Title)</div>
+                            </div>
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">@T.Get("clinic.patientDashboard.planType")</div>
+                                <div class="patient-info-value">@ValueOrEmpty(Model.MealPlan.PlanType)</div>
+                            </div>
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">@T.Get("diets.title")</div>
+                                <div class="patient-info-value">@ValueOrEmpty(Model.MealPlan.DietType)</div>
+                            </div>
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">@T.Get("profile.calorieTarget")</div>
+                                <div class="patient-info-value">@FormatCalories(Model.MealPlan.CalorieTarget)</div>
+                            </div>
+                        </div>
+                        <div style="color:var(--text-secondary);font-size:.82rem;margin-top:12px">@T.Get("clinic.patientDashboard.createdAt"): @FormatDate(Model.MealPlan.CreatedAt)</div>
+                    }
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                    <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.profileFreshness")</h3>
+                    <div class="patient-list-row mt-3">
+                        <div class="d-flex justify-content-between gap-3 flex-wrap">
+                            <span style="font-weight:900;color:var(--text-primary)">@T.Get("profile.recommendedDiet")</span>
+                            <span style="color:var(--text-secondary)">@ValueOrEmpty(Model.DietSlug)</span>
+                        </div>
+                    </div>
+                    <div class="patient-list-row mt-2">
+                        <div class="d-flex justify-content-between gap-3 flex-wrap">
+                            <span style="font-weight:900;color:var(--text-primary)">@T.Get("clinic.patientDashboard.profileUpdatedAt")</span>
+                            <span style="color:var(--text-secondary)">@FormatDate(Model.ProfileUpdatedAt)</span>
+                        </div>
+                    </div>
+                    <div class="patient-list-row mt-2">
+                        <div class="d-flex justify-content-between gap-3 flex-wrap">
+                            <span style="font-weight:900;color:var(--text-primary)">@T.Get("clinic.patientDashboard.consentGrantedAt")</span>
+                            <span style="color:var(--text-secondary)">@FormatDate(Model.ConsentGrantedAt)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="mt-4">
-        <a asp-area="Clinic" asp-controller="Patients" asp-action="Index" asp-route-clinicId="@Model.ClinicId" class="btn-secondary-custom">
-            <i data-lucide="arrow-left"></i>@T.Get("clinic.patients.backToRoster")
-        </a>
+    <div class="tab-pane fade" id="progress-pane" role="tabpanel" aria-labelledby="progress-tab" tabindex="0">
+        <div class="row g-4 mb-4">
+            <div class="col-lg-8">
+                <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                        <div>
+                            <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.weightProgress")</h3>
+                            <p class="patient-section-subtitle">@T.Get(Model.WeightTrendKey)</p>
+                        </div>
+                        <span class="badge-custom badge-primary">@Model.WeightHistory.Count @T.Get("clinic.patientDashboard.entries")</span>
+                    </div>
+                    @if (Model.WeightHistory.Count < 2)
+                    {
+                        <div class="patient-empty">
+                            <i data-lucide="line-chart"></i>
+                            <div>@T.Get("clinic.patientDashboard.noWeightLogs")</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="patient-chart-frame"><canvas id="clinicWeightChart"></canvas></div>
+                    }
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                    <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.latestWeightEntries")</h3>
+                    @if (Model.WeightHistory.Count == 0)
+                    {
+                        <div class="patient-empty mt-3">
+                            <i data-lucide="scale"></i>
+                            <div>@T.Get("clinic.patientDashboard.noWeightLogsShort")</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="patient-compact-list mt-3">
+                            @foreach (var log in Model.WeightHistory.Take(6))
+                            {
+                                <div class="patient-list-row">
+                                    <div class="d-flex justify-content-between gap-2">
+                                        <strong>@log.Date.ToString("yyyy-MM-dd")</strong>
+                                        <span style="font-weight:900;color:var(--primary)">@FormatKg(log.Weight)</span>
+                                    </div>
+                                    <div style="color:@ChangeColor(log.ChangeFromPrevious);font-size:.8rem;font-weight:800;margin-top:4px">@SignedKg(log.ChangeFromPrevious)</div>
+                                    @if (!string.IsNullOrWhiteSpace(log.Note))
+                                    {
+                                        <div style="color:var(--text-secondary);font-size:.78rem;margin-top:4px">@log.Note</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                    <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.bodyProgress")</h3>
+                    @if (Model.ProgressEntries.Count == 0)
+                    {
+                        <div class="patient-empty mt-3">
+                            <i data-lucide="ruler"></i>
+                            <div>@T.Get("clinic.patientDashboard.noProgress")</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive mt-3">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>@T.Get("clinic.patientDashboard.date")</th>
+                                        <th>@T.Get("profile.weight")</th>
+                                        <th>@T.Get("clinic.patientDashboard.waist")</th>
+                                        <th>@T.Get("clinic.patientDashboard.measurements")</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var entry in Model.ProgressEntries)
+                                {
+                                    <tr>
+                                        <td style="font-weight:800">@entry.Date.ToString("yyyy-MM-dd")</td>
+                                        <td>@FormatKg(entry.Weight)</td>
+                                        <td>@FormatCm(entry.Waist)</td>
+                                        <td style="font-size:.82rem;color:var(--text-secondary)">
+                                            @T.Get("clinic.patientDashboard.hips"): @FormatCm(entry.Hips) -
+                                            @T.Get("clinic.patientDashboard.chest"): @FormatCm(entry.Chest) -
+                                            @T.Get("clinic.patientDashboard.arms"): @FormatCm(entry.Arms)
+                                        </td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                    <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.progressPhotos")</h3>
+                    @{
+                        var photos = Model.ProgressEntries.Where(p => !string.IsNullOrWhiteSpace(p.PhotoPath)).ToList();
+                    }
+                    @if (photos.Count == 0)
+                    {
+                        <div class="patient-empty mt-3">
+                            <i data-lucide="image"></i>
+                            <div>@T.Get("clinic.patientDashboard.noPhotos")</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="patient-photo-grid mt-3">
+                            @foreach (var photo in photos)
+                            {
+                                <div>
+                                    <div class="patient-photo">
+                                        <img src="@photo.PhotoPath" alt="@T.Get("clinic.patientDashboard.progressPhotoAlt")" loading="lazy" />
+                                    </div>
+                                    <div style="font-size:.76rem;color:var(--text-secondary);font-weight:800;margin-top:6px">@photo.Date.ToString("yyyy-MM-dd")</div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="nutrition-pane" role="tabpanel" aria-labelledby="nutrition-tab" tabindex="0">
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-6">
+                <div class="patient-metric">
+                    <span class="patient-metric-icon"><i data-lucide="calendar-check"></i></span>
+                    <div class="patient-metric-value">@Model.RecentMealLogCount</div>
+                    <div class="patient-metric-label">@T.Get("clinic.patientDashboard.recentMealLogs")</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="patient-metric">
+                    <span class="patient-metric-icon"><i data-lucide="scan-line"></i></span>
+                    <div class="patient-metric-value">@Model.RecentFoodScanCount</div>
+                    <div class="patient-metric-label">@T.Get("clinic.patientDashboard.recentFoodScans")</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="patient-metric">
+                    <span class="patient-metric-icon"><i data-lucide="flame"></i></span>
+                    <div class="patient-metric-value">@FormatCalories(Model.RecentMealLogCount > 0 ? Model.RecentAvgCalories : null)</div>
+                    <div class="patient-metric-label">@T.Get("dashboard.avgCalories")</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="patient-metric">
+                    <span class="patient-metric-icon"><i data-lucide="beef"></i></span>
+                    <div class="patient-metric-value">@(Model.RecentMealLogCount > 0 ? $"{Model.RecentAvgProtein:0.#} {T.Get("common.gram")}" : empty)</div>
+                    <div class="patient-metric-label">@T.Get("dashboard.protein")</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                    <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.mealLogs")</h3>
+                    @if (Model.MealLogs.Count == 0)
+                    {
+                        <div class="patient-empty mt-3">
+                            <i data-lucide="utensils"></i>
+                            <div>@T.Get("clinic.patientDashboard.noMealLogs")</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive mt-3">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>@T.Get("clinic.patientDashboard.date")</th>
+                                        <th>@T.Get("dashboard.calories")</th>
+                                        <th>@T.Get("clinic.patientDashboard.macros")</th>
+                                        <th>@T.Get("dashboard.adherence")</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var log in Model.MealLogs.Take(8))
+                                {
+                                    <tr>
+                                        <td style="font-weight:800">@log.Date.ToString("yyyy-MM-dd")</td>
+                                        <td>@log.CaloriesConsumed.ToString("0") @T.Get("common.calories")</td>
+                                        <td style="font-size:.82rem;color:var(--text-secondary)">
+                                            @T.Get("dashboard.protein") @log.Protein.ToString("0.#")g ·
+                                            @T.Get("dashboard.carbs") @log.Carbs.ToString("0.#")g ·
+                                            @T.Get("dashboard.fats") @log.Fats.ToString("0.#")g
+                                        </td>
+                                        <td>
+                                            <span class="badge-custom @(log.Adherent ? "badge-primary" : "badge-neutral")">
+                                                @(log.Adherent ? T.Get("common.yes") : T.Get("common.no"))
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                    <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.foodScans")</h3>
+                    @if (Model.FoodScans.Count == 0)
+                    {
+                        <div class="patient-empty mt-3">
+                            <i data-lucide="scan-search"></i>
+                            <div>@T.Get("clinic.patientDashboard.noFoodScans")</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="patient-compact-list mt-3">
+                            @foreach (var scan in Model.FoodScans)
+                            {
+                                <div class="patient-list-row">
+                                    <div class="d-flex justify-content-between gap-3">
+                                        <strong style="color:var(--text-primary)">@ValueOrEmpty(scan.FoodName)</strong>
+                                        <span style="font-weight:900;color:var(--primary)">@scan.Calories.ToString("0") @T.Get("common.calories")</span>
+                                    </div>
+                                    <div style="color:var(--text-secondary);font-size:.78rem;margin-top:5px">
+                                        @FormatDate(scan.ScannedAt) - @T.Get("clinic.patientDashboard.confidence") @scan.Confidence%
+                                        @if (!string.IsNullOrWhiteSpace(scan.ServingSize))
+                                        {
+                                            <span> - @scan.ServingSize</span>
+                                        }
+                                    </div>
+                                    <div style="font-size:.78rem;margin-top:5px">
+                                        <span class="badge-custom @(scan.LoggedToDashboard ? "badge-primary" : "badge-neutral")">
+                                            @(scan.LoggedToDashboard ? T.Get("clinic.patientDashboard.scanLogged") : T.Get("clinic.patientDashboard.scanNotLogged"))
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="hydration-pane" role="tabpanel" aria-labelledby="hydration-tab" tabindex="0">
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                    <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.hydrationProgress")</h3>
+                    <div style="font-size:2rem;font-weight:900;color:var(--primary);margin-top:16px">
+                        @Model.TodayWaterGlasses / @Model.WaterTarget @T.Get("water.glasses")
+                    </div>
+                    <div class="patient-progress-bar mt-3">
+                        <span style="width:@Model.TodayWaterProgressPercent%"></span>
+                    </div>
+                    <div style="color:var(--text-secondary);font-size:.84rem;margin-top:10px">
+                        @T.Get("clinic.patientDashboard.todayWater") - @Model.TodayWaterProgressPercent%
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                    <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.waterTrend")</h3>
+                    @if (Model.WaterLogs.Count == 0)
+                    {
+                        <div class="patient-empty mt-3">
+                            <i data-lucide="droplets"></i>
+                            <div>@T.Get("clinic.patientDashboard.noWaterLogs")</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="patient-chart-frame"><canvas id="clinicWaterChart"></canvas></div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card-glass p-4 mt-4" style="border-radius:var(--radius-lg)">
+            <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.waterLogs")</h3>
+            @if (Model.WaterLogs.Count == 0)
+            {
+                <div class="patient-empty mt-3">
+                    <i data-lucide="droplet-off"></i>
+                    <div>@T.Get("clinic.patientDashboard.noWaterLogs")</div>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive mt-3">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>@T.Get("clinic.patientDashboard.date")</th>
+                                <th>@T.Get("water.glasses")</th>
+                                <th>@T.Get("dashboard.target")</th>
+                                <th>@T.Get("clinic.patientDashboard.progressPercent")</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var log in Model.WaterLogs)
+                        {
+                            <tr>
+                                <td style="font-weight:800">@log.Date.ToString("yyyy-MM-dd")</td>
+                                <td>@log.GlassesCount</td>
+                                <td>@log.Goal</td>
+                                <td>
+                                    <div class="patient-progress-bar" style="max-width:180px">
+                                        <span style="width:@log.ProgressPercent%"></span>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="reports-pane" role="tabpanel" aria-labelledby="reports-tab" tabindex="0">
+        @if (!Model.WeeklyReport.HasEnoughData)
+        {
+            <div class="patient-empty">
+                <i data-lucide="bar-chart-3"></i>
+                <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.reportUnavailable")</h3>
+                <p class="patient-section-subtitle">@T.Get("clinic.patientDashboard.notEnoughReport")</p>
+            </div>
+        }
+        else
+        {
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-6">
+                    <div class="patient-metric">
+                        <span class="patient-metric-icon"><i data-lucide="check-circle-2"></i></span>
+                        <div class="patient-metric-value">@Model.WeeklyReport.AdherencePercent%</div>
+                        <div class="patient-metric-label">@T.Get("dashboard.adherence")</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="patient-metric">
+                        <span class="patient-metric-icon"><i data-lucide="flame"></i></span>
+                        <div class="patient-metric-value">@Model.WeeklyReport.AvgCalories.ToString("0")</div>
+                        <div class="patient-metric-label">@T.Get("dashboard.avgCalories")</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="patient-metric">
+                        <span class="patient-metric-icon"><i data-lucide="calendar-check"></i></span>
+                        <div class="patient-metric-value">@Model.WeeklyReport.DaysLogged</div>
+                        <div class="patient-metric-label">@T.Get("dashboard.daysLogged")</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="patient-metric">
+                        <span class="patient-metric-icon"><i data-lucide="trending-up"></i></span>
+                        <div class="patient-metric-value">@(Model.WeeklyReport.Trend >= 0 ? "+" : "")@Model.WeeklyReport.Trend%</div>
+                        <div class="patient-metric-label">@T.Get("clinic.patientDashboard.weeklyTrend")</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                        <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.caloriesVsTarget")</h3>
+                        <div class="patient-chart-frame"><canvas id="clinicReportChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                        <h3 class="patient-section-title">@T.Get("clinic.patientDashboard.reportSummary")</h3>
+                        <div class="patient-compact-list mt-3">
+                            <div class="patient-list-row">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <strong>@T.Get("dashboard.protein")</strong>
+                                    <span>@Model.WeeklyReport.AvgProtein.ToString("0.#") / @Model.WeeklyReport.ProteinTarget.ToString("0") @T.Get("common.gram")</span>
+                                </div>
+                            </div>
+                            <div class="patient-list-row">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <strong>@T.Get("dashboard.carbs")</strong>
+                                    <span>@Model.WeeklyReport.AvgCarbs.ToString("0.#") / @Model.WeeklyReport.CarbsTarget.ToString("0") @T.Get("common.gram")</span>
+                                </div>
+                            </div>
+                            <div class="patient-list-row">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <strong>@T.Get("dashboard.fats")</strong>
+                                    <span>@Model.WeeklyReport.AvgFats.ToString("0.#") / @Model.WeeklyReport.FatsTarget.ToString("0") @T.Get("common.gram")</span>
+                                </div>
+                            </div>
+                            <div class="patient-list-row">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <strong>@T.Get("clinic.patientDashboard.topMood")</strong>
+                                    <span>@(string.IsNullOrWhiteSpace(Model.WeeklyReport.TopMood) ? empty : T.Get("mood." + Model.WeeklyReport.TopMood))</span>
+                                </div>
+                            </div>
+                            <div class="patient-list-row">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <strong>@T.Get("clinic.patientDashboard.avgWater")</strong>
+                                    <span>@Model.WeeklyReport.AvgWater.ToString("0.#") / @Model.WeeklyReport.WaterGoal @T.Get("water.glasses")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
 </div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        if (typeof Chart === 'undefined') return;
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const textColor = isDark ? '#e7e5e4' : '#44403c';
+        const gridColor = isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
+        const baseOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: textColor, font: { family: 'Cairo, Inter, sans-serif' } } } },
+            scales: {
+                x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+            }
+        };
+
+        const weightLabels = @Html.Raw(weightChartLabels);
+        const weightData = @Html.Raw(weightChartData);
+        const waterLabels = @Html.Raw(waterChartLabels);
+        const waterData = @Html.Raw(waterChartData);
+        const reportLabels = @Html.Raw(reportLabels);
+        const reportCalories = @Html.Raw(reportCalories);
+
+        const weightCanvas = document.getElementById('clinicWeightChart');
+        if (weightCanvas && weightLabels.length > 1) {
+            new Chart(weightCanvas, {
+                type: 'line',
+                data: {
+                    labels: weightLabels,
+                    datasets: [{
+                        label: '@Html.Raw(T.Get("profile.weight"))',
+                        data: weightData,
+                        borderColor: '#059669',
+                        backgroundColor: 'rgba(5,150,105,.14)',
+                        pointBackgroundColor: '#059669',
+                        tension: .35,
+                        fill: true
+                    }]
+                },
+                options: baseOptions
+            });
+        }
+
+        const waterCanvas = document.getElementById('clinicWaterChart');
+        if (waterCanvas && waterLabels.length > 0) {
+            new Chart(waterCanvas, {
+                type: 'line',
+                data: {
+                    labels: waterLabels,
+                    datasets: [{
+                        label: '@Html.Raw(T.Get("water.glasses"))',
+                        data: waterData,
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13,148,136,.14)',
+                        pointBackgroundColor: '#0d9488',
+                        tension: .35,
+                        fill: true
+                    }]
+                },
+                options: baseOptions
+            });
+        }
+
+        const reportCanvas = document.getElementById('clinicReportChart');
+        if (reportCanvas && reportLabels.length > 0) {
+            new Chart(reportCanvas, {
+                type: 'bar',
+                data: {
+                    labels: reportLabels,
+                    datasets: [{
+                        label: '@Html.Raw(T.Get("dashboard.calories"))',
+                        data: reportCalories,
+                        backgroundColor: 'rgba(5,150,105,.72)',
+                        borderColor: '#059669',
+                        borderWidth: 1,
+                        borderRadius: 7
+                    }]
+                },
+                options: baseOptions
+            });
+        }
+    })();
+</script>
+}
