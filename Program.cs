@@ -99,6 +99,9 @@ builder.Services.AddScoped<AchievementService>();
 builder.Services.AddScoped<CurrentUserService>();
 builder.Services.AddScoped<ClinicAccessService>();
 builder.Services.AddScoped<PatientContextService>();
+builder.Services.AddScoped<ClinicPatientAccessContextService>();
+builder.Services.AddScoped<ClinicNotesService>();
+builder.Services.AddScoped<ClinicAppointmentsService>();
 
 // HttpClient — typed client for GeminiService (also registers GeminiService itself)
 builder.Services.AddHttpClient<GeminiService>(client =>
@@ -119,10 +122,11 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    app.UseExceptionHandler("/Error/500");
     app.UseHsts();
 }
 
+app.UseStatusCodePagesWithReExecute("/Error/{0}");
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
@@ -137,7 +141,9 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     try
     {
-        await DbSeeder.SeedAsync(services, app.Configuration.GetValue<bool>("MoodBite:SeedDemoData"));
+        var seedDemoData = app.Environment.IsDevelopment() &&
+                           app.Configuration.GetValue<bool>("MoodBite:SeedDemoData");
+        await DbSeeder.SeedAsync(services, seedDemoData);
     }
     catch (Exception ex)
     {

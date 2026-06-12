@@ -80,9 +80,18 @@ namespace MoodBite.Controllers
                 await _db.SaveChangesAsync();
                 TempData["Success"] = _translationService.Get("workout.planGenerated");
             }
-            catch (Exception ex)
+            catch
             {
-                TempData["Error"] = _translationService.Get("common.error") + ": " + ex.Message;
+                var fallbackPlan = BuildFallbackWorkoutPlan(
+                    _translationService.CurrentLang,
+                    fitnessLevel,
+                    equipment,
+                    workoutDuration,
+                    focusArea,
+                    daysPerWeek);
+                _db.WorkoutPlans.Add(new WorkoutPlan { UserId = user.Id, PlanJson = fallbackPlan });
+                await _db.SaveChangesAsync();
+                TempData["Success"] = _translationService.Get("workout.planFallback");
             }
 
             return RedirectToAction("Index");
@@ -95,6 +104,64 @@ namespace MoodBite.Controllers
             else if (json.StartsWith("```")) json = json[3..];
             if (json.EndsWith("```")) json = json[..^3];
             return json.Trim();
+        }
+
+        private static string BuildFallbackWorkoutPlan(
+            string lang,
+            string? fitnessLevel,
+            string? equipment,
+            string? workoutDuration,
+            string? focusArea,
+            int? daysPerWeek)
+        {
+            var duration = string.IsNullOrWhiteSpace(workoutDuration) ? "35 min" : workoutDuration.Trim();
+            var level = string.IsNullOrWhiteSpace(fitnessLevel) ? "beginner" : fitnessLevel.Trim();
+            var availableEquipment = string.IsNullOrWhiteSpace(equipment) ? "bodyweight" : equipment.Trim();
+            var focus = string.IsNullOrWhiteSpace(focusArea) ? "full body" : focusArea.Trim();
+            var trainingDays = Math.Clamp(daysPerWeek ?? 4, 2, 6);
+            var restDayIndexes = Enumerable.Range(trainingDays + 1, 7 - trainingDays).ToHashSet();
+
+            var days = Enumerable.Range(1, 7).Select(day =>
+            {
+                var isRest = restDayIndexes.Contains(day);
+                return new
+                {
+                    day,
+                    dayNameAr = new[] { "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد" }[day - 1],
+                    dayNameEn = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" }[day - 1],
+                    focus = isRest ? "Rest" : focus,
+                    focusAr = isRest ? "راحة" : "تمارين للجسم كامل",
+                    isRest,
+                    duration = isRest ? "" : duration,
+                    warmup = isRest ? "" : "5 min light cardio and dynamic mobility",
+                    exercises = isRest
+                        ? Array.Empty<object>()
+                        : new object[]
+                        {
+                            new { name = "Squat", nameAr = "قرفصاء", sets = 3, reps = "10-12", rest = "60s", notes = "Keep movement controlled" },
+                            new { name = "Push-up", nameAr = "ضغط", sets = 3, reps = "8-12", rest = "60s", notes = "Use incline if needed" },
+                            new { name = "Hip hinge", nameAr = "ثني الورك", sets = 3, reps = "10-12", rest = "60s", notes = "Keep back neutral" },
+                            new { name = "Row or band pull", nameAr = "سحب مطاط أو تجديف", sets = 3, reps = "10-12", rest = "60s", notes = $"Use {availableEquipment}" },
+                            new { name = "Plank", nameAr = "بلانك", sets = 3, reps = "20-40s", rest = "45s", notes = "Breathe steadily" }
+                        },
+                    cooldown = isRest ? "" : "5 min easy walking and stretching"
+                };
+            });
+
+            var planName = lang == "ar" ? "خطة تمارين بديلة" : "Fallback workout plan";
+            var description = lang == "ar"
+                ? "خطة محلية آمنة للاستخدام عند عدم توفر الذكاء الاصطناعي."
+                : "A safe local plan used when AI generation is unavailable.";
+
+            return JsonSerializer.Serialize(new
+            {
+                planName,
+                description,
+                frequency = $"{trainingDays} days/week",
+                level,
+                equipment = availableEquipment,
+                days
+            });
         }
     }
 }

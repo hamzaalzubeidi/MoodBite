@@ -111,9 +111,9 @@ namespace MoodBite.Controllers
             {
                 return Json(new { success = false, error = "timeout" });
             }
-            catch (Exception ex)
+            catch
             {
-                return Json(new { success = false, error = ex.Message[..Math.Min(120, ex.Message.Length)] });
+                return Json(new { success = false, error = "service_unavailable" });
             }
         }
 
@@ -160,9 +160,9 @@ namespace MoodBite.Controllers
                 var lang = user.PreferredLanguage ?? "ar";
                 analysisJson = await _geminiService.AnalyzeFoodPhotoAsync(imageBytes, mime, lang);
             }
-            catch (Exception ex)
+            catch
             {
-                return Json(new { success = false, error = "ai_error", detail = ex.Message });
+                return Json(new { success = false, error = "ai_unavailable" });
             }
 
             // Parse result

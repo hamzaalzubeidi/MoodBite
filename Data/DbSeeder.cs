@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using MoodBite.Constants;
 using MoodBite.Models;
+using MoodBite.Services;
 using System.Text.Json;
 
 namespace MoodBite.Data
@@ -464,8 +465,417 @@ namespace MoodBite.Data
 
             if (seedDemoData)
             {
+                await SeedMarketDemoDataAsync(services);
                 await SeedHamzaDataAsync(services);
             }
+        }
+
+        private static async Task SeedMarketDemoDataAsync(IServiceProvider services)
+        {
+            var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var mealPlanService = services.GetRequiredService<MealPlanService>();
+
+            const string demoPassword = "Demo@123456";
+            var admin = await EnsureDemoUserAsync(
+                userManager,
+                "admin@moodbite.com",
+                "MoodBite Admin",
+                ApplicationRoles.Admin,
+                demoPassword,
+                preferredLanguage: "en");
+            var owner = await EnsureDemoUserAsync(
+                userManager,
+                "clinic.owner@moodbite.demo",
+                "Dr. Sara Clinic Owner",
+                ApplicationRoles.ClinicOwner,
+                demoPassword,
+                preferredLanguage: "en");
+            var dietitian = await EnsureDemoUserAsync(
+                userManager,
+                "dietitian@moodbite.demo",
+                "Lina Dietitian",
+                ApplicationRoles.Dietitian,
+                demoPassword,
+                preferredLanguage: "en");
+            var staff = await EnsureDemoUserAsync(
+                userManager,
+                "staff@moodbite.demo",
+                "Omar Clinic Staff",
+                ApplicationRoles.ClinicStaff,
+                demoPassword,
+                preferredLanguage: "en");
+            var patientOne = await EnsureDemoUserAsync(
+                userManager,
+                "patient.one@moodbite.demo",
+                "Maya Patient",
+                ApplicationRoles.User,
+                demoPassword,
+                preferredLanguage: "en");
+            var patientTwo = await EnsureDemoUserAsync(
+                userManager,
+                "patient.two@moodbite.demo",
+                "Yousef Patient",
+                ApplicationRoles.User,
+                demoPassword,
+                preferredLanguage: "ar");
+
+            var clinic = db.Clinics.FirstOrDefault(c => c.Slug == "demo-wellness-clinic");
+            if (clinic == null)
+            {
+                clinic = new Clinic
+                {
+                    Name = "MoodBite Wellness Clinic",
+                    Slug = "demo-wellness-clinic",
+                    LegalName = "MoodBite Wellness Clinic LLC",
+                    Email = "hello@moodbite.demo",
+                    Phone = "+962-6-555-0101",
+                    Country = "Jordan",
+                    City = "Amman",
+                    Address = "Demo Street, Abdoun",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow.AddDays(-45)
+                };
+                db.Clinics.Add(clinic);
+                await db.SaveChangesAsync();
+            }
+
+            await EnsureClinicMemberAsync(db, clinic.Id, owner.Id, ApplicationRoles.ClinicOwner, admin.Id);
+            await EnsureClinicMemberAsync(db, clinic.Id, dietitian.Id, ApplicationRoles.Dietitian, owner.Id);
+            await EnsureClinicMemberAsync(db, clinic.Id, staff.Id, ApplicationRoles.ClinicStaff, owner.Id);
+
+            await EnsurePatientDemoDataAsync(
+                db,
+                mealPlanService,
+                clinic,
+                patientOne,
+                dietitian,
+                "mediterranean",
+                "loseWeight",
+                1650,
+                72,
+                168,
+                34,
+                seedOffset: 0);
+            await EnsurePatientDemoDataAsync(
+                db,
+                mealPlanService,
+                clinic,
+                patientTwo,
+                dietitian,
+                "keto",
+                "maintain",
+                2100,
+                86,
+                178,
+                42,
+                seedOffset: 11);
+        }
+
+        private static async Task<ApplicationUser> EnsureDemoUserAsync(
+            UserManager<ApplicationUser> userManager,
+            string email,
+            string fullName,
+            string role,
+            string password,
+            string preferredLanguage)
+        {
+            var user = await userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                user = new ApplicationUser
+                {
+                    UserName = email,
+                    Email = email,
+                    FullName = fullName,
+                    IsActive = true,
+                    EmailConfirmed = true,
+                    PreferredLanguage = preferredLanguage
+                };
+
+                var result = await userManager.CreateAsync(user, password);
+                if (!result.Succeeded)
+                {
+                    throw new InvalidOperationException($"Unable to create demo user {email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                }
+            }
+            else
+            {
+                user.FullName = string.IsNullOrWhiteSpace(user.FullName) ? fullName : user.FullName;
+                user.IsActive = true;
+                user.EmailConfirmed = true;
+                user.PreferredLanguage ??= preferredLanguage;
+                await userManager.UpdateAsync(user);
+            }
+
+            if (!await userManager.IsInRoleAsync(user, role))
+            {
+                await userManager.AddToRoleAsync(user, role);
+            }
+
+            return user;
+        }
+
+        private static async Task EnsureClinicMemberAsync(
+            ApplicationDbContext db,
+            int clinicId,
+            string userId,
+            string role,
+            string invitedByUserId)
+        {
+            var member = db.ClinicMembers.FirstOrDefault(m => m.ClinicId == clinicId && m.UserId == userId);
+            if (member == null)
+            {
+                db.ClinicMembers.Add(new ClinicMember
+                {
+                    ClinicId = clinicId,
+                    UserId = userId,
+                    Role = role,
+                    IsActive = true,
+                    JoinedAt = DateTime.UtcNow.AddDays(-30),
+                    InvitedByUserId = invitedByUserId
+                });
+            }
+            else
+            {
+                member.Role = role;
+                member.IsActive = true;
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        private static async Task EnsurePatientDemoDataAsync(
+            ApplicationDbContext db,
+            MealPlanService mealPlanService,
+            Clinic clinic,
+            ApplicationUser patient,
+            ApplicationUser dietitian,
+            string dietSlug,
+            string goal,
+            double calorieTarget,
+            double startingWeight,
+            double height,
+            int age,
+            int seedOffset)
+        {
+            var link = db.ClinicPatients.FirstOrDefault(p => p.ClinicId == clinic.Id && p.PatientId == patient.Id);
+            if (link == null)
+            {
+                db.ClinicPatients.Add(new ClinicPatient
+                {
+                    ClinicId = clinic.Id,
+                    PatientId = patient.Id,
+                    PrimaryDietitianId = dietitian.Id,
+                    Status = "active",
+                    ConsentGranted = true,
+                    ConsentGrantedAt = DateTime.UtcNow.AddDays(-20),
+                    LinkedAt = DateTime.UtcNow.AddDays(-20),
+                    InternalNotes = "Demo patient for clinic workflow."
+                });
+            }
+            else
+            {
+                link.PrimaryDietitianId = dietitian.Id;
+                link.Status = "active";
+                link.ConsentGranted = true;
+                link.ConsentGrantedAt ??= DateTime.UtcNow.AddDays(-20);
+                link.ArchivedAt = null;
+            }
+
+            if (!db.HealthProfiles.Any(h => h.UserId == patient.Id))
+            {
+                db.HealthProfiles.Add(new HealthProfile
+                {
+                    UserId = patient.Id,
+                    Age = age,
+                    Gender = seedOffset == 0 ? "female" : "male",
+                    Height = height,
+                    Weight = startingWeight - 2.4,
+                    Goal = goal,
+                    ActivityLevel = "moderate",
+                    HealthConditions = "[]",
+                    Allergens = "[]",
+                    FoodPreferences = "[\"home cooking\",\"quick lunches\"]",
+                    CookingStyle = "moderate",
+                    Budget = "medium",
+                    DietSlug = dietSlug,
+                    CalorieTarget = calorieTarget,
+                    WaterGoal = seedOffset == 0 ? 8 : 9,
+                    UpdatedAt = DateTime.UtcNow.AddDays(-2)
+                });
+            }
+
+            if (db.WeightLogs.Count(w => w.UserId == patient.Id) < 4)
+            {
+                for (var i = 0; i < 6; i++)
+                {
+                    db.WeightLogs.Add(new WeightLog
+                    {
+                        UserId = patient.Id,
+                        Date = DateTime.Today.AddDays(-35 + i * 7),
+                        Weight = Math.Round(startingWeight - i * 0.45 - seedOffset * 0.03, 1),
+                        Note = i == 0 ? "Demo baseline" : null
+                    });
+                }
+            }
+
+            if (db.DayLogs.Count(d => d.UserId == patient.Id) < 7)
+            {
+                for (var i = 0; i < 14; i++)
+                {
+                    var calories = calorieTarget + ((i % 5) - 2) * 85;
+                    db.DayLogs.Add(new DayLog
+                    {
+                        UserId = patient.Id,
+                        Date = DateTime.Today.AddDays(-13 + i),
+                        CaloriesConsumed = calories,
+                        CaloriesBurned = 220 + (i % 4) * 35,
+                        Protein = 95 + (i % 5) * 6,
+                        Carbs = dietSlug == "keto" ? 45 + (i % 3) * 5 : 165 + (i % 4) * 10,
+                        Fats = dietSlug == "keto" ? 115 + (i % 4) * 7 : 58 + (i % 4) * 4,
+                        Mood = i % 3 == 0 ? "energetic" : i % 3 == 1 ? "happy" : "focused",
+                        Adherent = Math.Abs(calories - calorieTarget) / calorieTarget <= 0.15
+                    });
+                }
+            }
+
+            if (db.WaterLogs.Count(w => w.UserId == patient.Id) < 7)
+            {
+                for (var i = 0; i < 14; i++)
+                {
+                    db.WaterLogs.Add(new WaterLog
+                    {
+                        UserId = patient.Id,
+                        Date = DateTime.Today.AddDays(-13 + i),
+                        GlassesCount = 6 + ((i + seedOffset) % 4)
+                    });
+                }
+            }
+
+            if (db.FoodScans.Count(f => f.UserId == patient.Id) < 2)
+            {
+                db.FoodScans.AddRange(
+                    new FoodScan
+                    {
+                        UserId = patient.Id,
+                        ImagePath = string.Empty,
+                        FoodNameAr = "سلطة دجاج",
+                        FoodNameEn = "Chicken salad",
+                        Confidence = 92,
+                        Calories = 420,
+                        Protein = 36,
+                        Carbs = 22,
+                        Fats = 18,
+                        ServingSize = "1 bowl",
+                        ServingSizeAr = "وعاء واحد",
+                        DescriptionEn = "Demo scan with balanced protein and vegetables.",
+                        DescriptionAr = "فحص تجريبي يحتوي على بروتين وخضار.",
+                        LoggedToDashboard = true,
+                        ScannedAt = DateTime.UtcNow.AddDays(-3)
+                    },
+                    new FoodScan
+                    {
+                        UserId = patient.Id,
+                        ImagePath = string.Empty,
+                        FoodNameAr = "زبادي يوناني",
+                        FoodNameEn = "Greek yogurt",
+                        Confidence = 88,
+                        Calories = 180,
+                        Protein = 18,
+                        Carbs = 14,
+                        Fats = 5,
+                        ServingSize = "1 cup",
+                        ServingSizeAr = "كوب واحد",
+                        LoggedToDashboard = false,
+                        ScannedAt = DateTime.UtcNow.AddDays(-1)
+                    });
+            }
+
+            if (db.MealPlans.Count(m => m.UserId == patient.Id) < 2)
+            {
+                db.MealPlans.AddRange(
+                    new MealPlan
+                    {
+                        UserId = patient.Id,
+                        PlanType = "standard",
+                        PlanJson = mealPlanService.GenerateWeekPlan(dietSlug, 100 + seedOffset),
+                        Title = "Clinic standard plan",
+                        DietType = dietSlug,
+                        CalorieTarget = calorieTarget,
+                        CreatedAt = DateTime.UtcNow.AddDays(-10)
+                    },
+                    new MealPlan
+                    {
+                        UserId = patient.Id,
+                        PlanType = "ai",
+                        PlanJson = mealPlanService.GenerateWeekPlan(dietSlug, 200 + seedOffset),
+                        Title = "Demo AI-style plan",
+                        DietType = dietSlug,
+                        CalorieTarget = calorieTarget,
+                        CreatedAt = DateTime.UtcNow.AddDays(-4)
+                    });
+            }
+
+            if (db.ClinicalNotes.Count(n => n.ClinicId == clinic.Id && n.PatientId == patient.Id) < 2)
+            {
+                db.ClinicalNotes.AddRange(
+                    new ClinicalNote
+                    {
+                        ClinicId = clinic.Id,
+                        PatientId = patient.Id,
+                        AuthorId = dietitian.Id,
+                        NoteType = "nutrition",
+                        Title = "Initial nutrition review",
+                        Content = "Reviewed profile, calorie target, and first two weeks of logs. Patient is ready for a structured meal plan.",
+                        IsSharedWithPatient = false,
+                        CreatedAt = DateTime.UtcNow.AddDays(-8)
+                    },
+                    new ClinicalNote
+                    {
+                        ClinicId = clinic.Id,
+                        PatientId = patient.Id,
+                        AuthorId = dietitian.Id,
+                        NoteType = "progress",
+                        Title = "Progress check",
+                        Content = "Hydration and adherence improved this week. Continue current plan and reassess after next appointment.",
+                        IsSharedWithPatient = true,
+                        CreatedAt = DateTime.UtcNow.AddDays(-2)
+                    });
+            }
+
+            if (db.Appointments.Count(a => a.ClinicId == clinic.Id && a.PatientId == patient.Id) < 2)
+            {
+                db.Appointments.AddRange(
+                    new Appointment
+                    {
+                        ClinicId = clinic.Id,
+                        PatientId = patient.Id,
+                        DietitianId = dietitian.Id,
+                        StartsAt = DateTime.UtcNow.AddDays(2).Date.AddHours(10),
+                        DurationMinutes = 45,
+                        Status = "scheduled",
+                        VisitType = "followUp",
+                        Location = "Clinic room 2",
+                        Notes = "Review adherence and adjust meal plan.",
+                        CreatedAt = DateTime.UtcNow.AddDays(-4)
+                    },
+                    new Appointment
+                    {
+                        ClinicId = clinic.Id,
+                        PatientId = patient.Id,
+                        DietitianId = dietitian.Id,
+                        StartsAt = DateTime.UtcNow.AddDays(-7).Date.AddHours(12),
+                        DurationMinutes = 30,
+                        Status = "completed",
+                        VisitType = "initial",
+                        Location = "Telehealth",
+                        Notes = "Completed onboarding consultation.",
+                        CreatedAt = DateTime.UtcNow.AddDays(-12)
+                    });
+            }
+
+            await db.SaveChangesAsync();
         }
 
         private static async Task SeedHamzaDataAsync(IServiceProvider services)

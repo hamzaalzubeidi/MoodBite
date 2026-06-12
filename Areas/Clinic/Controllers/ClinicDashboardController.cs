@@ -16,17 +16,20 @@ namespace MoodBite.Areas.Clinic.Controllers
         private readonly ApplicationDbContext _db;
         private readonly CurrentUserService _currentUser;
         private readonly ClinicAccessService _clinicAccess;
+        private readonly ClinicAppointmentsService _appointmentsService;
         private readonly ILogger<ClinicDashboardController> _logger;
 
         public ClinicDashboardController(
             ApplicationDbContext db,
             CurrentUserService currentUser,
             ClinicAccessService clinicAccess,
+            ClinicAppointmentsService appointmentsService,
             ILogger<ClinicDashboardController> logger)
         {
             _db = db;
             _currentUser = currentUser;
             _clinicAccess = clinicAccess;
+            _appointmentsService = appointmentsService;
             _logger = logger;
         }
 
@@ -79,6 +82,11 @@ namespace MoodBite.Areas.Clinic.Controllers
                     .CountAsync(a => a.ClinicId == clinic.Id &&
                                      a.Status == "scheduled" &&
                                      a.StartsAt >= DateTime.UtcNow, cancellationToken);
+
+                model.NextAppointments = await _appointmentsService.GetUpcomingAppointmentsAsync(
+                    clinic.Id,
+                    take: 5,
+                    cancellationToken: cancellationToken);
             }
             catch (DbException ex)
             {

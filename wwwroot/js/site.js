@@ -211,9 +211,13 @@ async function sendChatMessage() {
     messages.scrollTop = messages.scrollHeight;
 
     try {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
         const response = await fetch('/api/Chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
             body: JSON.stringify({ message: text })
         });
         const data = await response.json();

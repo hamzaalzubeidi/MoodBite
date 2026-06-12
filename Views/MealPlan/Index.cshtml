@@ -197,7 +197,7 @@
             <div class="alert-warning" style="border-radius:16px;padding:20px 24px">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
                 @(isRtl ? "أكمل ملفك الشخصي أولاً لتفعيل خطة الذكاء الاصطناعي." : "Complete your health profile first to unlock the AI plan.")
-                <a asp-controller="Profile" asp-action="Index" style="font-weight:700;margin-inline-start:6px">
+                <a asp-area="" asp-controller="Profile" asp-action="Index" style="font-weight:700;margin-inline-start:6px">
                     @(isRtl?"إكمال الملف →":"Complete Profile →")
                 </a>
             </div>

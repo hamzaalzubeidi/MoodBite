@@ -8,10 +8,8 @@
     {
         (Controller: "ClinicDashboard", Icon: "layout-dashboard", Label: T.Get("clinic.nav.dashboard"), Url: "/Clinic", Enabled: true),
         (Controller: "Patients", Icon: "users", Label: T.Get("clinic.nav.patients"), Url: "/Clinic/Patients", Enabled: true),
-        (Controller: "Appointments", Icon: "calendar-clock", Label: T.Get("clinic.nav.appointments"), Url: "#", Enabled: false),
-        (Controller: "Notes", Icon: "clipboard-list", Label: T.Get("clinic.nav.notes"), Url: "#", Enabled: false),
-        (Controller: "Reports", Icon: "bar-chart-3", Label: T.Get("clinic.nav.reports"), Url: "#", Enabled: false),
-        (Controller: "MealPlans", Icon: "calendar-days", Label: T.Get("clinic.nav.mealPlans"), Url: "#", Enabled: false),
+        (Controller: "Appointments", Icon: "calendar-clock", Label: T.Get("clinic.nav.appointments"), Url: "/Clinic/Appointments", Enabled: true),
+        (Controller: "MealPlans", Icon: "calendar-days", Label: T.Get("clinic.nav.mealPlans"), Url: "/Clinic/MealPlans", Enabled: true),
         (Controller: "ClinicStaff", Icon: "user-cog", Label: T.Get("clinic.nav.staff"), Url: "/Clinic/ClinicStaff", Enabled: true),
         (Controller: "ClinicSettings", Icon: "settings", Label: T.Get("clinic.nav.settings"), Url: "/Clinic/ClinicSettings", Enabled: true)
     };

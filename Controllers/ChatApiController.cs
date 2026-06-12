@@ -44,6 +44,7 @@ namespace MoodBite.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Post([FromBody] ChatRequest request)
         {
             var user = await _userManager.GetUserAsync(User);
@@ -52,8 +53,8 @@ namespace MoodBite.Controllers
             var lang = _t.CurrentLang;
             var foodName = ExtractDislikedFood(request.Message);
 
-            _logger.LogInformation("Chat request from {UserId}. Message: {Message}. Intent detected: {FoodName}",
-                user.Id, request.Message, foodName ?? "(none)");
+            _logger.LogInformation("Chat request from {UserId}. Meal-plan edit intent detected: {HasIntent}",
+                user.Id, !string.IsNullOrEmpty(foodName));
 
             if (!string.IsNullOrEmpty(foodName))
                 return await HandleFoodRemoval(user, foodName, lang);
@@ -63,8 +64,19 @@ namespace MoodBite.Controllers
                 ? $"User: {user.FullName}, Goal: {profile.Goal}, Diet: {profile.DietSlug}, CalorieTarget: {profile.CalorieTarget}"
                 : $"User: {user.FullName}";
 
-            var reply = await _geminiService.ChatAsync(request.Message, context, lang);
-            return Ok(new { reply });
+            try
+            {
+                var reply = await _geminiService.ChatAsync(request.Message, context, lang);
+                return Ok(new { reply });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Chat AI unavailable for user {UserId}.", user.Id);
+                var fallback = lang == "ar"
+                    ? "المساعد الذكي غير متاح حالياً. يمكنك متابعة استخدام لوحة التغذية وخطط الوجبات، وسنحاول مرة أخرى لاحقاً."
+                    : "The AI assistant is unavailable right now. You can keep using the nutrition dashboard and meal plans, then try again later.";
+                return Ok(new { reply = fallback });
+            }
         }
 
         // Strip Arabic diacritics (harakat + shadda U+064B–U+065F) so OrdinalIgnoreCase matching
@@ -165,8 +177,7 @@ namespace MoodBite.Controllers
             try { JsonDocument.Parse(updatedJson); }
             catch (JsonException jex)
             {
-                _logger.LogError(jex, "HandleFoodRemoval: Gemini returned invalid JSON. Preview: {Preview}",
-                    updatedJson[..Math.Min(300, updatedJson.Length)]);
+                _logger.LogError(jex, "HandleFoodRemoval: Gemini returned invalid JSON.");
                 var errMsg = lang == "ar"
                     ? "تعذّر تعديل الخطة. حاول مرة أخرى."
                     : "Failed to update the meal plan. Please try again.";

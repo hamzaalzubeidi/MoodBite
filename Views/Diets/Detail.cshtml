@@ -148,7 +148,7 @@
                 <p style="opacity:.9;font-size:.85rem;margin-bottom:16px">
                     @(isRtl?"أنشئ خطة وجبات مخصصة بالذكاء الاصطناعي":"Generate a personalized AI meal plan")
                 </p>
-                <a asp-controller="MealPlan" asp-action="Index"
+                <a asp-area="" asp-controller="MealPlan" asp-action="Index"
                    style="display:inline-block;background:white;color:var(--primary);padding:10px 24px;border-radius:var(--radius-full);font-weight:700;text-decoration:none">
                     @T.Get("nav.mealPlan")
                 </a>

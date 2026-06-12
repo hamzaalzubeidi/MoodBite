@@ -10,6 +10,14 @@
         (Icon: "file-check-2", Label: T.Get("clinic.reportsReady"), Value: Model.ReportsReady, Color: "var(--icon-blue)"),
         (Icon: "calendar-clock", Label: T.Get("clinic.upcomingAppointments"), Value: Model.UpcomingAppointments, Color: "var(--icon-purple)")
     };
+
+    string VisitTypeLabel(string visitType) => visitType switch
+    {
+        "initial" => T.Get("clinic.appointments.initial"),
+        "remote" => T.Get("clinic.appointments.remote"),
+        "review" => T.Get("clinic.appointments.review"),
+        _ => T.Get("clinic.appointments.followUp")
+    };
 }
 
 <section style="background:linear-gradient(135deg,#064e3b 0%,#065f46 45%,#0d9488 100%);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px;box-shadow:var(--shadow-md);overflow:hidden">
@@ -69,19 +77,67 @@ else
         }
     </div>
 
-    <div class="card-glass p-4" style="border-radius:var(--radius-lg)">
-        <div class="d-flex align-items-start gap-3">
-            <div style="width:44px;height:44px;border-radius:var(--radius-md);background:var(--primary-50);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0">
-                <i data-lucide="info"></i>
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                    <div>
+                        <h5 style="font-weight:900;margin:0 0 6px;color:var(--text-primary)">@T.Get("clinic.appointments.nextFive")</h5>
+                        <p style="color:var(--text-secondary);margin:0">@T.Get("clinic.appointments.nextFiveSubtitle")</p>
+                    </div>
+                    <a asp-area="Clinic" asp-controller="Appointments" asp-action="Index" asp-route-clinicId="@Model.ClinicId" class="btn-secondary-custom btn-sm-custom">
+                        <i data-lucide="calendar-clock"></i>@T.Get("clinic.nav.appointments")
+                    </a>
+                </div>
+
+                @if (Model.NextAppointments.Count == 0)
+                {
+                    <div class="text-center py-4">
+                        <div style="font-size:2.2rem;color:var(--primary);margin-bottom:8px"><i data-lucide="calendar-x"></i></div>
+                        <p style="color:var(--text-secondary);margin:0">@T.Get("clinic.appointments.noUpcoming")</p>
+                        <a asp-area="Clinic" asp-controller="Appointments" asp-action="Create" asp-route-clinicId="@Model.ClinicId" class="btn-primary-custom btn-sm-custom mt-3">
+                            <i data-lucide="plus"></i>@T.Get("clinic.appointments.schedule")
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-2">
+                        @foreach (var appointment in Model.NextAppointments)
+                        {
+                            <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap" style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;background:var(--surface)">
+                                <div>
+                                    <div style="font-weight:900;color:var(--text-primary)">@appointment.PatientName</div>
+                                    <div style="color:var(--text-secondary);font-size:.82rem">@VisitTypeLabel(appointment.VisitType) - @appointment.DurationMinutes @T.Get("clinic.appointments.minutes")</div>
+                                </div>
+                                <div class="text-end">
+                                    <div style="font-weight:900;color:var(--primary)">@appointment.StartsAt.ToString("yyyy-MM-dd HH:mm")</div>
+                                    <a asp-area="Clinic" asp-controller="Appointments" asp-action="Details" asp-route-id="@appointment.Id" asp-route-clinicId="@Model.ClinicId" style="font-size:.8rem;color:var(--text-secondary);font-weight:800;text-decoration:none">
+                                        @T.Get("common.view")
+                                    </a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
             </div>
-            <div>
-                <h5 style="font-weight:900;margin:0 0 6px;color:var(--text-primary)">@T.Get("clinic.shellReadyTitle")</h5>
-                <p style="color:var(--text-secondary);margin:0">
-                    @T.Get("clinic.shellReadyBody")
-                </p>
-                <a href="/Clinic/Patients?clinicId=@Model.ClinicId" class="btn-primary-custom btn-sm-custom mt-3">
-                    <i data-lucide="users"></i>@T.Get("clinic.patients.openRoster")
-                </a>
+        </div>
+        <div class="col-lg-5">
+            <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+                <div class="d-flex align-items-start gap-3">
+                    <div style="width:44px;height:44px;border-radius:var(--radius-md);background:var(--primary-50);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0">
+                        <i data-lucide="info"></i>
+                    </div>
+                    <div>
+                        <h5 style="font-weight:900;margin:0 0 6px;color:var(--text-primary)">@T.Get("clinic.shellReadyTitle")</h5>
+                        <p style="color:var(--text-secondary);margin:0">
+                            @T.Get("clinic.shellReadyBody")
+                        </p>
+                        <a asp-area="Clinic" asp-controller="Patients" asp-action="Index" asp-route-clinicId="@Model.ClinicId" class="btn-primary-custom btn-sm-custom mt-3">
+                            <i data-lucide="users"></i>@T.Get("clinic.patients.openRoster")
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

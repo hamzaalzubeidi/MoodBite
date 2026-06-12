@@ -1,0 +1,135 @@
+@model ClinicAppointmentDetailsViewModel
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("clinic.appointments.details");
+    var empty = T.Get("clinic.patientDashboard.notAvailable");
+
+    string StatusLabel(string status) => status switch
+    {
+        "completed" => T.Get("clinic.appointments.completed"),
+        "cancelled" => T.Get("clinic.appointments.cancelled"),
+        _ => T.Get("clinic.appointments.scheduled")
+    };
+
+    string VisitTypeLabel(string visitType) => visitType switch
+    {
+        "initial" => T.Get("clinic.appointments.initial"),
+        "remote" => T.Get("clinic.appointments.remote"),
+        "review" => T.Get("clinic.appointments.review"),
+        _ => T.Get("clinic.appointments.followUp")
+    };
+
+    string FormatDate(DateTime? date) => date.HasValue ? date.Value.ToString("yyyy-MM-dd HH:mm") : empty;
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-4">
+        <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<section style="background:linear-gradient(135deg,#064e3b 0%,#047857 55%,#0d9488 100%);border-radius:var(--radius-lg);padding:22px;margin-bottom:22px;box-shadow:var(--shadow-md)">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <div style="color:rgba(255,255,255,.72);font-weight:800;font-size:.78rem;text-transform:uppercase">@Model.ClinicName</div>
+            <h2 style="color:white;font-weight:900;margin:4px 0;font-size:clamp(1.4rem,3vw,2rem)">@T.Get("clinic.appointments.details")</h2>
+            <p style="color:rgba(255,255,255,.72);margin:0">@Model.Appointment.PatientName</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a asp-area="Clinic"
+               asp-controller="Appointments"
+               asp-action="Edit"
+               asp-route-id="@Model.Appointment.Id"
+               asp-route-clinicId="@Model.ClinicId"
+               class="btn-secondary-custom"
+               style="background:white;color:var(--primary);border-color:white">
+                <i data-lucide="pencil"></i>@T.Get("clinic.appointments.edit")
+            </a>
+            <a asp-area="Clinic"
+               asp-controller="Appointments"
+               asp-action="Index"
+               asp-route-clinicId="@Model.ClinicId"
+               class="btn-secondary-custom"
+               style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28);color:white">
+                <i data-lucide="arrow-left"></i>@T.Get("clinic.appointments.backToAppointments")
+            </a>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-4">
+                <div>
+                    <h4 style="font-weight:900;margin:0">@Model.Appointment.PatientName</h4>
+                    <p style="color:var(--text-secondary);margin:4px 0 0">@Model.Appointment.PatientEmail</p>
+                </div>
+                <span class="badge-custom badge-primary">@StatusLabel(Model.Appointment.Status)</span>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("clinic.appointments.startsAt")</div>
+                    <div style="font-weight:900;color:var(--text-primary)">@FormatDate(Model.Appointment.StartsAt)</div>
+                </div>
+                <div class="col-md-6">
+                    <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("clinic.appointments.duration")</div>
+                    <div style="font-weight:900;color:var(--text-primary)">@Model.Appointment.DurationMinutes @T.Get("clinic.appointments.minutes")</div>
+                </div>
+                <div class="col-md-6">
+                    <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("clinic.appointments.visitType")</div>
+                    <div style="font-weight:900;color:var(--text-primary)">@VisitTypeLabel(Model.Appointment.VisitType)</div>
+                </div>
+                <div class="col-md-6">
+                    <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("clinic.appointments.location")</div>
+                    <div style="font-weight:900;color:var(--text-primary)">@(string.IsNullOrWhiteSpace(Model.Appointment.Location) ? empty : Model.Appointment.Location)</div>
+                </div>
+                <div class="col-md-6">
+                    <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("clinic.appointments.clinician")</div>
+                    <div style="font-weight:900;color:var(--text-primary)">@Model.Appointment.DietitianName</div>
+                </div>
+                <div class="col-md-6">
+                    <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("clinic.appointments.createdAt")</div>
+                    <div style="font-weight:900;color:var(--text-primary)">@FormatDate(Model.CreatedAt)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card-glass p-4 h-100" style="border-radius:var(--radius-lg)">
+            <h5 style="font-weight:900;margin:0 0 14px">@T.Get("clinic.appointments.notes")</h5>
+            @if (string.IsNullOrWhiteSpace(Model.Notes))
+            {
+                <div class="text-center py-4">
+                    <div style="font-size:2rem;color:var(--primary);margin-bottom:8px"><i data-lucide="notebook"></i></div>
+                    <p style="color:var(--text-secondary);margin:0">@T.Get("clinic.appointments.noNotes")</p>
+                </div>
+            }
+            else
+            {
+                <div style="white-space:pre-wrap;color:var(--text-primary);line-height:1.7">@Model.Notes</div>
+            }
+
+            <div class="d-flex flex-column gap-2 mt-4">
+                <a asp-area="Clinic"
+                   asp-controller="Patients"
+                   asp-action="Details"
+                   asp-route-patientId="@Model.Appointment.PatientId"
+                   asp-route-clinicId="@Model.ClinicId"
+                   class="btn-secondary-custom w-100">
+                    <i data-lucide="user-round"></i>@T.Get("clinic.patients.details")
+                </a>
+                <a asp-area="Clinic"
+                   asp-controller="Notes"
+                   asp-action="Create"
+                   asp-route-patientId="@Model.Appointment.PatientId"
+                   asp-route-clinicId="@Model.ClinicId"
+                   class="btn-secondary-custom w-100">
+                    <i data-lucide="clipboard-plus"></i>@T.Get("clinic.notes.create")
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

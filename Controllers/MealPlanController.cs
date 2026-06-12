@@ -126,6 +126,10 @@ namespace MoodBite.Controllers
                 var dietSlug = profile.DietSlug ?? "mediterranean";
                 var planJson = await _geminiService.GenerateMealPlanAsync(profile, dietSlug, _t.CurrentLang);
                 planJson = CleanJson(planJson);
+                if (!IsValidPlanJson(planJson))
+                {
+                    throw new InvalidOperationException("AI returned invalid meal plan JSON.");
+                }
 
                 var title = _t.CurrentLang == "ar"
                     ? $"خطة {dietSlug} — {DateTime.Today:yyyy/MM/dd}"
@@ -149,9 +153,23 @@ namespace MoodBite.Controllers
             {
                 TempData["Error"] = ex.Message;
             }
-            catch (Exception ex)
+            catch
             {
-                TempData["Error"] = _t.Get("mealPlan.aiError") + ": " + ex.Message;
+                var dietSlug = profile.DietSlug ?? "mediterranean";
+                var fallbackJson = _mealPlanService.GenerateWeekPlan(dietSlug, DateTime.Now.Millisecond);
+                _db.MealPlans.Add(new MealPlan
+                {
+                    UserId = user.Id,
+                    PlanType = "standard",
+                    PlanJson = fallbackJson,
+                    Title = _t.CurrentLang == "ar"
+                        ? $"خطة بديلة — {DateTime.Today:yyyy/MM/dd}"
+                        : $"Fallback plan — {DateTime.Today:MMM d, yyyy}",
+                    DietType = dietSlug,
+                    CalorieTarget = profile.CalorieTarget
+                });
+                await _db.SaveChangesAsync();
+                TempData["Success"] = _t.Get("mealPlan.aiFallback");
             }
 
             return RedirectToAction("Index");
@@ -203,9 +221,9 @@ namespace MoodBite.Controllers
             {
                 return Json(new { success = false, error = ex.Message });
             }
-            catch (Exception ex)
+            catch
             {
-                return Json(new { success = false, error = ex.Message });
+                return Json(new { success = false, error = _t.Get("mealPlan.aiError") });
             }
         }
 
@@ -289,6 +307,28 @@ namespace MoodBite.Controllers
             else if (json.StartsWith("```")) json = json[3..];
             if (json.EndsWith("```")) json = json[..^3];
             return json.Trim();
+        }
+
+        private static bool IsValidPlanJson(string planJson)
+        {
+            if (string.IsNullOrWhiteSpace(planJson))
+            {
+                return false;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(planJson);
+                var root = doc.RootElement;
+                return root.ValueKind == JsonValueKind.Array ||
+                       (root.ValueKind == JsonValueKind.Object &&
+                        root.TryGetProperty("days", out var days) &&
+                        days.ValueKind == JsonValueKind.Array);
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
         }
     }
 }

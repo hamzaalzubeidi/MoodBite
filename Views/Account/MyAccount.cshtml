@@ -67,7 +67,7 @@
                         @(user?.FullName?.Length > 0 ? user.FullName[0].ToString().ToUpper() : "?")
                     </div>
                 }
-                <form method="post" asp-action="UploadPicture" asp-controller="Profile" enctype="multipart/form-data">
+                <form method="post" asp-area="" asp-action="UploadPicture" asp-controller="Profile" enctype="multipart/form-data">
                     @Html.AntiForgeryToken()
                     <label class="btn-ghost-custom" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
                         <i class="bi bi-upload"></i>

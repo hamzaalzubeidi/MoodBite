@@ -11,5 +11,6 @@ namespace MoodBite.ViewModels.Clinic
         public int PatientsNeedingFollowUp { get; set; }
         public int ReportsReady { get; set; }
         public int UpcomingAppointments { get; set; }
+        public List<ClinicAppointmentListItemViewModel> NextAppointments { get; set; } = new();
     }
 }

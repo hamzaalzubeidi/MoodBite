@@ -1,0 +1,200 @@
+@model ClinicAppointmentsIndexViewModel
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("clinic.appointments.title");
+
+    string StatusLabel(string status) => status switch
+    {
+        "completed" => T.Get("clinic.appointments.completed"),
+        "cancelled" => T.Get("clinic.appointments.cancelled"),
+        _ => T.Get("clinic.appointments.scheduled")
+    };
+
+    string StatusBadge(string status) => status switch
+    {
+        "completed" => "badge-primary",
+        "cancelled" => "badge-neutral",
+        _ => "badge-primary"
+    };
+
+    string VisitTypeLabel(string visitType) => visitType switch
+    {
+        "initial" => T.Get("clinic.appointments.initial"),
+        "remote" => T.Get("clinic.appointments.remote"),
+        "review" => T.Get("clinic.appointments.review"),
+        _ => T.Get("clinic.appointments.followUp")
+    };
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-4">
+        <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (Model.ClinicDataUnavailable || !Model.HasClinicContext)
+{
+    <div class="card-glass p-5 text-center" style="border-radius:var(--radius-lg);max-width:760px;margin:0 auto">
+        <div style="width:70px;height:70px;border-radius:var(--radius-lg);background:var(--primary-50);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;color:var(--primary)">
+            <i data-lucide="calendar-clock" style="width:34px;height:34px"></i>
+        </div>
+        <h3 style="font-weight:900;color:var(--text-primary);font-size:1.25rem">@T.Get("clinic.appointments.title")</h3>
+        <p style="color:var(--text-secondary);max-width:560px;margin:8px auto 0">
+            @(Model.ClinicDataUnavailable ? T.Get("clinic.dataUnavailable") : T.Get("clinic.emptyBody"))
+        </p>
+    </div>
+}
+else
+{
+    <section style="background:linear-gradient(135deg,#064e3b 0%,#047857 55%,#0d9488 100%);border-radius:var(--radius-lg);padding:22px;margin-bottom:22px;box-shadow:var(--shadow-md)">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div>
+                <div style="color:rgba(255,255,255,.72);font-weight:800;font-size:.78rem;text-transform:uppercase">@Model.ClinicName</div>
+                <h2 style="color:white;font-weight:900;margin:4px 0;font-size:clamp(1.4rem,3vw,2rem)">@T.Get("clinic.appointments.title")</h2>
+                <p style="color:rgba(255,255,255,.72);margin:0;max-width:720px">@T.Get("clinic.appointments.subtitle")</p>
+            </div>
+            <a asp-area="Clinic"
+               asp-controller="Appointments"
+               asp-action="Create"
+               asp-route-clinicId="@Model.ClinicId"
+               class="btn-secondary-custom"
+               style="background:white;color:var(--primary);border-color:white">
+                <i data-lucide="plus"></i>@T.Get("clinic.appointments.create")
+            </a>
+        </div>
+    </section>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card p-3" style="border-radius:var(--radius-lg)">
+                <div style="font-size:1.65rem;font-weight:900;color:var(--primary)">@Model.UpcomingCount</div>
+                <div style="color:var(--text-secondary);font-weight:700;font-size:.84rem">@T.Get("clinic.appointments.upcoming")</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card p-3" style="border-radius:var(--radius-lg)">
+                <div style="font-size:1.65rem;font-weight:900;color:var(--icon-blue)">@Model.CompletedCount</div>
+                <div style="color:var(--text-secondary);font-weight:700;font-size:.84rem">@T.Get("clinic.appointments.completed")</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card p-3" style="border-radius:var(--radius-lg)">
+                <div style="font-size:1.65rem;font-weight:900;color:var(--icon-amber)">@Model.CancelledCount</div>
+                <div style="color:var(--text-secondary);font-weight:700;font-size:.84rem">@T.Get("clinic.appointments.cancelled")</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-glass p-4 mb-4" style="border-radius:var(--radius-lg)">
+        <form method="get" class="row g-3 align-items-end">
+            <input type="hidden" name="clinicId" value="@Model.ClinicId" />
+            <div class="col-md-4">
+                <label class="form-label fw-bold">@T.Get("clinic.appointments.filter")</label>
+                <select name="filter" class="form-select">
+                    <option value="upcoming" selected="@(Model.Filter == "upcoming")">@T.Get("clinic.appointments.upcoming")</option>
+                    <option value="completed" selected="@(Model.Filter == "completed")">@T.Get("clinic.appointments.completed")</option>
+                    <option value="cancelled" selected="@(Model.Filter == "cancelled")">@T.Get("clinic.appointments.cancelled")</option>
+                    <option value="all" selected="@(Model.Filter == "all")">@T.Get("clinic.appointments.all")</option>
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label fw-bold">@T.Get("clinic.appointments.patient")</label>
+                <select name="patientId" class="form-select">
+                    <option value="">@T.Get("clinic.appointments.allPatients")</option>
+                    @foreach (var patient in Model.Patients)
+                    {
+                        <option value="@patient.PatientId" selected="@(Model.PatientId == patient.PatientId)">
+                            @patient.FullName
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn-primary-custom w-100">
+                    <i data-lucide="filter"></i>@T.Get("common.filter")
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card-glass p-4" style="border-radius:var(--radius-lg)">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+                <h4 style="font-weight:900;margin:0">@T.Get("clinic.appointments.title")</h4>
+                <p style="color:var(--text-secondary);margin:4px 0 0;font-size:.84rem">@T.Get("clinic.appointments.subtitle")</p>
+            </div>
+            <span class="badge-custom badge-primary">@Model.Appointments.Count</span>
+        </div>
+
+        @if (Model.Appointments.Count == 0)
+        {
+            <div class="text-center py-5">
+                <div style="font-size:2.4rem;color:var(--primary);margin-bottom:10px"><i data-lucide="calendar-x"></i></div>
+                <h6 style="font-weight:800">@T.Get("clinic.appointments.noAppointments")</h6>
+                <p style="color:var(--text-secondary);margin:0 0 16px">@T.Get("clinic.appointments.noAppointmentsBody")</p>
+                <a asp-area="Clinic" asp-controller="Appointments" asp-action="Create" asp-route-clinicId="@Model.ClinicId" class="btn-primary-custom">
+                    <i data-lucide="plus"></i>@T.Get("clinic.appointments.create")
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>@T.Get("clinic.appointments.patient")</th>
+                            <th>@T.Get("clinic.appointments.startsAt")</th>
+                            <th>@T.Get("clinic.appointments.duration")</th>
+                            <th>@T.Get("clinic.appointments.status")</th>
+                            <th>@T.Get("clinic.appointments.clinician")</th>
+                            <th>@T.Get("clinic.appointments.visitType")</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var appointment in Model.Appointments)
+                    {
+                        <tr>
+                            <td>
+                                <a asp-area="Clinic"
+                                   asp-controller="Patients"
+                                   asp-action="Details"
+                                   asp-route-patientId="@appointment.PatientId"
+                                   asp-route-clinicId="@Model.ClinicId"
+                                   style="font-weight:900;color:var(--text-primary);text-decoration:none">
+                                    @appointment.PatientName
+                                </a>
+                                <div style="font-size:.82rem;color:var(--text-secondary)">@appointment.PatientEmail</div>
+                            </td>
+                            <td style="font-weight:800">@appointment.StartsAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@appointment.DurationMinutes @T.Get("clinic.appointments.minutes")</td>
+                            <td><span class="badge-custom @StatusBadge(appointment.Status)">@StatusLabel(appointment.Status)</span></td>
+                            <td style="color:var(--text-secondary)">@appointment.DietitianName</td>
+                            <td>
+                                <div style="font-weight:800">@VisitTypeLabel(appointment.VisitType)</div>
+                                @if (!string.IsNullOrWhiteSpace(appointment.Location))
+                                {
+                                    <div style="font-size:.82rem;color:var(--text-secondary)">@appointment.Location</div>
+                                }
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a asp-area="Clinic" asp-controller="Appointments" asp-action="Details" asp-route-id="@appointment.Id" asp-route-clinicId="@Model.ClinicId" class="btn-secondary-custom btn-sm-custom">
+                                        <i data-lucide="eye"></i>@T.Get("common.view")
+                                    </a>
+                                    <a asp-area="Clinic" asp-controller="Appointments" asp-action="Edit" asp-route-id="@appointment.Id" asp-route-clinicId="@Model.ClinicId" class="btn-secondary-custom btn-sm-custom">
+                                        <i data-lucide="pencil"></i>@T.Get("common.edit")
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}

@@ -37,7 +37,7 @@ namespace MoodBite.Services
             _apiKey              = config["Gemini:ApiKey"] ?? string.Empty;
 
             if (string.IsNullOrEmpty(_apiKey))
-                _logger.LogError("Gemini API key is missing. Set GEMINI_API_KEY.");
+                _logger.LogWarning("Gemini API key is missing. AI features will use configured fallbacks where available.");
             else
                 _logger.LogInformation("GeminiService initialised with configured API key.");
         }
@@ -93,15 +93,14 @@ namespace MoodBite.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     var errBody = await response.Content.ReadAsStringAsync();
-                    _logger.LogWarning("Gemini [{Model}] returned {Status}: {Body}", model, (int)response.StatusCode, errBody[..Math.Min(500, errBody.Length)]);
+                    _logger.LogWarning("Gemini [{Model}] returned {Status}.", model, (int)response.StatusCode);
                     lastEx = new Exception($"Gemini [{model}] {(int)response.StatusCode}: {errBody}");
                     if ((int)response.StatusCode is 503 or 429 or 400 or 404) continue;
                     throw lastEx;
                 }
 
                 var responseJson = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("Gemini [{Model}] responded OK ({Bytes} bytes). Raw preview: {Preview}",
-                    model, responseJson.Length, responseJson[..Math.Min(500, responseJson.Length)]);
+                _logger.LogInformation("Gemini [{Model}] responded OK ({Bytes} bytes).", model, responseJson.Length);
 
                 using var doc = JsonDocument.Parse(responseJson);
 
@@ -127,6 +126,9 @@ namespace MoodBite.Services
 
         private async Task<string> CallGeminiVisionAsync(byte[] imageBytes, string mimeType, string prompt)
         {
+            if (string.IsNullOrEmpty(_apiKey))
+                throw new InvalidOperationException("Gemini API key is not configured.");
+
             var base64 = Convert.ToBase64String(imageBytes);
             var requestBody = new
             {
@@ -158,7 +160,7 @@ namespace MoodBite.Services
             }
 
             var responseJson = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("Gemini vision raw preview: {Preview}", responseJson[..Math.Min(500, responseJson.Length)]);
+            _logger.LogInformation("Gemini vision responded OK ({Bytes} bytes).", responseJson.Length);
 
             using var doc = JsonDocument.Parse(responseJson);
             var parts = doc.RootElement
@@ -311,7 +313,7 @@ Output JSON only — no markdown, no code fences.";
         {
             if (!skipRateLimit) EnforceRateLimit();
 
-            _logger.LogInformation("EditMealPlanAsync called. Instruction: {Instruction}", instruction);
+            _logger.LogInformation("EditMealPlanAsync called.");
 
             var langNote = lang == "ar"
                 ? "Keep all nameAr values in Arabic and nameEn values in English."
@@ -334,10 +336,9 @@ STRICT RULES — you MUST follow every one:
 5. Recalculate totalCalories, totalProtein, totalCarbs, totalFats for every day that was modified.
 6. Output valid JSON only — no markdown, no code fences, no comments.";
 
-            _logger.LogInformation("Sending EditMealPlanAsync prompt to Gemini ({Chars} chars)", prompt.Length);
+            _logger.LogInformation("Sending EditMealPlanAsync request to Gemini ({Chars} chars)", prompt.Length);
             var result = await CallGeminiAsync(prompt);
-            _logger.LogInformation("EditMealPlanAsync received Gemini response ({Chars} chars). Preview: {Preview}",
-                result.Length, result[..Math.Min(200, result.Length)]);
+            _logger.LogInformation("EditMealPlanAsync received Gemini response ({Chars} chars).", result.Length);
             return result;
         }
 

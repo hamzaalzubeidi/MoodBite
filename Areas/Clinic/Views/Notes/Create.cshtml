@@ -1,0 +1,75 @@
+@model ClinicNoteEditorViewModel
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("clinic.notes.create");
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mb-4">
+        <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<section style="background:linear-gradient(135deg,#064e3b 0%,#047857 55%,#0d9488 100%);border-radius:var(--radius-lg);padding:22px;margin-bottom:22px;box-shadow:var(--shadow-md)">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <div style="color:rgba(255,255,255,.72);font-weight:800;font-size:.78rem;text-transform:uppercase">@Model.ClinicName</div>
+            <h2 style="color:white;font-weight:900;margin:4px 0;font-size:clamp(1.4rem,3vw,2rem)">@T.Get("clinic.notes.create")</h2>
+            <p style="color:rgba(255,255,255,.72);margin:0">@Model.Patient.FullName</p>
+        </div>
+        <a asp-area="Clinic"
+           asp-controller="Notes"
+           asp-action="Index"
+           asp-route-patientId="@Model.Patient.PatientId"
+           asp-route-clinicId="@Model.ClinicId"
+           class="btn-secondary-custom"
+           style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28);color:white">
+            <i data-lucide="arrow-left"></i>@T.Get("clinic.notes.backToNotes")
+        </a>
+    </div>
+</section>
+
+<form asp-area="Clinic" asp-controller="Notes" asp-action="Create" asp-route-patientId="@Model.Patient.PatientId" method="post">
+    <input type="hidden" name="ClinicId" value="@Model.ClinicId" />
+
+    <div class="card-glass p-4" style="border-radius:var(--radius-lg)">
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <label class="form-label fw-bold">@T.Get("clinic.notes.titleField")</label>
+                <input name="Title" value="@Model.Title" class="form-control" maxlength="200" />
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label fw-bold">@T.Get("clinic.notes.type")</label>
+                <select name="NoteType" class="form-select">
+                    <option value="general" selected="@(Model.NoteType == "general")">@T.Get("clinic.notes.type.general")</option>
+                    <option value="nutrition" selected="@(Model.NoteType == "nutrition")">@T.Get("clinic.notes.type.nutrition")</option>
+                    <option value="progress" selected="@(Model.NoteType == "progress")">@T.Get("clinic.notes.type.progress")</option>
+                    <option value="appointment" selected="@(Model.NoteType == "appointment")">@T.Get("clinic.notes.type.appointment")</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-bold">@T.Get("clinic.notes.content")</label>
+                <textarea name="Content" class="form-control" rows="12" maxlength="4000">@Model.Content</textarea>
+                <div class="form-text">@T.Get("clinic.notes.privateHint")</div>
+            </div>
+            <div class="col-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="IsPrivate" value="true" id="IsPrivate" checked="@(Model.IsPrivate)" />
+                    <input type="hidden" name="IsPrivate" value="false" />
+                    <label class="form-check-label fw-bold" for="IsPrivate">@T.Get("clinic.notes.private")</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 flex-wrap mt-4">
+            <a asp-area="Clinic" asp-controller="Notes" asp-action="Index" asp-route-patientId="@Model.Patient.PatientId" asp-route-clinicId="@Model.ClinicId" class="btn-secondary-custom">
+                <i data-lucide="x"></i>@T.Get("common.cancel")
+            </a>
+            <button type="submit" class="btn-primary-custom">
+                <i data-lucide="save"></i>@T.Get("dashboard.save")
+            </button>
+        </div>
+    </div>
+</form>

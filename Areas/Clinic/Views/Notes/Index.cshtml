@@ -1,0 +1,163 @@
+@model ClinicNotesIndexViewModel
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("clinic.notes.title");
+    var empty = T.Get("clinic.patientDashboard.notAvailable");
+
+    string FormatDate(DateTime date) => date.ToString("yyyy-MM-dd HH:mm");
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-4">
+        <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mb-4">
+        <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<section style="background:linear-gradient(135deg,#064e3b 0%,#047857 55%,#0d9488 100%);border-radius:var(--radius-lg);padding:22px;margin-bottom:22px;box-shadow:var(--shadow-md)">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <div style="color:rgba(255,255,255,.72);font-weight:800;font-size:.78rem;text-transform:uppercase">@Model.ClinicName</div>
+            <h2 style="color:white;font-weight:900;margin:4px 0;font-size:clamp(1.4rem,3vw,2rem)">@T.Get("clinic.notes.title")</h2>
+            <p style="color:rgba(255,255,255,.72);margin:0">@Model.Patient.FullName</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a asp-area="Clinic"
+               asp-controller="Patients"
+               asp-action="Details"
+               asp-route-patientId="@Model.Patient.PatientId"
+               asp-route-clinicId="@Model.ClinicId"
+               class="btn-secondary-custom"
+               style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28);color:white">
+                <i data-lucide="user-round"></i>@T.Get("clinic.patients.details")
+            </a>
+            <a asp-area="Clinic"
+               asp-controller="Notes"
+               asp-action="Create"
+               asp-route-patientId="@Model.Patient.PatientId"
+               asp-route-clinicId="@Model.ClinicId"
+               class="btn-secondary-custom"
+               style="background:white;color:var(--primary);border-color:white">
+                <i data-lucide="plus"></i>@T.Get("clinic.notes.create")
+            </a>
+        </div>
+    </div>
+</section>
+
+<div class="card-glass p-4 mb-4" style="border-radius:var(--radius-lg)">
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("auth.fullName")</div>
+            <div style="font-weight:900;color:var(--text-primary)">@Model.Patient.FullName</div>
+        </div>
+        <div class="col-md-4">
+            <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("auth.email")</div>
+            <div style="font-weight:900;color:var(--text-primary);overflow-wrap:anywhere">@(string.IsNullOrWhiteSpace(Model.Patient.Email) ? empty : Model.Patient.Email)</div>
+        </div>
+        <div class="col-md-4">
+            <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("clinic.patientDashboard.goal")</div>
+            <div style="font-weight:900;color:var(--text-primary)">@(string.IsNullOrWhiteSpace(Model.Patient.Goal) ? empty : Model.Patient.Goal)</div>
+        </div>
+    </div>
+</div>
+
+<div class="card-glass p-4" style="border-radius:var(--radius-lg)">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h4 style="font-weight:900;margin:0">@T.Get("clinic.notes.recent")</h4>
+            <p style="color:var(--text-secondary);margin:4px 0 0;font-size:.84rem">@T.Get("clinic.notes.subtitle")</p>
+        </div>
+        <span class="badge-custom badge-primary">@Model.Notes.Count</span>
+    </div>
+
+    @if (Model.Notes.Count == 0)
+    {
+        <div class="text-center py-5">
+            <div style="font-size:2.4rem;color:var(--primary);margin-bottom:10px"><i data-lucide="clipboard-list"></i></div>
+            <h6 style="font-weight:800">@T.Get("clinic.notes.noNotes")</h6>
+            <p style="color:var(--text-secondary);margin:0 0 16px">@T.Get("clinic.notes.noNotesBody")</p>
+            <a asp-area="Clinic"
+               asp-controller="Notes"
+               asp-action="Create"
+               asp-route-patientId="@Model.Patient.PatientId"
+               asp-route-clinicId="@Model.ClinicId"
+               class="btn-primary-custom">
+                <i data-lucide="plus"></i>@T.Get("clinic.notes.create")
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>@T.Get("clinic.notes.titleField")</th>
+                        <th>@T.Get("clinic.notes.author")</th>
+                        <th>@T.Get("clinic.notes.createdAt")</th>
+                        <th>@T.Get("clinic.notes.preview")</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var note in Model.Notes)
+                {
+                    <tr>
+                        <td>
+                            <div style="font-weight:900;color:var(--text-primary)">@note.Title</div>
+                            <span class="badge-custom @(note.IsPrivate ? "badge-neutral" : "badge-primary")">
+                                @(note.IsPrivate ? T.Get("clinic.notes.private") : T.Get("clinic.notes.sharedInternal"))
+                            </span>
+                        </td>
+                        <td style="color:var(--text-secondary)">@note.AuthorName</td>
+                        <td style="color:var(--text-secondary);font-size:.84rem">@FormatDate(note.CreatedAt)</td>
+                        <td style="color:var(--text-secondary);max-width:420px">@note.Preview</td>
+                        <td>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <a asp-area="Clinic"
+                                   asp-controller="Notes"
+                                   asp-action="Details"
+                                   asp-route-patientId="@Model.Patient.PatientId"
+                                   asp-route-id="@note.Id"
+                                   asp-route-clinicId="@Model.ClinicId"
+                                   class="btn-secondary-custom btn-sm-custom">
+                                    <i data-lucide="eye"></i>@T.Get("common.view")
+                                </a>
+                                <a asp-area="Clinic"
+                                   asp-controller="Notes"
+                                   asp-action="Edit"
+                                   asp-route-patientId="@Model.Patient.PatientId"
+                                   asp-route-id="@note.Id"
+                                   asp-route-clinicId="@Model.ClinicId"
+                                   class="btn-secondary-custom btn-sm-custom">
+                                    <i data-lucide="pencil"></i>@T.Get("common.edit")
+                                </a>
+                                <form asp-area="Clinic"
+                                      asp-controller="Notes"
+                                      asp-action="Delete"
+                                      asp-route-patientId="@Model.Patient.PatientId"
+                                      asp-route-id="@note.Id"
+                                      method="post"
+                                      onsubmit="return confirm('@T.Get("clinic.notes.deleteConfirm")')">
+                                    <input type="hidden" name="clinicId" value="@Model.ClinicId" />
+                                    <button type="submit" class="btn-secondary-custom btn-sm-custom">
+                                        <i data-lucide="archive"></i>@T.Get("clinic.notes.delete")
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

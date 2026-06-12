@@ -107,7 +107,7 @@
                 @(isRtl ? "نحتاج بياناتك الصحية (العمر، الوزن، الهدف، مستوى النشاط) لتوليد خطة تمارين ملائمة"
                         : "We need your health data — age, weight, goal, and activity level — to generate a suitable workout plan")
             </p>
-            <a asp-controller="Profile" asp-action="Index" class="btn-primary-custom btn-lg-custom">
+            <a asp-area="" asp-controller="Profile" asp-action="Index" class="btn-primary-custom btn-lg-custom">
                 <i class="bi bi-person-fill me-1"></i>@(isRtl?"إكمال الملف الشخصي":"Complete My Profile")
             </a>
         </div>
@@ -339,4 +339,3 @@
     });
 </script>
 }
-

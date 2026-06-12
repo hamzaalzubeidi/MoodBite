@@ -95,23 +95,23 @@
         @{
             var currentAction = ViewContext.RouteData.Values["controller"]?.ToString();
         }
-        <a href="/Admin/AdminDashboard" class="admin-nav-item @(currentAction == "AdminDashboard" ? "active" : "")">
+        <a asp-area="Admin" asp-controller="AdminDashboard" asp-action="Index" class="admin-nav-item @(currentAction == "AdminDashboard" ? "active" : "")">
             <i class="bi bi-speedometer2"></i> @(isRtl?"لوحة التحكم":"Dashboard")
         </a>
-        <a href="/Admin/AdminUsers" class="admin-nav-item @(currentAction == "AdminUsers" ? "active" : "")">
+        <a asp-area="Admin" asp-controller="AdminUsers" asp-action="Index" class="admin-nav-item @(currentAction == "AdminUsers" ? "active" : "")">
             <i class="bi bi-people-fill"></i> @(isRtl?"المستخدمون":"Users")
         </a>
-        <a href="/Admin/AdminClinics" class="admin-nav-item @(currentAction == "AdminClinics" ? "active" : "")">
+        <a asp-area="Admin" asp-controller="AdminClinics" asp-action="Index" class="admin-nav-item @(currentAction == "AdminClinics" ? "active" : "")">
             <i class="bi bi-hospital"></i> @T.Get("clinic.clinics")
         </a>
-        <a href="/Admin/AdminDiets" class="admin-nav-item @(currentAction == "AdminDiets" ? "active" : "")">
+        <a asp-area="Admin" asp-controller="AdminDiets" asp-action="Index" class="admin-nav-item @(currentAction == "AdminDiets" ? "active" : "")">
             <i class="bi bi-list-check"></i> @(isRtl?"الأنظمة الغذائية":"Diets")
         </a>
-        <a href="/Admin/AdminRecipes" class="admin-nav-item @(currentAction == "AdminRecipes" ? "active" : "")">
+        <a asp-area="Admin" asp-controller="AdminRecipes" asp-action="Index" class="admin-nav-item @(currentAction == "AdminRecipes" ? "active" : "")">
             <i class="bi bi-journal-check"></i> @(isRtl?"الوصفات":"Recipes")
         </a>
         <hr style="border-color:var(--border);margin:12px 20px" />
-        <a href="/" class="admin-nav-item">
+        <a asp-area="" asp-controller="Home" asp-action="Index" class="admin-nav-item">
             <i class="bi bi-house"></i> @(isRtl?"الموقع الرئيسي":"Main Site")
         </a>
         <form asp-area="" asp-controller="Account" asp-action="Logout" method="post" class="px-2">

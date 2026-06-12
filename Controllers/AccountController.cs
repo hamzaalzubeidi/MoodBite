@@ -16,17 +16,20 @@ namespace MoodBite.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly TranslationService _t;
         private readonly ApplicationDbContext _db;
+        private readonly IWebHostEnvironment _environment;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             TranslationService t,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IWebHostEnvironment environment)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _t = t;
             _db = db;
+            _environment = environment;
         }
 
         [HttpGet]
@@ -143,11 +146,15 @@ namespace MoodBite.Controllers
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
                 var callbackUrl = Url.Action("ResetPassword", "Account",
                     new { token, email = model.Email }, Request.Scheme);
-                // In production, send email. For now, store in TempData for demo.
-                TempData["ResetUrl"] = callbackUrl;
+                if (_environment.IsDevelopment())
+                {
+                    TempData["ResetUrl"] = callbackUrl;
+                }
             }
 
-            TempData["Message"] = "إذا كان البريد الإلكتروني موجوداً، سيتم إرسال رابط الإعادة. / If the email exists, a reset link has been sent.";
+            TempData["Message"] = _environment.IsDevelopment()
+                ? "إذا كان البريد الإلكتروني موجوداً، سيظهر رابط الإعادة هنا في بيئة التطوير فقط. / If the email exists, the reset link appears here in Development only."
+                : "إذا كان البريد الإلكتروني موجوداً، سيتم إرسال رابط الإعادة. / If the email exists, a reset link has been sent.";
             return RedirectToAction("ForgotPasswordConfirmation");
         }
 
@@ -214,7 +221,11 @@ namespace MoodBite.Controllers
         }
 
         [HttpGet]
-        public IActionResult AccessDenied() => View();
+        public IActionResult AccessDenied()
+        {
+            Response.StatusCode = StatusCodes.Status403Forbidden;
+            return View();
+        }
 
         // ── My Account page ───────────────────────────────────────────────────
 

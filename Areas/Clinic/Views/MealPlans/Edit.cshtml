@@ -1,0 +1,152 @@
+@model ClinicMealPlanEditorViewModel
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("clinic.mealPlans.editPlan");
+    var empty = T.Get("clinic.patientDashboard.notAvailable");
+
+    string FormatKg(double? value) => value.HasValue ? $"{value.Value:0.#} {T.Get("common.kg")}" : empty;
+    string DayName(ClinicMealPlanDayViewModel day) => T.IsRtl
+        ? day.DayNameAr ?? day.DayNameEn ?? $"{T.Get("clinic.patientDashboard.date")} {day.Day}"
+        : day.DayNameEn ?? day.DayNameAr ?? $"Day {day.Day}";
+    string MealName(ClinicMealPlanMealViewModel meal) => T.IsRtl
+        ? meal.NameAr ?? meal.NameEn ?? empty
+        : meal.NameEn ?? meal.NameAr ?? empty;
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mb-4">
+        <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<section style="background:linear-gradient(135deg,#064e3b 0%,#047857 55%,#0d9488 100%);border-radius:var(--radius-lg);padding:22px;margin-bottom:22px;box-shadow:var(--shadow-md)">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <div style="color:rgba(255,255,255,.72);font-weight:800;font-size:.78rem;text-transform:uppercase">@Model.ClinicName</div>
+            <h2 style="color:white;font-weight:900;margin:4px 0;font-size:clamp(1.4rem,3vw,2rem)">@T.Get("clinic.mealPlans.editPlan")</h2>
+            <p style="color:rgba(255,255,255,.72);margin:0">@Model.Patient.FullName</p>
+        </div>
+        <a asp-area="Clinic"
+           asp-controller="MealPlans"
+           asp-action="Details"
+           asp-route-id="@Model.PlanId"
+           asp-route-clinicId="@Model.ClinicId"
+           class="btn-secondary-custom"
+           style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28);color:white">
+            <i data-lucide="arrow-left"></i>@T.Get("common.back")
+        </a>
+    </div>
+</section>
+
+<div class="row g-4">
+    <div class="col-xl-4">
+        <div class="card-glass p-4 mb-4" style="border-radius:var(--radius-lg)">
+            <h5 style="font-weight:900;margin-bottom:14px">@T.Get("clinic.mealPlans.patientSummary")</h5>
+            <div class="d-flex flex-column gap-3">
+                <div>
+                    <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("auth.email")</div>
+                    <div style="font-weight:900;color:var(--text-primary);overflow-wrap:anywhere">@Model.Patient.Email</div>
+                </div>
+                <div>
+                    <div style="font-size:.72rem;color:var(--text-muted);font-weight:900;text-transform:uppercase">@T.Get("clinic.patientDashboard.currentWeight")</div>
+                    <div style="font-weight:900;color:var(--text-primary)">@FormatKg(Model.Patient.LatestWeight)</div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="badge-custom @(Model.IsLatestAssigned ? "badge-primary" : "badge-neutral")">
+                        @(Model.IsLatestAssigned ? T.Get("clinic.mealPlans.assignedStatus") : T.Get("clinic.mealPlans.reviewStatus"))
+                    </span>
+                    <span class="badge-custom badge-neutral">@T.Get("profile.recommendedDiet"): @(!string.IsNullOrWhiteSpace(Model.Patient.DietSlug) ? Model.Patient.DietSlug : empty)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-glass p-4" style="border-radius:var(--radius-lg)">
+            <h5 style="font-weight:900;margin-bottom:10px">@T.Get("clinic.mealPlans.editGuidance")</h5>
+            <p style="color:var(--text-secondary);font-size:.84rem;margin-bottom:0">@T.Get("clinic.mealPlans.editGuidanceBody")</p>
+        </div>
+    </div>
+
+    <div class="col-xl-8">
+        <div class="card-glass p-4" style="border-radius:var(--radius-lg)">
+            <form asp-area="Clinic"
+                  asp-controller="MealPlans"
+                  asp-action="Edit"
+                  asp-route-id="@Model.PlanId"
+                  method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="ClinicId" value="@Model.ClinicId" />
+                <input type="hidden" name="SubmitAction" value="manual" />
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">@T.Get("mealPlan.title")</label>
+                        <input name="Title" value="@Model.Title" class="form-control" maxlength="200" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">@T.Get("clinic.patientDashboard.planType")</label>
+                        <select name="PlanType" class="form-select">
+                            <option value="standard" selected="@(Model.PlanType == "standard")">@T.Get("clinic.mealPlans.manualPlan")</option>
+                            <option value="ai" selected="@(Model.PlanType == "ai")">@T.Get("clinic.mealPlans.aiPlan")</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">@T.Get("profile.calorieTarget")</label>
+                        <input name="CalorieTarget" value="@Model.CalorieTarget.ToString("0")" type="number" min="500" max="6000" step="1" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">@T.Get("diets.title")</label>
+                        <input name="DietType" value="@Model.DietType" class="form-control" maxlength="100" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">@T.Get("clinic.mealPlans.planJson")</label>
+                        <textarea name="PlanJson" class="form-control" rows="18" style="font-family:Consolas,monospace;font-size:.84rem">@Model.PlanJson</textarea>
+                        <div style="color:var(--text-secondary);font-size:.78rem;margin-top:8px">@T.Get("clinic.mealPlans.jsonHint")</div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap mt-4">
+                    <button type="submit" class="btn-primary-custom">
+                        <i data-lucide="save"></i>@T.Get("common.save")
+                    </button>
+                    <a asp-area="Clinic" asp-controller="MealPlans" asp-action="Details" asp-route-id="@Model.PlanId" asp-route-clinicId="@Model.ClinicId" class="btn-secondary-custom">
+                        <i data-lucide="eye"></i>@T.Get("common.view")
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <div class="card-glass p-4 mt-4" style="border-radius:var(--radius-lg)">
+            <h5 style="font-weight:900;margin-bottom:14px">@T.Get("clinic.mealPlans.preview")</h5>
+            @if (Model.Days.Count == 0)
+            {
+                <div class="text-center py-4" style="color:var(--text-secondary)">@T.Get("clinic.mealPlans.previewUnavailable")</div>
+            }
+            else
+            {
+                <div class="row g-3">
+                    @foreach (var day in Model.Days)
+                    {
+                        <div class="col-md-6">
+                            <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;background:var(--surface)">
+                                <div class="d-flex justify-content-between gap-2 mb-2">
+                                    <strong>@DayName(day)</strong>
+                                    <span style="color:var(--primary);font-weight:900">@day.TotalCalories.ToString("0") @T.Get("common.calories")</span>
+                                </div>
+                                <div class="d-flex flex-column gap-2">
+                                    @foreach (var meal in day.Meals.Take(5))
+                                    {
+                                        <div style="font-size:.84rem;color:var(--text-secondary)">
+                                            <strong style="color:var(--text-primary)">@meal.Type:</strong> @MealName(meal)
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>

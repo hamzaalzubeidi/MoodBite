@@ -113,8 +113,8 @@ else
                                     </td>
                                     <td>
                                         <div class="d-flex gap-2 flex-wrap">
-                                            <a href="/Clinic/ClinicSettings?clinicId=@clinic.Id" class="btn-ghost-custom btn-sm">@T.Get("clinic.nav.settings")</a>
-                                            <a href="/Clinic/ClinicStaff?clinicId=@clinic.Id" class="btn-ghost-custom btn-sm">@T.Get("clinic.nav.staff")</a>
+                                            <a asp-area="Clinic" asp-controller="ClinicSettings" asp-action="Index" asp-route-clinicId="@clinic.Id" class="btn-ghost-custom btn-sm">@T.Get("clinic.nav.settings")</a>
+                                            <a asp-area="Clinic" asp-controller="ClinicStaff" asp-action="Index" asp-route-clinicId="@clinic.Id" class="btn-ghost-custom btn-sm">@T.Get("clinic.nav.staff")</a>
                                         </div>
                                     </td>
                                 </tr>

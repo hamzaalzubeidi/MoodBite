@@ -1,6 +1,19 @@
-﻿@{
-    ViewData["Title"] = "Privacy Policy";
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("footer.privacy");
 }
-<h1>@ViewData["Title"]</h1>
 
-<p>Use this page to detail your site's privacy policy.</p>
+<section class="container py-5">
+    <div class="card-glass p-5" style="border-radius:var(--radius-lg);max-width:860px;margin:0 auto">
+        <h1 style="font-weight:900;color:var(--text-primary);margin-bottom:16px">@T.Get("footer.privacy")</h1>
+        <p style="color:var(--text-secondary);line-height:1.9;margin-bottom:18px">
+            @T.Get("privacy.body1")
+        </p>
+        <p style="color:var(--text-secondary);line-height:1.9;margin-bottom:18px">
+            @T.Get("privacy.body2")
+        </p>
+        <p style="color:var(--text-secondary);line-height:1.9;margin:0">
+            @T.Get("privacy.body3")
+        </p>
+    </div>
+</section>

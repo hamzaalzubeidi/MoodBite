@@ -24,6 +24,8 @@ namespace MoodBite.Areas.Clinic.Controllers
         private readonly CurrentUserService _currentUser;
         private readonly ClinicAccessService _clinicAccess;
         private readonly ReportService _reportService;
+        private readonly ClinicNotesService _notesService;
+        private readonly ClinicAppointmentsService _appointmentsService;
         private readonly TranslationService _t;
         private readonly ILogger<PatientsController> _logger;
 
@@ -33,6 +35,8 @@ namespace MoodBite.Areas.Clinic.Controllers
             CurrentUserService currentUser,
             ClinicAccessService clinicAccess,
             ReportService reportService,
+            ClinicNotesService notesService,
+            ClinicAppointmentsService appointmentsService,
             TranslationService t,
             ILogger<PatientsController> logger)
         {
@@ -41,6 +45,8 @@ namespace MoodBite.Areas.Clinic.Controllers
             _currentUser = currentUser;
             _clinicAccess = clinicAccess;
             _reportService = reportService;
+            _notesService = notesService;
+            _appointmentsService = appointmentsService;
             _t = t;
             _logger = logger;
         }
@@ -272,6 +278,16 @@ namespace MoodBite.Areas.Clinic.Controllers
                 model.WaterLogs = BuildWaterLogs(waterLogs, model.WaterTarget);
                 model.ProgressEntries = BuildProgressEntries(progressEntries);
                 model.MealPlan = BuildMealPlanSummary(mealPlan);
+                model.ClinicalNotes = await _notesService.GetPatientNotesAsync(
+                    resolvedClinicId.Value,
+                    patientId,
+                    take: 5,
+                    cancellationToken: cancellationToken);
+                model.UpcomingAppointments = await _appointmentsService.GetPatientUpcomingAppointmentsAsync(
+                    resolvedClinicId.Value,
+                    patientId,
+                    take: 5,
+                    cancellationToken: cancellationToken);
 
                 ApplyWeightSummary(model, weightLogs, progressEntries);
                 ApplyNutritionSummary(model, mealLogs, foodScans);
@@ -790,6 +806,7 @@ namespace MoodBite.Areas.Clinic.Controllers
                 ? new ClinicPatientMealPlanSummaryViewModel()
                 : new ClinicPatientMealPlanSummaryViewModel
                 {
+                    PlanId = mealPlan.Id,
                     HasPlan = true,
                     Title = mealPlan.Title,
                     PlanType = mealPlan.PlanType,

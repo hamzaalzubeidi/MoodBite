@@ -1,0 +1,86 @@
+@model ClinicAppointmentEditorViewModel
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("clinic.appointments.edit");
+}
+
+<section style="background:linear-gradient(135deg,#064e3b 0%,#047857 55%,#0d9488 100%);border-radius:var(--radius-lg);padding:22px;margin-bottom:22px;box-shadow:var(--shadow-md)">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <div style="color:rgba(255,255,255,.72);font-weight:800;font-size:.78rem;text-transform:uppercase">@Model.ClinicName</div>
+            <h2 style="color:white;font-weight:900;margin:4px 0;font-size:clamp(1.4rem,3vw,2rem)">@T.Get("clinic.appointments.edit")</h2>
+            <p style="color:rgba(255,255,255,.72);margin:0">@T.Get("clinic.appointments.subtitle")</p>
+        </div>
+        <a asp-area="Clinic"
+           asp-controller="Appointments"
+           asp-action="Details"
+           asp-route-id="@Model.AppointmentId"
+           asp-route-clinicId="@Model.ClinicId"
+           class="btn-secondary-custom"
+           style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28);color:white">
+            <i data-lucide="eye"></i>@T.Get("clinic.appointments.details")
+        </a>
+    </div>
+</section>
+
+<form asp-area="Clinic" asp-controller="Appointments" asp-action="Edit" asp-route-id="@Model.AppointmentId" method="post">
+    <input type="hidden" name="ClinicId" value="@Model.ClinicId" />
+
+    <div class="card-glass p-4" style="border-radius:var(--radius-lg)">
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <label class="form-label fw-bold">@T.Get("clinic.appointments.patient")</label>
+                <select name="PatientId" class="form-select" required>
+                    @foreach (var patient in Model.Patients)
+                    {
+                        <option value="@patient.PatientId" selected="@(Model.PatientId == patient.PatientId)">
+                            @patient.FullName
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">@T.Get("clinic.appointments.startsAt")</label>
+                <input type="datetime-local" name="StartsAt" value="@Model.StartsAt.ToString("yyyy-MM-ddTHH:mm")" class="form-control" required />
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">@T.Get("clinic.appointments.duration")</label>
+                <input type="number" name="DurationMinutes" value="@Model.DurationMinutes" min="5" max="480" class="form-control" />
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label fw-bold">@T.Get("clinic.appointments.status")</label>
+                <select name="Status" class="form-select">
+                    <option value="scheduled" selected="@(Model.Status == "scheduled")">@T.Get("clinic.appointments.scheduled")</option>
+                    <option value="completed" selected="@(Model.Status == "completed")">@T.Get("clinic.appointments.completed")</option>
+                    <option value="cancelled" selected="@(Model.Status == "cancelled")">@T.Get("clinic.appointments.cancelled")</option>
+                </select>
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label fw-bold">@T.Get("clinic.appointments.visitType")</label>
+                <select name="VisitType" class="form-select">
+                    <option value="followUp" selected="@(Model.VisitType == "followUp")">@T.Get("clinic.appointments.followUp")</option>
+                    <option value="initial" selected="@(Model.VisitType == "initial")">@T.Get("clinic.appointments.initial")</option>
+                    <option value="remote" selected="@(Model.VisitType == "remote")">@T.Get("clinic.appointments.remote")</option>
+                    <option value="review" selected="@(Model.VisitType == "review")">@T.Get("clinic.appointments.review")</option>
+                </select>
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label fw-bold">@T.Get("clinic.appointments.location")</label>
+                <input name="Location" value="@Model.Location" maxlength="200" class="form-control" />
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-bold">@T.Get("clinic.appointments.notes")</label>
+                <textarea name="Notes" rows="7" maxlength="1000" class="form-control">@Model.Notes</textarea>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between gap-2 flex-wrap mt-4">
+            <a asp-area="Clinic" asp-controller="Appointments" asp-action="Index" asp-route-clinicId="@Model.ClinicId" class="btn-secondary-custom">
+                <i data-lucide="arrow-left"></i>@T.Get("clinic.appointments.backToAppointments")
+            </a>
+            <button type="submit" class="btn-primary-custom">
+                <i data-lucide="save"></i>@T.Get("dashboard.save")
+            </button>
+        </div>
+    </div>
+</form>

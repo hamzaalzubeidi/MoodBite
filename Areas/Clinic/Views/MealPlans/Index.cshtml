@@ -1,0 +1,141 @@
+@model ClinicMealPlansIndexViewModel
+@inject TranslationService T
+@{
+    ViewData["Title"] = T.Get("clinic.nav.mealPlans");
+
+    string PlanTypeLabel(string type) => type == "ai"
+        ? T.Get("clinic.mealPlans.aiPlan")
+        : T.Get("clinic.mealPlans.manualPlan");
+}
+
+@if (Model.ClinicDataUnavailable || !Model.HasClinicContext)
+{
+    <div class="card-glass p-5 text-center" style="border-radius:var(--radius-lg);max-width:760px;margin:0 auto">
+        <div style="width:70px;height:70px;border-radius:var(--radius-lg);background:var(--primary-50);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;color:var(--primary)">
+            <i data-lucide="calendar-days" style="width:34px;height:34px"></i>
+        </div>
+        <h3 style="font-weight:900;color:var(--text-primary);font-size:1.25rem">@T.Get("clinic.mealPlans.emptyTitle")</h3>
+        <p style="color:var(--text-secondary);max-width:560px;margin:8px auto 0">
+            @(Model.ClinicDataUnavailable ? T.Get("clinic.dataUnavailable") : T.Get("clinic.emptyBody"))
+        </p>
+    </div>
+}
+else
+{
+    <section style="background:linear-gradient(135deg,#064e3b 0%,#047857 55%,#0d9488 100%);border-radius:var(--radius-lg);padding:22px;margin-bottom:22px;box-shadow:var(--shadow-md)">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div>
+                <div style="color:rgba(255,255,255,.72);font-weight:800;font-size:.78rem;text-transform:uppercase">@Model.ClinicName</div>
+                <h2 style="color:white;font-weight:900;margin:4px 0;font-size:clamp(1.4rem,3vw,2rem)">@T.Get("clinic.mealPlans.title")</h2>
+                <p style="color:rgba(255,255,255,.72);margin:0;max-width:720px">@T.Get("clinic.mealPlans.subtitle")</p>
+            </div>
+            <div style="width:56px;height:56px;border-radius:var(--radius-lg);background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;color:white">
+                <i data-lucide="calendar-check" style="width:30px;height:30px"></i>
+            </div>
+        </div>
+    </section>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card p-3" style="border-radius:var(--radius-lg)">
+                <div style="font-size:1.65rem;font-weight:900;color:var(--primary)">@Model.TotalPlans</div>
+                <div style="color:var(--text-secondary);font-weight:700;font-size:.84rem">@T.Get("clinic.mealPlans.totalPlans")</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card p-3" style="border-radius:var(--radius-lg)">
+                <div style="font-size:1.65rem;font-weight:900;color:var(--icon-blue)">@Model.PatientsWithPlans</div>
+                <div style="color:var(--text-secondary);font-weight:700;font-size:.84rem">@T.Get("clinic.mealPlans.patientsWithPlans")</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card p-3" style="border-radius:var(--radius-lg)">
+                <div style="font-size:1.65rem;font-weight:900;color:var(--icon-amber)">@Model.RecentPlans.Count</div>
+                <div style="color:var(--text-secondary);font-weight:700;font-size:.84rem">@T.Get("clinic.mealPlans.recentPlans")</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-glass p-4" style="border-radius:var(--radius-lg)">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+                <h4 style="font-weight:900;margin:0">@T.Get("clinic.mealPlans.recentPlans")</h4>
+                <p style="color:var(--text-secondary);margin:4px 0 0;font-size:.84rem">@T.Get("clinic.mealPlans.recentPlansSubtitle")</p>
+            </div>
+            <a asp-area="Clinic" asp-controller="Patients" asp-action="Index" asp-route-clinicId="@Model.ClinicId" class="btn-secondary-custom">
+                <i data-lucide="users"></i>@T.Get("clinic.patients.openRoster")
+            </a>
+        </div>
+
+        @if (Model.RecentPlans.Count == 0)
+        {
+            <div class="text-center py-5">
+                <div style="font-size:2.4rem;color:var(--primary);margin-bottom:10px"><i data-lucide="calendar-x"></i></div>
+                <h6 style="font-weight:800">@T.Get("clinic.mealPlans.noPlans")</h6>
+                <p style="color:var(--text-secondary);margin:0">@T.Get("clinic.mealPlans.noPlansBody")</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>@T.Get("clinic.patient")</th>
+                            <th>@T.Get("mealPlan.title")</th>
+                            <th>@T.Get("clinic.mealPlans.status")</th>
+                            <th>@T.Get("profile.calorieTarget")</th>
+                            <th>@T.Get("clinic.patientDashboard.createdAt")</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var plan in Model.RecentPlans)
+                    {
+                        <tr>
+                            <td>
+                                <a asp-area="Clinic"
+                                   asp-controller="MealPlans"
+                                   asp-action="Patient"
+                                   asp-route-patientId="@plan.PatientId"
+                                   asp-route-clinicId="@Model.ClinicId"
+                                   style="font-weight:900;color:var(--text-primary);text-decoration:none">
+                                    @plan.PatientName
+                                </a>
+                                <div style="font-size:.82rem;color:var(--text-secondary)">@plan.PatientEmail</div>
+                            </td>
+                            <td>
+                                <div style="font-weight:900;color:var(--text-primary)">@plan.Title</div>
+                                <div style="font-size:.78rem;color:var(--text-secondary)">
+                                    @PlanTypeLabel(plan.PlanType)
+                                    @if (!string.IsNullOrWhiteSpace(plan.DietType))
+                                    {
+                                        <span> - @plan.DietType</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge-custom @(plan.IsLatestAssigned ? "badge-primary" : "badge-neutral")">
+                                    @(plan.IsLatestAssigned ? T.Get("clinic.mealPlans.assignedStatus") : T.Get("clinic.mealPlans.reviewStatus"))
+                                </span>
+                            </td>
+                            <td>@plan.CalorieTarget.ToString("0") @T.Get("common.calories")</td>
+                            <td style="color:var(--text-secondary);font-size:.84rem">@plan.CreatedAt.ToString("yyyy-MM-dd")</td>
+                            <td>
+                                <a asp-area="Clinic"
+                                   asp-controller="MealPlans"
+                                   asp-action="Details"
+                                   asp-route-id="@plan.Id"
+                                   asp-route-clinicId="@Model.ClinicId"
+                                   class="btn-secondary-custom btn-sm-custom">
+                                    <i data-lucide="eye"></i>@T.Get("common.view")
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}

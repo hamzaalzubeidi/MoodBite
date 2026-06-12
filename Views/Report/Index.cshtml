@@ -26,7 +26,7 @@
             <div style="font-size:3rem;margin-bottom:16px"><i data-lucide="bar-chart-2" class="icon-blue"></i></div>
             <h4 style="font-weight:700">@(isRtl?"لا توجد بيانات كافية بعد":"Not enough data yet")</h4>
             <p class="text-muted mb-4">@(isRtl?"سجّل وجباتك لمدة يومين على الأقل لعرض التقرير":"Log your meals for at least 2 days to see the report")</p>
-            <a asp-controller="Dashboard" asp-action="Index" class="btn-primary-custom">
+            <a asp-area="" asp-controller="Dashboard" asp-action="Index" class="btn-primary-custom">
                 <i class="bi bi-pencil"></i> @(isRtl?"سجّل وجباتك":"Log Meals")
             </a>
         </div>

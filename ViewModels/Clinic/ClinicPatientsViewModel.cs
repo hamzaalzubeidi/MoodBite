@@ -106,6 +106,8 @@ namespace MoodBite.ViewModels.Clinic
         public int TodayWaterGlasses { get; set; }
         public int TodayWaterProgressPercent { get; set; }
         public List<ClinicPatientProgressItemViewModel> ProgressEntries { get; set; } = new();
+        public List<ClinicNoteListItemViewModel> ClinicalNotes { get; set; } = new();
+        public List<ClinicAppointmentListItemViewModel> UpcomingAppointments { get; set; } = new();
         public ReportData WeeklyReport { get; set; } = new();
         public string WeightTrendKey { get; set; } = "clinic.patientDashboard.trend.insufficient";
         public int RecentMealLogCount { get; set; }
@@ -118,6 +120,7 @@ namespace MoodBite.ViewModels.Clinic
 
     public class ClinicPatientMealPlanSummaryViewModel
     {
+        public int? PlanId { get; set; }
         public bool HasPlan { get; set; }
         public string? Title { get; set; }
         public string? PlanType { get; set; }

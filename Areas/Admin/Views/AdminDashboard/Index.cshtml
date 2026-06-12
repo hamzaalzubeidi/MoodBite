@@ -36,7 +36,7 @@
         <i class="bi bi-exclamation-triangle-fill"></i>
         <span>
             @((int)ViewBag.PendingRecipes) @(isRtl?"وصفات تنتظر المراجعة":"recipes awaiting review")
-            <a href="/Admin/AdminRecipes" class="fw-bold ms-2">@(isRtl?"مراجعتها الآن":"Review now")</a>
+            <a asp-area="Admin" asp-controller="AdminRecipes" asp-action="Index" class="fw-bold ms-2">@(isRtl?"مراجعتها الآن":"Review now")</a>
         </span>
     </div>
 }
@@ -77,7 +77,7 @@
                             </span>
                         </td>
                         <td>
-                            <a href="/Admin/AdminUsers" class="btn-ghost-custom btn-sm">
+                            <a asp-area="Admin" asp-controller="AdminUsers" asp-action="Index" class="btn-ghost-custom btn-sm">
                                 <i class="bi bi-eye"></i>
                             </a>
                         </td>

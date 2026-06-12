@@ -231,7 +231,7 @@
             <div id="logSuccess" class="alert alert-success mt-3" style="display:none">
                 <i class="bi bi-check-circle me-2"></i>
                 @(isRtl?"تم الإضافة للوحة التحكم!":"Added to your dashboard!")
-                <a asp-controller="Dashboard" asp-action="Index" class="ms-2 fw-bold">@(isRtl?"عرض":"View")</a>
+                <a asp-area="" asp-controller="Dashboard" asp-action="Index" class="ms-2 fw-bold">@(isRtl?"عرض":"View")</a>
             </div>
         </div>
 
@@ -299,7 +299,7 @@
                 <i class="bi bi-info-circle me-1"></i>
                 @(isRtl?"القيم لكل 100 غرام من المنتج":"Values per 100g of product")
             </div>
-            <form id="addToDashboardForm" asp-controller="Scanner" asp-action="AddToDashboard" method="post">
+            <form id="addToDashboardForm" asp-area="" asp-controller="Scanner" asp-action="AddToDashboard" method="post">
                 <input type="hidden" name="calories" id="hidCalories" />
                 <input type="hidden" name="protein" id="hidProtein" />
                 <input type="hidden" name="carbs" id="hidCarbs" />
@@ -314,7 +314,7 @@
         <div id="successAlert" class="alert alert-success" style="display:none">
             <i class="bi bi-check-circle me-2"></i>
             @(isRtl?"تم إضافة المنتج لسجل اليوم!":"Product added to today's log!")
-            <a asp-controller="Dashboard" asp-action="Index" class="ms-2 fw-bold">@(isRtl?"عرض اللوحة":"View Dashboard")</a>
+            <a asp-area="" asp-controller="Dashboard" asp-action="Index" class="ms-2 fw-bold">@(isRtl?"عرض اللوحة":"View Dashboard")</a>
         </div>
     </div><!-- /barcode tab -->
 

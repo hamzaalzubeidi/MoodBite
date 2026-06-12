@@ -90,11 +90,11 @@
                 }
 
                 <div class="d-flex gap-3 flex-wrap justify-content-center fade-in stagger-2">
-                    <a asp-controller="Dashboard" asp-action="Index" class="btn-primary-custom btn-lg-custom">
+                    <a asp-area="" asp-controller="Dashboard" asp-action="Index" class="btn-primary-custom btn-lg-custom">
                         <i class="bi bi-speedometer2"></i>
                         @(isRtl ? "ابدأ التتبع" : "Start Tracking")
                     </a>
-                    <a asp-controller="MealPlan" asp-action="Index" class="btn-secondary-custom btn-lg-custom">
+                    <a asp-area="" asp-controller="MealPlan" asp-action="Index" class="btn-secondary-custom btn-lg-custom">
                         <i class="bi bi-calendar-week"></i>
                         @(isRtl ? "خطة الوجبات" : "Meal Plan")
                     </a>
