@@ -282,3 +282,5 @@ static string UnquoteDotEnvValue(string value)
             .Replace("\\\\", "\\")
         : innerValue;
 }
+
+public partial class Program { }
