@@ -36,7 +36,7 @@ namespace MoodBite.Controllers
         public IActionResult Login(string? returnUrl = null)
         {
             if (User.Identity?.IsAuthenticated == true)
-                return RedirectToAction("Index", "Dashboard");
+                return RedirectToRoleHome(User);
 
             ViewBag.ReturnUrl = returnUrl;
             return View(new LoginViewModel { ReturnUrl = returnUrl });
@@ -71,7 +71,7 @@ namespace MoodBite.Controllers
 
                 if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
                     return Redirect(model.ReturnUrl);
-                return RedirectToAction("Index", "Dashboard");
+                return await RedirectToRoleHomeAsync(user);
             }
 
             ModelState.AddModelError(string.Empty, "البريد الإلكتروني أو كلمة المرور غير صحيحة / Invalid email or password.");
@@ -82,7 +82,7 @@ namespace MoodBite.Controllers
         public IActionResult Register()
         {
             if (User.Identity?.IsAuthenticated == true)
-                return RedirectToAction("Index", "Dashboard");
+                return RedirectToRoleHome(User);
             return View();
         }
 
@@ -280,6 +280,39 @@ namespace MoodBite.Controllers
                 TempData["Error"] = string.Join(" ", result.Errors.Select(e => e.Description));
 
             return RedirectToAction("MyAccount");
+        }
+        private IActionResult RedirectToRoleHome(System.Security.Claims.ClaimsPrincipal principal)
+        {
+            if (principal.IsInRole(ApplicationRoles.Admin))
+            {
+                return RedirectToAction("Index", "AdminDashboard", new { area = "Admin" });
+            }
+
+            if (principal.IsInRole(ApplicationRoles.ClinicOwner) ||
+                principal.IsInRole(ApplicationRoles.Dietitian) ||
+                principal.IsInRole(ApplicationRoles.ClinicStaff))
+            {
+                return LocalRedirect("/Clinic");
+            }
+
+            return RedirectToAction("Index", "Dashboard", new { area = "" });
+        }
+
+        private async Task<IActionResult> RedirectToRoleHomeAsync(ApplicationUser user)
+        {
+            if (await _userManager.IsInRoleAsync(user, ApplicationRoles.Admin))
+            {
+                return RedirectToAction("Index", "AdminDashboard", new { area = "Admin" });
+            }
+
+            if (await _userManager.IsInRoleAsync(user, ApplicationRoles.ClinicOwner) ||
+                await _userManager.IsInRoleAsync(user, ApplicationRoles.Dietitian) ||
+                await _userManager.IsInRoleAsync(user, ApplicationRoles.ClinicStaff))
+            {
+                return LocalRedirect("/Clinic");
+            }
+
+            return RedirectToAction("Index", "Dashboard", new { area = "" });
         }
     }
 }

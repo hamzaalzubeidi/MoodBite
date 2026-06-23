@@ -608,6 +608,29 @@ namespace MoodBite.Data
                 await userManager.UpdateAsync(user);
             }
 
+            if (!await userManager.CheckPasswordAsync(user, password))
+            {
+                var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
+                var resetResult = await userManager.ResetPasswordAsync(user, resetToken, password);
+                if (!resetResult.Succeeded)
+                {
+                    throw new InvalidOperationException($"Unable to set demo password for {email}: {string.Join(", ", resetResult.Errors.Select(e => e.Description))}");
+                }
+            }
+
+            var currentDemoRoles = await userManager.GetRolesAsync(user);
+            var extraDemoRoles = currentDemoRoles
+                .Where(r => ApplicationRoles.SeededRoles.Contains(r) && r != role)
+                .ToArray();
+            if (extraDemoRoles.Length > 0)
+            {
+                var removeResult = await userManager.RemoveFromRolesAsync(user, extraDemoRoles);
+                if (!removeResult.Succeeded)
+                {
+                    throw new InvalidOperationException($"Unable to normalize demo roles for {email}: {string.Join(", ", removeResult.Errors.Select(e => e.Description))}");
+                }
+            }
+
             if (!await userManager.IsInRoleAsync(user, role))
             {
                 await userManager.AddToRoleAsync(user, role);

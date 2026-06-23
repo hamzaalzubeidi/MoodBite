@@ -14,7 +14,7 @@ Do not run demo seeding in Production.
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Admin | `admin@moodbite.com` | `Admin@123456` or `Demo@123456` |
+| Admin | `admin@moodbite.com` | `Demo@123456` |
 | ClinicOwner | `clinic.owner@moodbite.demo` | `Demo@123456` |
 | Dietitian | `dietitian@moodbite.demo` | `Demo@123456` |
 | ClinicStaff | `staff@moodbite.demo` | `Demo@123456` |
@@ -70,7 +70,7 @@ Do not run demo seeding in Production.
 - Add a clinical note.
 - View appointments.
 - Try opening `/Clinic/ClinicSettings`.
-- Confirm owner-only management is blocked or shown as a friendly no-context/403 state, not a crash.
+- Confirm owner-only management is blocked with a friendly 403 state, not a crash.
 
 ## Clinic Staff Flow
 
@@ -78,7 +78,7 @@ Do not run demo seeding in Production.
 - Open `/Clinic`.
 - Open allowed clinic pages such as patients and appointments.
 - Try opening `/Clinic/ClinicSettings` and `/Clinic/ClinicStaff`.
-- Confirm blocked or owner-only pages show friendly empty/403 behavior.
+- Confirm blocked owner-only pages show a friendly 403 state.
 - Confirm patient data is scoped to the assigned clinic only.
 - Verify no raw exception or Developer Exception Page appears.
 

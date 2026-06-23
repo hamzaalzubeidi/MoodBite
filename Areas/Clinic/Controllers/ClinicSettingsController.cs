@@ -41,7 +41,7 @@ namespace MoodBite.Areas.Clinic.Controllers
                 var resolvedClinicId = await ResolveManageableClinicIdAsync(clinicId, cancellationToken);
                 if (!resolvedClinicId.HasValue)
                 {
-                    return View(new ClinicSettingsViewModel());
+                    return clinicId.HasValue ? Forbid() : View(new ClinicSettingsViewModel());
                 }
 
                 var canEditActiveStatus = _currentUser.Principal?.IsInRole(ApplicationRoles.Admin) == true;

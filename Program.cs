@@ -153,17 +153,17 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapControllerRoute(
-    name: "clinic",
-    pattern: "Clinic/{controller=ClinicDashboard}/{action=Index}/{id?}",
-    defaults: new { area = "Clinic" });
-
-app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=AdminDashboard}/{action=Index}/{id?}");
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.MapControllerRoute(
+    name: "clinic",
+    pattern: "Clinic/{controller=ClinicDashboard}/{action=Index}/{id?}",
+    defaults: new { area = "Clinic" });
 
 app.Run();
 

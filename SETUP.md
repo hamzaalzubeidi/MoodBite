@@ -46,7 +46,7 @@ Demo credentials for disposable local demos:
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Admin | `admin@moodbite.com` | `Admin@123456` or `Demo@123456` if created by the market demo seeder |
+| Admin | `admin@moodbite.com` | `Demo@123456` |
 | ClinicOwner | `clinic.owner@moodbite.demo` | `Demo@123456` |
 | Dietitian | `dietitian@moodbite.demo` | `Demo@123456` |
 | ClinicStaff | `staff@moodbite.demo` | `Demo@123456` |

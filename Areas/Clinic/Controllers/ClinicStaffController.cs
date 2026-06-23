@@ -55,7 +55,7 @@ namespace MoodBite.Areas.Clinic.Controllers
                 var resolvedClinicId = await ResolveManageableClinicIdAsync(clinicId, cancellationToken);
                 if (!resolvedClinicId.HasValue)
                 {
-                    return View(new ClinicStaffIndexViewModel());
+                    return clinicId.HasValue ? Forbid() : View(new ClinicStaffIndexViewModel());
                 }
 
                 var clinicName = await _db.Clinics.AsNoTracking()
