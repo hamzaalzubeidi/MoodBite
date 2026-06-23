@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MoodBite.Controllers;
@@ -134,14 +135,51 @@ public class AiAndEmailFallbackTests
         Assert.False(controller.TempData.ContainsKey("ResetUrl"));
     }
 
+
+    [Fact]
+    public async Task Email_service_development_returns_preview_without_sending()
+    {
+        await using var provider = TestIdentity.CreateProvider();
+        var emailService = CreateEmailService(provider, "Development");
+
+        var result = await emailService.SendPasswordResetAsync("demo@example.test", "https://example.test/reset?token=test-token");
+
+        Assert.False(result.Sent);
+        Assert.Equal("https://example.test/reset?token=test-token", result.DevelopmentPreviewUrl);
+    }
+
+    [Fact]
+    public async Task Email_service_production_unconfigured_fails_without_preview_link()
+    {
+        await using var provider = TestIdentity.CreateProvider();
+        var emailService = CreateEmailService(provider, "Production");
+
+        var result = await emailService.SendPasswordResetAsync("demo@example.test", "https://example.test/reset?token=test-token");
+
+        Assert.False(result.Sent);
+        Assert.Null(result.DevelopmentPreviewUrl);
+    }
     private static AccountController CreateAccountController(ServiceProvider provider, string environmentName) =>
         new(
             provider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>(),
             provider.GetRequiredService<Microsoft.AspNetCore.Identity.SignInManager<ApplicationUser>>(),
             TestDb.Translation("en"),
             provider.GetRequiredService<ApplicationDbContext>(),
-            new TestEnvironment { EnvironmentName = environmentName });
+            new TestEnvironment { EnvironmentName = environmentName },
+            CreateEmailService(provider, environmentName));
 
+
+    private static IEmailService CreateEmailService(ServiceProvider provider, string environmentName)
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        return new EmailService(
+            config,
+            new TestEnvironment { EnvironmentName = environmentName },
+            provider.GetRequiredService<ILogger<EmailService>>());
+    }
     private static void ApplyControllerContext(ControllerBase controller, string userId)
     {
         var httpContext = TestDb.HttpContextFor(userId);

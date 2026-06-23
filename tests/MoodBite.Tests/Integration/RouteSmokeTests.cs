@@ -20,6 +20,7 @@ public class RouteSmokeTests : IClassFixture<MoodBiteWebApplicationFactory>
         { "/Account/Login", HttpStatusCode.OK },
         { "/Account/Register", HttpStatusCode.OK },
         { "/Account/ForgotPassword", HttpStatusCode.OK },
+        { "/health", HttpStatusCode.OK },
         { "/Diets", HttpStatusCode.OK },
         { "/Diets/Detail/mediterranean", HttpStatusCode.OK },
         { "/Error/404", HttpStatusCode.NotFound },

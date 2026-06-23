@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MoodBite.Data;
@@ -14,6 +15,7 @@ namespace MoodBite.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
+    [EnableRateLimiting("ai")]
     public class ChatController : ControllerBase
     {
         private readonly GeminiService _geminiService;
@@ -22,7 +24,7 @@ namespace MoodBite.Controllers
         private readonly TranslationService _t;
         private readonly ILogger<ChatController> _logger;
 
-        // Shadda-free keywords — diacritics are stripped from the user message before matching (Bug A fix)
+        // Shadda-free keywords - diacritics are stripped from the user message before matching (Bug A fix)
         private static readonly string[] _arKeywords =
             ["ما بدي", "ما أحب", "أكره", "بدون", "احذف", "شيل", "غير", "بدل", "ما عندي رغبة"];
 
@@ -152,7 +154,7 @@ namespace MoodBite.Controllers
             string updatedJson;
             try
             {
-                _logger.LogInformation("HandleFoodRemoval: calling Gemini to remove '{FoodName}'", foodName);
+                _logger.LogInformation("HandleFoodRemoval: calling Gemini to edit a meal plan item.");
                 updatedJson = CleanJson(await _geminiService.EditMealPlanAsync(mealPlan.PlanJson, instruction, lang));
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("الانتظار"))
@@ -188,9 +190,9 @@ namespace MoodBite.Controllers
             // Pass skipRateLimit=true because the rate-limiter was already set by the first call (Bug C fix).
             if (updatedJson.Contains(foodName, StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogWarning("HandleFoodRemoval: '{FoodName}' still present after first Gemini call — retrying with stricter prompt", foodName);
+                _logger.LogWarning("HandleFoodRemoval: requested item may still be present after first Gemini call; retrying with stricter prompt.");
                 var stricter = instruction +
-                    $" تحذير مهم: يجب أن لا يظهر {foodName} في أي مكان في الخطة — لا في nameAr ولا في nameEn ولا في أي حقل آخر.";
+                    $" تحذير مهم: يجب أن لا يظهر {foodName} في أي مكان في الخطة - لا في nameAr ولا في nameEn ولا في أي حقل آخر.";
                 try
                 {
                     var retried = CleanJson(await _geminiService.EditMealPlanAsync(mealPlan.PlanJson, stricter, lang, skipRateLimit: true));
@@ -202,12 +204,12 @@ namespace MoodBite.Controllers
                             updatedJson = retried;
                             _logger.LogInformation("HandleFoodRemoval: retry succeeded");
                         }
-                        catch (JsonException) { /* keep first result — at least it's valid JSON */ }
+                        catch (JsonException) { /* keep first result - at least it's valid JSON */ }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "HandleFoodRemoval: retry call failed — keeping first result");
+                    _logger.LogWarning(ex, "HandleFoodRemoval: retry call failed - keeping first result");
                 }
             }
 

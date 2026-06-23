@@ -1,4 +1,7 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using MoodBite.Data;
@@ -90,6 +93,17 @@ builder.Services.AddHttpContextAccessor();
 // In-memory cache (used by GeminiService rate limiter)
 builder.Services.AddMemoryCache();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    AddFixedWindowPolicy(options, "auth", builder.Configuration, "RateLimiting:Auth", 10, TimeSpan.FromMinutes(1));
+    AddFixedWindowPolicy(options, "ai", builder.Configuration, "RateLimiting:Ai", 20, TimeSpan.FromMinutes(1));
+    AddFixedWindowPolicy(options, "scanner", builder.Configuration, "RateLimiting:Scanner", 30, TimeSpan.FromMinutes(1));
+});
+
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database");
+
 // Custom services
 builder.Services.AddScoped<TranslationService>();
 builder.Services.AddScoped<MealPlanService>();
@@ -102,6 +116,7 @@ builder.Services.AddScoped<PatientContextService>();
 builder.Services.AddScoped<ClinicPatientAccessContextService>();
 builder.Services.AddScoped<ClinicNotesService>();
 builder.Services.AddScoped<ClinicAppointmentsService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // HttpClient — typed client for GeminiService (also registers GeminiService itself)
 builder.Services.AddHttpClient<GeminiService>(client =>
@@ -119,6 +134,8 @@ builder.Services.AddHttpClient("openfoodfacts", client =>
 
 var app = builder.Build();
 
+ProductionConfigurationValidator.Validate(app);
+
 // Configure the HTTP request pipeline
 if (!app.Environment.IsDevelopment())
 {
@@ -133,6 +150,7 @@ app.UseRouting();
 
 app.UseSession();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 // Seed database
@@ -152,6 +170,17 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = WriteHealthResponseAsync
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    ResponseWriter = WriteHealthResponseAsync
+});
+
 app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=AdminDashboard}/{action=Index}/{id?}");
@@ -167,6 +196,54 @@ app.MapControllerRoute(
 
 app.Run();
 
+
+static void AddFixedWindowPolicy(
+    RateLimiterOptions options,
+    string policyName,
+    IConfiguration configuration,
+    string sectionName,
+    int defaultPermitLimit,
+    TimeSpan defaultWindow)
+{
+    var permitLimit = GetOptionalPositiveInt(configuration, $"{sectionName}:PermitLimit", defaultPermitLimit);
+    var windowSeconds = GetOptionalPositiveInt(configuration, $"{sectionName}:WindowSeconds", (int)defaultWindow.TotalSeconds);
+    var window = TimeSpan.FromSeconds(windowSeconds);
+
+    options.AddPolicy(policyName, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(context),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = permitLimit,
+                Window = window,
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+}
+
+static string GetRateLimitPartitionKey(HttpContext context)
+{
+    var userId = context.User?.Identity?.IsAuthenticated == true
+        ? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+        : null;
+
+    if (!string.IsNullOrWhiteSpace(userId))
+    {
+        return $"user:{userId}";
+    }
+
+    var ip = context.Connection.RemoteIpAddress?.ToString();
+    return string.IsNullOrWhiteSpace(ip) ? "anonymous" : $"ip:{ip}";
+}
+
+static int GetOptionalPositiveInt(IConfiguration configuration, string key, int fallback) =>
+    int.TryParse(configuration[key], out var value) && value > 0 ? value : fallback;
+
+static async Task WriteHealthResponseAsync(HttpContext context, Microsoft.Extensions.Diagnostics.HealthChecks.HealthReport report)
+{
+    context.Response.ContentType = "application/json";
+    await context.Response.WriteAsJsonAsync(new { status = report.Status.ToString() });
+}
 static Dictionary<string, string?> BuildEnvironmentVariableAliases()
 {
     var aliases = new Dictionary<string, string?>();
@@ -179,6 +256,20 @@ static Dictionary<string, string?> BuildEnvironmentVariableAliases()
     AddAlias(aliases, "OPENFOODFACTS_USER_AGENT", "OpenFoodFacts:UserAgent");
     AddAlias(aliases, "OPENFOODFACTS_TIMEOUT_SECONDS", "OpenFoodFacts:TimeoutSeconds");
     AddAlias(aliases, "MOODBITE_SEED_DEMO_DATA", "MoodBite:SeedDemoData");
+    AddAlias(aliases, "EMAIL_PROVIDER", "Email:Provider");
+    AddAlias(aliases, "EMAIL_FROM", "Email:FromEmail");
+    AddAlias(aliases, "EMAIL_FROM_NAME", "Email:FromName");
+    AddAlias(aliases, "SMTP_HOST", "Email:Smtp:Host");
+    AddAlias(aliases, "SMTP_PORT", "Email:Smtp:Port");
+    AddAlias(aliases, "SMTP_USERNAME", "Email:Smtp:Username");
+    AddAlias(aliases, "SMTP_PASSWORD", "Email:Smtp:Password");
+    AddAlias(aliases, "SMTP_ENABLE_SSL", "Email:Smtp:EnableSsl");
+    AddAlias(aliases, "RATE_LIMIT_AUTH_PERMIT_LIMIT", "RateLimiting:Auth:PermitLimit");
+    AddAlias(aliases, "RATE_LIMIT_AUTH_WINDOW_SECONDS", "RateLimiting:Auth:WindowSeconds");
+    AddAlias(aliases, "RATE_LIMIT_AI_PERMIT_LIMIT", "RateLimiting:Ai:PermitLimit");
+    AddAlias(aliases, "RATE_LIMIT_AI_WINDOW_SECONDS", "RateLimiting:Ai:WindowSeconds");
+    AddAlias(aliases, "RATE_LIMIT_SCANNER_PERMIT_LIMIT", "RateLimiting:Scanner:PermitLimit");
+    AddAlias(aliases, "RATE_LIMIT_SCANNER_WINDOW_SECONDS", "RateLimiting:Scanner:WindowSeconds");
     AddAlias(aliases, "LOG_LEVEL_DEFAULT", "Logging:LogLevel:Default");
     AddAlias(aliases, "LOG_LEVEL_ASPNETCORE", "Logging:LogLevel:Microsoft.AspNetCore");
 

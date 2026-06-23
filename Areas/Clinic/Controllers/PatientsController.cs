@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MoodBite.Constants;
 using MoodBite.Data;
@@ -28,6 +29,7 @@ namespace MoodBite.Areas.Clinic.Controllers
         private readonly ClinicAppointmentsService _appointmentsService;
         private readonly TranslationService _t;
         private readonly ILogger<PatientsController> _logger;
+        private readonly IEmailService _emailService;
 
         public PatientsController(
             ApplicationDbContext db,
@@ -38,7 +40,8 @@ namespace MoodBite.Areas.Clinic.Controllers
             ClinicNotesService notesService,
             ClinicAppointmentsService appointmentsService,
             TranslationService t,
-            ILogger<PatientsController> logger)
+            ILogger<PatientsController> logger,
+            IEmailService emailService)
         {
             _db = db;
             _userManager = userManager;
@@ -49,6 +52,7 @@ namespace MoodBite.Areas.Clinic.Controllers
             _appointmentsService = appointmentsService;
             _t = t;
             _logger = logger;
+            _emailService = emailService;
         }
 
         [HttpGet]
@@ -371,6 +375,7 @@ namespace MoodBite.Areas.Clinic.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting("auth")]
         [Authorize(Roles = ApplicationRoles.ClinicAreaAccess)]
         public async Task<IActionResult> Invite(
             ClinicInvitePatientViewModel model,
@@ -397,8 +402,10 @@ namespace MoodBite.Areas.Clinic.Controllers
 
                 var email = model.Email.Trim();
                 var activeClinic = await _db.Clinics.AsNoTracking()
-                    .AnyAsync(c => c.Id == model.ClinicId && c.IsActive, cancellationToken);
-                if (!activeClinic)
+                    .Where(c => c.Id == model.ClinicId && c.IsActive)
+                    .Select(c => new { c.Id, c.Name })
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (activeClinic == null)
                 {
                     TempData["Error"] = _t.Get("clinic.notFound");
                     return RedirectToPatients(model.ClinicId);
@@ -433,11 +440,29 @@ namespace MoodBite.Areas.Clinic.Controllers
                 await _db.SaveChangesAsync(cancellationToken);
 
                 TempData["Success"] = _t.Get("clinic.invitations.created");
-                TempData["InvitationLink"] = Url.Action(
+                var invitationLink = Url.Action(
                     nameof(Accept),
                     "Patients",
                     new { area = "Clinic", token },
                     Request.Scheme);
+
+                if (!string.IsNullOrWhiteSpace(invitationLink))
+                {
+                    var emailResult = await _emailService.SendClinicInvitationAsync(
+                        email,
+                        activeClinic.Name,
+                        invitationLink,
+                        cancellationToken);
+
+                    if (!string.IsNullOrWhiteSpace(emailResult.DevelopmentPreviewUrl))
+                    {
+                        TempData["InvitationLink"] = emailResult.DevelopmentPreviewUrl;
+                    }
+                    else if (!emailResult.Sent)
+                    {
+                        TempData["Error"] = _t.Get("clinic.invitations.emailNotConfigured");
+                    }
+                }
             }
             catch (DbException ex)
             {
@@ -450,6 +475,7 @@ namespace MoodBite.Areas.Clinic.Controllers
 
         [HttpGet]
         [AllowAnonymous]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Accept(string? token, CancellationToken cancellationToken)
         {
             var model = await BuildAcceptInvitationModelAsync(token, cancellationToken);
@@ -458,6 +484,7 @@ namespace MoodBite.Areas.Clinic.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting("auth")]
         [Authorize]
         public async Task<IActionResult> AcceptInvitation(string token, CancellationToken cancellationToken)
         {

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MoodBite.Constants;
 using MoodBite.Data;
@@ -17,19 +18,22 @@ namespace MoodBite.Controllers
         private readonly TranslationService _t;
         private readonly ApplicationDbContext _db;
         private readonly IWebHostEnvironment _environment;
+        private readonly IEmailService _emailService;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             TranslationService t,
             ApplicationDbContext db,
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            IEmailService emailService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _t = t;
             _db = db;
             _environment = environment;
+            _emailService = emailService;
         }
 
         [HttpGet]
@@ -44,6 +48,7 @@ namespace MoodBite.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
             if (!ModelState.IsValid)
@@ -88,6 +93,7 @@ namespace MoodBite.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
             if (!ModelState.IsValid)
@@ -135,6 +141,7 @@ namespace MoodBite.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
             if (!ModelState.IsValid)
@@ -146,15 +153,20 @@ namespace MoodBite.Controllers
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
                 var callbackUrl = Url.Action("ResetPassword", "Account",
                     new { token, email = model.Email }, Request.Scheme);
-                if (_environment.IsDevelopment())
+
+                if (!string.IsNullOrWhiteSpace(callbackUrl))
                 {
-                    TempData["ResetUrl"] = callbackUrl;
+                    var emailResult = await _emailService.SendPasswordResetAsync(model.Email, callbackUrl);
+                    if (!string.IsNullOrWhiteSpace(emailResult.DevelopmentPreviewUrl))
+                    {
+                        TempData["ResetUrl"] = emailResult.DevelopmentPreviewUrl;
+                    }
                 }
             }
 
             TempData["Message"] = _environment.IsDevelopment()
                 ? "إذا كان البريد الإلكتروني موجوداً، سيظهر رابط الإعادة هنا في بيئة التطوير فقط. / If the email exists, the reset link appears here in Development only."
-                : "إذا كان البريد الإلكتروني موجوداً، سيتم إرسال رابط الإعادة. / If the email exists, a reset link has been sent.";
+                : "إذا كان البريد الإلكتروني موجوداً، سيتم إرسال رابط الإعادة عند تفعيل مزود البريد. / If the email exists, a reset link will be sent when email delivery is configured.";
             return RedirectToAction("ForgotPasswordConfirmation");
         }
 

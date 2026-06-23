@@ -676,6 +676,7 @@ namespace MoodBite.Services
             ["clinic.mealPlans.invalidJson"] = new() { ["ar"] = "محتوى الخطة ليس JSON صالحاً.", ["en"] = "Plan content is not valid JSON." },
             ["clinic.invitations.pending"] = new() { ["ar"] = "دعوات معلقة", ["en"] = "Pending Invitations" },
             ["clinic.invitations.created"] = new() { ["ar"] = "تم إنشاء دعوة المريض", ["en"] = "Patient invitation created" },
+            ["clinic.invitations.emailNotConfigured"] = new() { ["ar"] = "تم إنشاء الدعوة، لكن إرسال البريد غير مفعّل حالياً.", ["en"] = "Invitation created, but email delivery is not configured yet." },
             ["clinic.invitations.shareLink"] = new() { ["ar"] = "رابط الدعوة", ["en"] = "Invitation Link" },
             ["clinic.invitations.shareLinkBody"] = new() { ["ar"] = "انسخ هذا الرابط وأرسله للمريض عبر قناة آمنة. لا يتم إرسال بريد إلكتروني في هذه المرحلة.", ["en"] = "Copy this link and send it to the patient through a safe channel. Email delivery is not enabled in this phase." },
             ["clinic.invitations.none"] = new() { ["ar"] = "لا توجد دعوات مرضى بعد.", ["en"] = "No patient invitations yet." },

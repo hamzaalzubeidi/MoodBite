@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MoodBite.Data;
 using MoodBite.Models;
@@ -10,6 +11,7 @@ using System.Text.Json;
 namespace MoodBite.Controllers
 {
     [Authorize]
+    [EnableRateLimiting("scanner")]
     public class ScannerController : Controller
     {
         private readonly ApplicationDbContext _db;
