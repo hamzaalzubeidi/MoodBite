@@ -13,8 +13,14 @@ namespace MoodBite.Areas.Admin.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly TranslationService _t;
+        private readonly IAuditLogService _audit;
 
-        public AdminRecipesController(ApplicationDbContext db, TranslationService t) { _db = db; _t = t; }
+        public AdminRecipesController(ApplicationDbContext db, TranslationService t, IAuditLogService audit)
+        {
+            _db = db;
+            _t = t;
+            _audit = audit;
+        }
 
         public async Task<IActionResult> Index(bool? pending)
         {
@@ -30,7 +36,18 @@ namespace MoodBite.Areas.Admin.Controllers
         public async Task<IActionResult> Approve(int id)
         {
             var recipe = await _db.CommunityRecipes.FindAsync(id);
-            if (recipe != null) { recipe.IsApproved = true; await _db.SaveChangesAsync(); }
+            if (recipe != null)
+            {
+                recipe.IsApproved = true;
+                await _db.SaveChangesAsync();
+                await _audit.LogAsync(
+                    "admin.recipes.approved",
+                    "CommunityRecipe",
+                    recipe.Id.ToString(),
+                    targetUserId: recipe.UserId,
+                    summary: "Admin approved community recipe.",
+                    metadata: new { recipe.IsApproved });
+            }
             TempData["Success"] = _t.Get("admin.recipeApproved");
             return RedirectToAction("Index");
         }
@@ -40,7 +57,18 @@ namespace MoodBite.Areas.Admin.Controllers
         public async Task<IActionResult> Reject(int id)
         {
             var recipe = await _db.CommunityRecipes.FindAsync(id);
-            if (recipe != null) { _db.CommunityRecipes.Remove(recipe); await _db.SaveChangesAsync(); }
+            if (recipe != null)
+            {
+                var recipeOwnerId = recipe.UserId;
+                _db.CommunityRecipes.Remove(recipe);
+                await _db.SaveChangesAsync();
+                await _audit.LogAsync(
+                    "admin.recipes.rejected",
+                    "CommunityRecipe",
+                    id.ToString(),
+                    targetUserId: recipeOwnerId,
+                    summary: "Admin rejected community recipe.");
+            }
             TempData["Success"] = _t.Get("admin.recipeRejected");
             return RedirectToAction("Index");
         }

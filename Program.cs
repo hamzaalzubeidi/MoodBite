@@ -117,6 +117,7 @@ builder.Services.AddScoped<ClinicPatientAccessContextService>();
 builder.Services.AddScoped<ClinicNotesService>();
 builder.Services.AddScoped<ClinicAppointmentsService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // HttpClient — typed client for GeminiService (also registers GeminiService itself)
 builder.Services.AddHttpClient<GeminiService>(client =>

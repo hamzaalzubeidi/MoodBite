@@ -43,7 +43,7 @@ MoodBite is market-demo ready locally and closer to production foundation after 
 - [ ] Configure automated SQL Server backups and test restore.
 - [ ] Define retention and deletion policies for health, scan, note, and appointment data.
 - [ ] Complete privacy, consent, and legal review for target markets.
-- [ ] Add audit logs for admin actions, clinic membership changes, patient links, notes, and appointment changes.
+- [x] Add audit logs for admin actions, clinic membership changes, patient links, notes, and appointment changes.
 - [ ] Harden admin accounts with strong passwords and MFA or equivalent controls.
 
 ## Reliability And Operations
@@ -61,3 +61,11 @@ MoodBite is market-demo ready locally and closer to production foundation after 
 - [ ] Verify Arabic RTL and English LTR layouts on desktop and mobile.
 - [ ] Verify access denied pages are friendly and tenant boundaries are enforced.
 - [ ] Run `dotnet build MoodBite.slnx`, `dotnet test MoodBite.slnx --no-restore`, and `git diff --check`.
+## Audit And Admin Hardening
+
+- [x] Reused migration `20260623121245_AddAuditLogs`; database update is still pending until explicitly run.
+- [x] Added safe audit service with bounded metadata and sensitive key/value redaction.
+- [x] Added Admin and ClinicOwner audit log pages without metadata exposure.
+- [x] Added role-boundary tests for Admin, Patient, ClinicOwner, Dietitian, and ClinicStaff routes.
+- [ ] Define audit retention, export, and review procedures before paid production.
+- [ ] Add centralized monitoring/alerting for suspicious admin and clinic actions.

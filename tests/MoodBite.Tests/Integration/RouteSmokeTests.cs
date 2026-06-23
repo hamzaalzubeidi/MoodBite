@@ -56,7 +56,8 @@ public class RouteSmokeTests : IClassFixture<MoodBiteWebApplicationFactory>
         "/Admin/AdminUsers",
         "/Admin/AdminClinics",
         "/Admin/AdminDiets",
-        "/Admin/AdminRecipes"
+        "/Admin/AdminRecipes",
+        "/Admin/AdminAuditLogs"
     };
 
     public static TheoryData<string> ClinicRoutes => new()
@@ -67,7 +68,8 @@ public class RouteSmokeTests : IClassFixture<MoodBiteWebApplicationFactory>
         "/Clinic/ClinicStaff",
         "/Clinic/Patients",
         "/Clinic/MealPlans",
-        "/Clinic/Appointments"
+        "/Clinic/Appointments",
+        "/Clinic/AuditLogs"
     };
 
     [Theory]
@@ -173,9 +175,43 @@ public class RouteSmokeTests : IClassFixture<MoodBiteWebApplicationFactory>
 
         var response = await client.GetAsync(path);
 
-        Assert.True(response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Redirect);
+        AssertBlockedByAuthorization(response);
     }
 
+
+    [Theory]
+    [MemberData(nameof(ClinicRoutes))]
+    public async Task Patient_gets_forbidden_for_clinic_routes(string path)
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync("patient-route", ApplicationRoles.User);
+
+        var response = await client.GetAsync(path);
+
+        AssertBlockedByAuthorization(response);
+    }
+
+    [Theory]
+    [InlineData("/Clinic/ClinicSettings")]
+    [InlineData("/Clinic/ClinicStaff")]
+    [InlineData("/Clinic/AuditLogs")]
+    public async Task Dietitian_and_staff_are_blocked_from_owner_only_clinic_pages(string path)
+    {
+        var dietitian = await _factory.CreateAuthenticatedClientAsync("dietitian-route", ApplicationRoles.Dietitian);
+        var staff = await _factory.CreateAuthenticatedClientAsync("staff-route", ApplicationRoles.ClinicStaff);
+
+        AssertBlockedByAuthorization(await dietitian.GetAsync(path));
+        AssertBlockedByAuthorization(await staff.GetAsync(path));
+    }
+    private static void AssertBlockedByAuthorization(HttpResponseMessage response)
+    {
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return;
+        }
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/Account/AccessDenied", RedirectPath(response));
+    }
     private static string? RedirectPath(HttpResponseMessage response)
     {
         var location = response.Headers.Location;

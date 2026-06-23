@@ -34,6 +34,7 @@ namespace MoodBite.Data
         public DbSet<ClinicInvitation> ClinicInvitations { get; set; }
         public DbSet<ClinicalNote> ClinicalNotes { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -373,6 +374,52 @@ namespace MoodBite.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
+
+            builder.Entity<AuditLog>(entity =>
+            {
+                entity.HasIndex(a => a.CreatedAtUtc);
+                entity.HasIndex(a => a.ActorUserId);
+                entity.HasIndex(a => a.ActorEmail);
+                entity.HasIndex(a => new { a.ClinicId, a.CreatedAtUtc });
+                entity.HasIndex(a => new { a.TargetEntityType, a.TargetEntityId });
+                entity.HasIndex(a => new { a.Action, a.CreatedAtUtc });
+
+                entity.Property(a => a.ActorEmail)
+                    .HasMaxLength(256);
+
+                entity.Property(a => a.ActorUserId)
+                    .HasMaxLength(450);
+
+                entity.Property(a => a.ActorRoles)
+                    .HasMaxLength(256);
+
+                entity.Property(a => a.TargetUserId)
+                    .HasMaxLength(450);
+
+                entity.Property(a => a.TargetEntityType)
+                    .HasMaxLength(80)
+                    .IsRequired();
+
+                entity.Property(a => a.TargetEntityId)
+                    .HasMaxLength(120);
+
+                entity.Property(a => a.Action)
+                    .HasMaxLength(120)
+                    .IsRequired();
+
+                entity.Property(a => a.Summary)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(a => a.IpAddress)
+                    .HasMaxLength(64);
+
+                entity.Property(a => a.UserAgent)
+                    .HasMaxLength(500);
+
+                entity.Property(a => a.MetadataJson)
+                    .HasMaxLength(2000);
+            });
             builder.Entity<Appointment>(entity =>
             {
                 entity.ToTable("Appointments", table =>

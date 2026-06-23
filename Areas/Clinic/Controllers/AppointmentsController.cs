@@ -18,19 +18,22 @@ namespace MoodBite.Areas.Clinic.Controllers
         private readonly ClinicAppointmentsService _appointmentsService;
         private readonly TranslationService _t;
         private readonly ILogger<AppointmentsController> _logger;
+        private readonly IAuditLogService _audit;
 
         public AppointmentsController(
             ApplicationDbContext db,
             ClinicPatientAccessContextService accessContext,
             ClinicAppointmentsService appointmentsService,
             TranslationService t,
-            ILogger<AppointmentsController> logger)
+            ILogger<AppointmentsController> logger,
+            IAuditLogService audit)
         {
             _db = db;
             _accessContext = accessContext;
             _appointmentsService = appointmentsService;
             _t = t;
             _logger = logger;
+            _audit = audit;
         }
 
         [HttpGet("/Clinic/Appointments")]
@@ -143,6 +146,15 @@ namespace MoodBite.Areas.Clinic.Controllers
             }
 
             TempData["Success"] = _t.Get("clinic.appointments.saved");
+            await _audit.LogAsync(
+                "clinic.appointments.created",
+                "Appointment",
+                appointment.Id.ToString(),
+                clinic.Id,
+                appointment.PatientId,
+                "Appointment created.",
+                new { appointment.Status, appointment.VisitType, appointment.StartsAt },
+                cancellationToken);
             return RedirectToAction(nameof(Details), new { id = appointment.Id, clinicId = clinic.Id });
         }
 
@@ -204,8 +216,16 @@ namespace MoodBite.Areas.Clinic.Controllers
             }
 
             await _appointmentsService.UpdateAppointmentAsync(appointment, input, cancellationToken);
+            await _audit.LogAsync(
+                "clinic.appointments.updated",
+                "Appointment",
+                appointment.Id.ToString(),
+                clinic.Id,
+                appointment.PatientId,
+                "Appointment updated.",
+                new { appointment.Status, appointment.VisitType, appointment.StartsAt },
+                cancellationToken);
             TempData["Success"] = _t.Get("clinic.appointments.saved");
-
             return RedirectToAction(nameof(Details), new { id = appointment.Id, clinicId = clinic.Id });
         }
 

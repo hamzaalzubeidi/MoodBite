@@ -15,17 +15,20 @@ namespace MoodBite.Areas.Clinic.Controllers
         private readonly ClinicNotesService _notesService;
         private readonly TranslationService _t;
         private readonly ILogger<NotesController> _logger;
+        private readonly IAuditLogService _audit;
 
         public NotesController(
             ClinicPatientAccessContextService accessContext,
             ClinicNotesService notesService,
             TranslationService t,
-            ILogger<NotesController> logger)
+            ILogger<NotesController> logger,
+            IAuditLogService audit)
         {
             _accessContext = accessContext;
             _notesService = notesService;
             _t = t;
             _logger = logger;
+            _audit = audit;
         }
 
         [HttpGet("/Clinic/Patients/{patientId}/Notes")]
@@ -115,7 +118,17 @@ namespace MoodBite.Areas.Clinic.Controllers
                 return Unauthorized();
             }
 
+            await _audit.LogAsync(
+                "clinic.notes.created",
+                "ClinicalNote",
+                note.Id.ToString(),
+                access.ClinicId,
+                access.PatientId,
+                "Clinical note created.",
+                new { note.NoteType, isPrivate = !note.IsSharedWithPatient },
+                cancellationToken);
             TempData["Success"] = _t.Get("clinic.notes.saved");
+
             return RedirectToAction(
                 nameof(Details),
                 new { patientId = access.PatientId, id = note.Id, clinicId = access.ClinicId });
@@ -172,6 +185,16 @@ namespace MoodBite.Areas.Clinic.Controllers
             }
 
             await _notesService.UpdateNoteAsync(note, input, cancellationToken);
+            await _audit.LogAsync(
+                "clinic.notes.updated",
+                "ClinicalNote",
+                note.Id.ToString(),
+                access.ClinicId,
+                access.PatientId,
+                "Clinical note updated.",
+                new { note.NoteType },
+                cancellationToken);
+
             TempData["Success"] = _t.Get("clinic.notes.saved");
 
             return RedirectToAction(
@@ -199,6 +222,15 @@ namespace MoodBite.Areas.Clinic.Controllers
                 return NotFound();
             }
 
+            await _audit.LogAsync(
+                "clinic.notes.viewed",
+                "ClinicalNote",
+                note.Id.ToString(),
+                access.ClinicId,
+                access.PatientId,
+                "Clinical note viewed.",
+                new { note.NoteType },
+                cancellationToken);
             return View(_notesService.BuildDetailsModel(access, patient, note));
         }
 
@@ -223,6 +255,15 @@ namespace MoodBite.Areas.Clinic.Controllers
             }
 
             await _notesService.ArchiveNoteAsync(note, cancellationToken);
+            await _audit.LogAsync(
+                "clinic.notes.archived",
+                "ClinicalNote",
+                note.Id.ToString(),
+                access.ClinicId,
+                access.PatientId,
+                "Clinical note archived.",
+                new { note.NoteType },
+                cancellationToken);
             TempData["Success"] = _t.Get("clinic.notes.deleted");
 
             return RedirectToAction(

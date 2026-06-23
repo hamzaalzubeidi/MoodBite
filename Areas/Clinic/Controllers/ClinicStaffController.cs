@@ -28,6 +28,7 @@ namespace MoodBite.Areas.Clinic.Controllers
         private readonly ClinicAccessService _clinicAccess;
         private readonly TranslationService _t;
         private readonly ILogger<ClinicStaffController> _logger;
+        private readonly IAuditLogService _audit;
 
         public ClinicStaffController(
             ApplicationDbContext db,
@@ -36,7 +37,8 @@ namespace MoodBite.Areas.Clinic.Controllers
             CurrentUserService currentUser,
             ClinicAccessService clinicAccess,
             TranslationService t,
-            ILogger<ClinicStaffController> logger)
+            ILogger<ClinicStaffController> logger,
+            IAuditLogService audit)
         {
             _db = db;
             _userManager = userManager;
@@ -45,6 +47,7 @@ namespace MoodBite.Areas.Clinic.Controllers
             _clinicAccess = clinicAccess;
             _t = t;
             _logger = logger;
+            _audit = audit;
         }
 
         [HttpGet]
@@ -55,7 +58,7 @@ namespace MoodBite.Areas.Clinic.Controllers
                 var resolvedClinicId = await ResolveManageableClinicIdAsync(clinicId, cancellationToken);
                 if (!resolvedClinicId.HasValue)
                 {
-                    return clinicId.HasValue ? Forbid() : View(new ClinicStaffIndexViewModel());
+                    return Forbid();
                 }
 
                 var clinicName = await _db.Clinics.AsNoTracking()
@@ -125,6 +128,7 @@ namespace MoodBite.Areas.Clinic.Controllers
                 var member = await _db.ClinicMembers
                     .FirstOrDefaultAsync(m => m.ClinicId == model.ClinicId && m.UserId == user.Id, cancellationToken);
 
+                var isNewMember = member == null;
                 if (member == null)
                 {
                     _db.ClinicMembers.Add(new ClinicMember
@@ -144,6 +148,15 @@ namespace MoodBite.Areas.Clinic.Controllers
 
                 await EnsureIdentityRoleAsync(user, model.Role);
                 await _db.SaveChangesAsync(cancellationToken);
+                await _audit.LogAsync(
+                    isNewMember ? "clinic.staff.added" : "clinic.staff.updated",
+                    "ClinicMember",
+                    member?.Id.ToString(),
+                    model.ClinicId,
+                    user.Id,
+                    isNewMember ? "Clinic staff member added." : "Clinic staff member updated/reactivated.",
+                    new { role = model.Role, isActive = true },
+                    cancellationToken);
 
                 TempData["Success"] = _t.Get("clinic.staff.added");
             }
@@ -170,6 +183,7 @@ namespace MoodBite.Areas.Clinic.Controllers
 
                 var member = await _db.ClinicMembers
                     .FirstOrDefaultAsync(m => m.Id == id && m.ClinicId == clinicId, cancellationToken);
+                var isNewMember = member == null;
                 if (member == null)
                 {
                     TempData["Error"] = _t.Get("clinic.memberNotFound");
@@ -193,6 +207,15 @@ namespace MoodBite.Areas.Clinic.Controllers
 
                 member.IsActive = !member.IsActive;
                 await _db.SaveChangesAsync(cancellationToken);
+                await _audit.LogAsync(
+                    member.IsActive ? "clinic.staff.activated" : "clinic.staff.deactivated",
+                    "ClinicMember",
+                    member.Id.ToString(),
+                    clinicId,
+                    member.UserId,
+                    member.IsActive ? "Clinic staff member activated." : "Clinic staff member deactivated.",
+                    new { member.Role, member.IsActive },
+                    cancellationToken);
 
                 TempData["Success"] = member.IsActive
                     ? _t.Get("clinic.staff.activated")

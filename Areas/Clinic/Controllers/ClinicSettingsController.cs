@@ -18,19 +18,22 @@ namespace MoodBite.Areas.Clinic.Controllers
         private readonly ClinicAccessService _clinicAccess;
         private readonly TranslationService _t;
         private readonly ILogger<ClinicSettingsController> _logger;
+        private readonly IAuditLogService _audit;
 
         public ClinicSettingsController(
             ApplicationDbContext db,
             CurrentUserService currentUser,
             ClinicAccessService clinicAccess,
             TranslationService t,
-            ILogger<ClinicSettingsController> logger)
+            ILogger<ClinicSettingsController> logger,
+            IAuditLogService audit)
         {
             _db = db;
             _currentUser = currentUser;
             _clinicAccess = clinicAccess;
             _t = t;
             _logger = logger;
+            _audit = audit;
         }
 
         [HttpGet]
@@ -41,7 +44,7 @@ namespace MoodBite.Areas.Clinic.Controllers
                 var resolvedClinicId = await ResolveManageableClinicIdAsync(clinicId, cancellationToken);
                 if (!resolvedClinicId.HasValue)
                 {
-                    return clinicId.HasValue ? Forbid() : View(new ClinicSettingsViewModel());
+                    return Forbid();
                 }
 
                 var canEditActiveStatus = _currentUser.Principal?.IsInRole(ApplicationRoles.Admin) == true;
@@ -113,6 +116,14 @@ namespace MoodBite.Areas.Clinic.Controllers
                 }
 
                 await _db.SaveChangesAsync(cancellationToken);
+                await _audit.LogAsync(
+                    "clinic.settings.updated",
+                    "Clinic",
+                    clinic.Id.ToString(),
+                    clinic.Id,
+                    summary: "Clinic settings updated.",
+                    metadata: new { clinic.IsActive },
+                    cancellationToken: cancellationToken);
                 TempData["Success"] = _t.Get("clinic.settings.updated");
             }
             catch (DbException ex)

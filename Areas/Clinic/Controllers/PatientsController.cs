@@ -30,6 +30,7 @@ namespace MoodBite.Areas.Clinic.Controllers
         private readonly TranslationService _t;
         private readonly ILogger<PatientsController> _logger;
         private readonly IEmailService _emailService;
+        private readonly IAuditLogService _audit;
 
         public PatientsController(
             ApplicationDbContext db,
@@ -41,7 +42,8 @@ namespace MoodBite.Areas.Clinic.Controllers
             ClinicAppointmentsService appointmentsService,
             TranslationService t,
             ILogger<PatientsController> logger,
-            IEmailService emailService)
+            IEmailService emailService,
+            IAuditLogService audit)
         {
             _db = db;
             _userManager = userManager;
@@ -53,6 +55,7 @@ namespace MoodBite.Areas.Clinic.Controllers
             _t = t;
             _logger = logger;
             _emailService = emailService;
+            _audit = audit;
         }
 
         [HttpGet]
@@ -303,6 +306,16 @@ namespace MoodBite.Areas.Clinic.Controllers
                     model.CalorieTarget ?? 2000,
                     model.WaterTarget);
 
+                await _audit.LogAsync(
+                    "clinic.patients.viewed",
+                    "ClinicPatient",
+                    patientLink.Id.ToString(),
+                    patientLink.ClinicId,
+                    patientLink.PatientId,
+                    "Clinic patient record viewed.",
+                    new { patientLink.Status, patientLink.ConsentGranted },
+                    cancellationToken);
+
                 return View(model);
             }
             catch (DbException ex)
@@ -342,16 +355,18 @@ namespace MoodBite.Areas.Clinic.Controllers
                 var link = await _db.ClinicPatients
                     .FirstOrDefaultAsync(p => p.ClinicId == model.ClinicId && p.PatientId == user.Id, cancellationToken);
 
+                var isNewLink = link == null;
                 if (link == null)
                 {
-                    _db.ClinicPatients.Add(new ClinicPatient
+                    link = new ClinicPatient
                     {
                         ClinicId = model.ClinicId,
                         PatientId = user.Id,
                         Status = "active",
                         ConsentGranted = true,
                         ConsentGrantedAt = DateTime.UtcNow
-                    });
+                    };
+                    _db.ClinicPatients.Add(link);
                 }
                 else
                 {
@@ -362,6 +377,15 @@ namespace MoodBite.Areas.Clinic.Controllers
                 }
 
                 await _db.SaveChangesAsync(cancellationToken);
+                await _audit.LogAsync(
+                    "clinic.patients.linked",
+                    "ClinicPatient",
+                    link.Id.ToString(),
+                    model.ClinicId,
+                    user.Id,
+                    isNewLink ? "Patient linked to clinic." : "Clinic patient link reactivated.",
+                    new { link.Status, link.ConsentGranted },
+                    cancellationToken);
                 TempData["Success"] = _t.Get("clinic.patients.linked");
             }
             catch (DbException ex)
@@ -426,7 +450,7 @@ namespace MoodBite.Areas.Clinic.Controllers
                 }
 
                 var token = GenerateInvitationToken();
-                _db.ClinicInvitations.Add(new ClinicInvitation
+                var newInvitation = new ClinicInvitation
                 {
                     ClinicId = model.ClinicId,
                     Email = email,
@@ -435,9 +459,18 @@ namespace MoodBite.Areas.Clinic.Controllers
                     Status = "pending",
                     InvitedByUserId = currentUserId,
                     ExpiresAt = DateTime.UtcNow.AddDays(7)
-                });
+                };
+                _db.ClinicInvitations.Add(newInvitation);
 
                 await _db.SaveChangesAsync(cancellationToken);
+                await _audit.LogAsync(
+                    "clinic.patients.invited",
+                    "ClinicInvitation",
+                    newInvitation.Id.ToString(),
+                    model.ClinicId,
+                    summary: "Patient invitation created.",
+                    metadata: new { newInvitation.InvitationType, newInvitation.Status },
+                    cancellationToken: cancellationToken);
 
                 TempData["Success"] = _t.Get("clinic.invitations.created");
                 var invitationLink = Url.Action(
@@ -587,6 +620,15 @@ namespace MoodBite.Areas.Clinic.Controllers
                 invitation.AcceptedAt = DateTime.UtcNow;
 
                 await _db.SaveChangesAsync(cancellationToken);
+                await _audit.LogAsync(
+                    "clinic.patients.invitationAccepted",
+                    "ClinicInvitation",
+                    invitation.Id.ToString(),
+                    invitation.ClinicId,
+                    user.Id,
+                    "Patient invitation accepted.",
+                    new { invitation.Status },
+                    cancellationToken);
 
                 return View(nameof(Accept), new ClinicAcceptInvitationViewModel
                 {

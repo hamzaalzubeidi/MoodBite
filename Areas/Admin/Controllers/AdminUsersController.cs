@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using MoodBite.Constants;
 using MoodBite.Data;
 using MoodBite.Models;
+using MoodBite.Services;
 
 namespace MoodBite.Areas.Admin.Controllers
 {
@@ -14,11 +15,13 @@ namespace MoodBite.Areas.Admin.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IAuditLogService _audit;
 
-        public AdminUsersController(ApplicationDbContext db, UserManager<ApplicationUser> userManager)
+        public AdminUsersController(ApplicationDbContext db, UserManager<ApplicationUser> userManager, IAuditLogService audit)
         {
             _db = db;
             _userManager = userManager;
+            _audit = audit;
         }
 
         public async Task<IActionResult> Index()
@@ -41,6 +44,13 @@ namespace MoodBite.Areas.Admin.Controllers
             {
                 user.IsActive = !user.IsActive;
                 await _userManager.UpdateAsync(user);
+                await _audit.LogAsync(
+                    user.IsActive ? "admin.users.activated" : "admin.users.deactivated",
+                    "ApplicationUser",
+                    user.Id,
+                    targetUserId: user.Id,
+                    summary: user.IsActive ? "Admin activated user." : "Admin deactivated user.",
+                    metadata: new { user.IsActive });
                 TempData["Success"] = user.IsActive ? "تم تفعيل الحساب / Account activated" : "تم تعطيل الحساب / Account deactivated";
             }
             return RedirectToAction("Index");
@@ -60,8 +70,21 @@ namespace MoodBite.Areas.Admin.Controllers
             if (user == null) return NotFound();
 
             var currentRoles = await _userManager.GetRolesAsync(user);
+            if (currentRoles.Count == 1 && string.Equals(currentRoles[0], newRole, StringComparison.Ordinal))
+            {
+                TempData["Error"] = "المستخدم لديه هذا الدور بالفعل / User already has this role";
+                return RedirectToAction("Index");
+            }
+
             await _userManager.RemoveFromRolesAsync(user, currentRoles);
             await _userManager.AddToRoleAsync(user, newRole);
+            await _audit.LogAsync(
+                "admin.users.roleChanged",
+                "ApplicationUser",
+                user.Id,
+                targetUserId: user.Id,
+                summary: "Admin changed user role.",
+                metadata: new { previousRoles = string.Join(",", currentRoles), newRole });
 
             TempData["Success"] = $"تم تغيير دور المستخدم إلى {newRole} / Role changed to {newRole}";
             return RedirectToAction("Index");

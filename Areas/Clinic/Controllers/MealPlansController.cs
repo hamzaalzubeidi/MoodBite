@@ -22,6 +22,7 @@ namespace MoodBite.Areas.Clinic.Controllers
         private readonly GeminiService _geminiService;
         private readonly TranslationService _t;
         private readonly ILogger<MealPlansController> _logger;
+        private readonly IAuditLogService _audit;
 
         public MealPlansController(
             ApplicationDbContext db,
@@ -30,7 +31,8 @@ namespace MoodBite.Areas.Clinic.Controllers
             MealPlanService mealPlanService,
             GeminiService geminiService,
             TranslationService t,
-            ILogger<MealPlansController> logger)
+            ILogger<MealPlansController> logger,
+            IAuditLogService audit)
         {
             _db = db;
             _currentUser = currentUser;
@@ -39,6 +41,7 @@ namespace MoodBite.Areas.Clinic.Controllers
             _geminiService = geminiService;
             _t = t;
             _logger = logger;
+            _audit = audit;
         }
 
         [HttpGet("/Clinic/MealPlans")]
@@ -221,6 +224,15 @@ namespace MoodBite.Areas.Clinic.Controllers
 
             _db.MealPlans.Add(plan);
             await _db.SaveChangesAsync(cancellationToken);
+            await _audit.LogAsync(
+                "clinic.mealPlans.created",
+                "MealPlan",
+                plan.Id.ToString(),
+                access.ClinicId,
+                access.PatientId,
+                "Clinic meal plan created.",
+                new { plan.PlanType, plan.DietType, plan.CalorieTarget, saveResult.UsedFallback },
+                cancellationToken);
 
             TempData["Success"] = saveResult.UsedFallback
                 ? _t.Get("clinic.mealPlans.generatedWithFallback")
@@ -301,6 +313,15 @@ namespace MoodBite.Areas.Clinic.Controllers
             plan.PlanJson = normalizedPlanJson;
 
             await _db.SaveChangesAsync(cancellationToken);
+            await _audit.LogAsync(
+                "clinic.mealPlans.updated",
+                "MealPlan",
+                plan.Id.ToString(),
+                access.ClinicId,
+                access.PatientId,
+                "Clinic meal plan updated.",
+                new { plan.PlanType, plan.DietType, plan.CalorieTarget },
+                cancellationToken);
             TempData["Success"] = _t.Get("clinic.mealPlans.saved");
 
             return RedirectToAction(
@@ -386,6 +407,15 @@ namespace MoodBite.Areas.Clinic.Controllers
 
             _db.MealPlans.Add(assignedPlan);
             await _db.SaveChangesAsync(cancellationToken);
+            await _audit.LogAsync(
+                "clinic.mealPlans.assigned",
+                "MealPlan",
+                assignedPlan.Id.ToString(),
+                access.ClinicId,
+                assignedPlan.UserId,
+                "Clinic meal plan assigned to patient.",
+                new { sourcePlanId = plan.Id, assignedPlan.PlanType, assignedPlan.DietType, assignedPlan.CalorieTarget },
+                cancellationToken);
 
             TempData["Success"] = _t.Get("clinic.mealPlans.assigned");
             return RedirectToAction(

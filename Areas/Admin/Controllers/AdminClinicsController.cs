@@ -23,19 +23,22 @@ namespace MoodBite.Areas.Admin.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly TranslationService _t;
         private readonly ILogger<AdminClinicsController> _logger;
+        private readonly IAuditLogService _audit;
 
         public AdminClinicsController(
             ApplicationDbContext db,
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
             TranslationService t,
-            ILogger<AdminClinicsController> logger)
+            ILogger<AdminClinicsController> logger,
+            IAuditLogService audit)
         {
             _db = db;
             _userManager = userManager;
             _roleManager = roleManager;
             _t = t;
             _logger = logger;
+            _audit = audit;
         }
 
         [HttpGet]
@@ -97,6 +100,14 @@ namespace MoodBite.Areas.Admin.Controllers
 
                 _db.Clinics.Add(clinic);
                 await _db.SaveChangesAsync(cancellationToken);
+                await _audit.LogAsync(
+                    "admin.clinics.created",
+                    "Clinic",
+                    clinic.Id.ToString(),
+                    clinic.Id,
+                    summary: "Admin created clinic.",
+                    metadata: new { clinic.IsActive },
+                    cancellationToken: cancellationToken);
 
                 TempData["Success"] = _t.Get("clinic.admin.created");
             }
@@ -159,6 +170,15 @@ namespace MoodBite.Areas.Admin.Controllers
 
                 await EnsureIdentityRoleAsync(user, ApplicationRoles.ClinicOwner);
                 await _db.SaveChangesAsync(cancellationToken);
+                await _audit.LogAsync(
+                    "admin.clinics.ownerAssigned",
+                    "ClinicMember",
+                    member?.Id.ToString(),
+                    model.ClinicId,
+                    user.Id,
+                    "Admin assigned clinic owner.",
+                    new { role = ApplicationRoles.ClinicOwner, isActive = true },
+                    cancellationToken);
 
                 TempData["Success"] = _t.Get("clinic.admin.ownerAssigned");
             }
